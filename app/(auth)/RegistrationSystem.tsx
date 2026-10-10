@@ -10,6 +10,7 @@ import { signup } from '@/types/auth';
 
 export default function RegistrationSystem() {
   const [formData, setFormData] = useState<signup>({
+    customer_type: 'Sponsor',
     first_name: '',
     last_name: '',
     email: '',
@@ -92,7 +93,16 @@ export default function RegistrationSystem() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      await performSignup(formData);
+      // Check if customer type requires media files
+      const requiresMediaFiles = formData.customer_type === 'Lender';
+      
+      if (requiresMediaFiles) {
+        // Redirect to upload page for Lender
+        await performSignup(formData);
+      } else {
+        // Direct signup for Sponsor
+        await performSignup(formData);
+      }
     }
   };
 
@@ -112,6 +122,26 @@ export default function RegistrationSystem() {
           <p className="text-gray-600 text-sm mb-3">Let&apos;s get you all set up so you can access your account.</p>
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Customer Type Selection */}
+            <div className='relative'>
+              <label className="absolute -top-2 left-3 bg-white px-1 text-sm text-blue-600">
+                Account Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.customer_type}
+                onChange={(e) => setFormData({ ...formData, customer_type: e.target.value as 'Sponsor' | 'Lender' })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-full focus:ring-3 focus:ring-blue-500 focus:outline-0 appearance-none bg-white"
+              >
+                <option value="Sponsor">Sponsor - Property Owner</option>
+                <option value="Lender">Lender - Direct Financing</option>
+              </select>
+              {formData.customer_type === 'Lender' && (
+                <p className="text-sm text-blue-600 mt-1">
+                  ℹ️ You will be asked to upload verification documents in the next step.
+                </p>
+              )}
+            </div>
+
             {/* Name Fields */}
             <div className="grid lg:grid-cols-2 gap-3">
               <div className='relative'>

@@ -25,6 +25,7 @@ const authBootstrapEndpoints = [
   "/api/accounts/verify-otp/",
   "/api/accounts/forgot-password/",
   "/api/accounts/forgot-password/verify-otp/",
+  "/api/accounts/reset-password/",
   "/accounts/token/refresh/",
 ];
 
@@ -52,13 +53,21 @@ const getTokensFromLocalStorage = () => {
 const rawBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://charissa-intuitable-corroboratorily.ngrok-free.dev/";
 const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl : `${rawBaseUrl}/`;
 
+console.log("🔧 API Configuration:");
+console.log("  Raw Base URL:", rawBaseUrl);
+console.log("  Final Base URL:", baseUrl);
+console.log("  From .env:", process.env.NEXT_PUBLIC_BASE_URL);
+
+// Check if using ngrok
+const isNgrok = baseUrl.includes('ngrok');
+
 // Creating axios instance
 const api: AxiosInstance = axios.create({
   baseURL: baseUrl,
   withCredentials: true,
   headers: {
     Accept: "application/json",
-    "ngrok-skip-browser-warning": "true",
+    ...(isNgrok && { "ngrok-skip-browser-warning": "true" }), // Only add for ngrok
   },
 });
 
@@ -76,8 +85,16 @@ const executingRoutes = (token: string) => {
 // Attaching token in request interceptor
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-    config.headers.Accept = "application/json";
-    config.headers["ngrok-skip-browser-warning"] = "true";
+    // Only set Accept header if not sending FormData
+    if (!(config.data instanceof FormData)) {
+      config.headers.Accept = "application/json";
+    }
+    
+    // Only add ngrok header if using ngrok URL
+    if (isNgrok) {
+      config.headers["ngrok-skip-browser-warning"] = "true";
+    }
+    
     const { accessToken } = getTokensFromLocalStorage();
 
     if (isPublicEndpoint(config.url)) {

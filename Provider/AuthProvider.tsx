@@ -93,32 +93,94 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const signup = async (userData: signup) => {
     setSignupData(userData);
 
+    // Check if customer type requires media files but they're not provided
+    const requiresMediaFiles = userData.customer_type === 'Lender';
+    if (requiresMediaFiles && (!userData.media_files || userData.media_files.length === 0)) {
+      // Redirect to upload page for Lender
+      router.push("/register/upload");
+      return;
+    }
+
     try {
       setLoading(true);
-      const res = await api.post("/auth/signup/", {
-        first_name: userData.first_name?.trim(),
-        last_name: userData.last_name?.trim(),
-        email: userData.email?.trim(),
-        phone: userData.phone?.trim(),
-        password: userData.password,
-        confirm_password: userData.confirm_password,
+      
+      console.log("Starting signup with data:", {
+        customer_type: userData.customer_type,
+        email: userData.email,
+        has_files: !!(userData.media_files && userData.media_files.length > 0)
       });
 
-      console.log("Signup response:", res);
-      if (res.status === 200 || res.status === 201) {
-        const email = res.data?.data?.email || userData.email || null;
-        const newAuthState = {
-          email,
-          isAuthenticated: false,
-          from: "signup",
+      // Determine if we need to send as FormData (when media files present) or JSON
+      const hasMediaFiles = userData.media_files && userData.media_files.length > 0;
+
+      if (hasMediaFiles) {
+        // Use FormData for multipart/form-data submission (with media files)
+        const formData = new FormData();
+        formData.append("customer_type", userData.customer_type || "Sponsor");
+        formData.append("first_name", userData.first_name?.trim() || "");
+        formData.append("last_name", userData.last_name?.trim() || "");
+        formData.append("email", userData.email?.trim() || "");
+        formData.append("phone", userData.phone?.trim() || "");
+        formData.append("password", userData.password || "");
+        formData.append("confirm_password", userData.confirm_password || "");
+
+        // Add media files
+        userData.media_files.forEach((file) => {
+          formData.append("media_files", file);
+        });
+
+        console.log("Sending FormData request...");
+        const res = await api.post("/api/accounts/signup/", formData);
+        
+        console.log("Signup response:", res);
+        if (res.status === 200 || res.status === 201) {
+          const email = res.data?.data?.email || userData.email || null;
+          const newAuthState = {
+            email,
+            isAuthenticated: false,
+            from: "signup",
+          };
+          setAuthState(newAuthState);
+          localStorage.setItem("Authstate", JSON.stringify(newAuthState));
+          toast.success(res.data?.message || "OTP sent to your email");
+          router.push("/verify_otp?from=signup");
+        }
+      } else {
+        // Use JSON for regular signup (without media files)
+        console.log("Sending JSON request...");
+        const payload = {
+          customer_type: userData.customer_type || "Sponsor",
+          first_name: userData.first_name?.trim(),
+          last_name: userData.last_name?.trim(),
+          email: userData.email?.trim(),
+          phone: userData.phone?.trim(),
+          password: userData.password,
+          confirm_password: userData.confirm_password,
         };
-        setAuthState(newAuthState);
-        localStorage.setItem("Authstate", JSON.stringify(newAuthState));
-        toast.success(res.data?.message || "Successfully signed up! Please verify your email.");
-        router.push("/verify_otp?from=signup");
+        
+        console.log("Request payload:", payload);
+        const res = await api.post("/api/accounts/signup/", payload);
+
+        console.log("Signup response:", res);
+        if (res.status === 200 || res.status === 201) {
+          const email = res.data?.data?.email || userData.email || null;
+          const newAuthState = {
+            email,
+            isAuthenticated: false,
+            from: "signup",
+          };
+          setAuthState(newAuthState);
+          localStorage.setItem("Authstate", JSON.stringify(newAuthState));
+          toast.success(res.data?.message || "OTP sent to your email");
+          router.push("/verify_otp?from=signup");
+        }
       }
     } catch (error: any) {
       console.error("Signup error:", error);
+      console.error("Error response:", error.response);
+      console.error("Error data:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      console.error("Error headers:", error.response?.headers);
       toast.error(formatErrorMessage(error, "Signup failed. Please try again."));
     } finally {
       setLoading(false);
@@ -136,7 +198,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         return;
       }
       const isForgot = from === "forgotPassword";
-      const endpoint = isForgot ? "/auth/forgot-otp-resend/" : "/auth/signup-resend-otp/";
+      const endpoint = isForgot ? "/auth/forgot-otp-resend/" : "/api/accounts/resend-otp/";
       const res = await api.post(endpoint, {
         email: email.trim(),
       });
@@ -148,11 +210,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         };
         setAuthState(newAuthState);
         localStorage.setItem("Authstate", JSON.stringify(newAuthState));
-        toast.success(res.data?.message || "OTP resent successfully!");
+        toast.success(res.data?.message || "A new OTP has been sent");
       }
     } catch (error: any) {
       console.error("Resend OTP error:", error);
-      toast.error(formatErrorMessage(error, "Failed to resend OTP. Please try again."));
+      
+      // Handle specific error cases based on status code
+      if (error?.response?.status === 404) {
+        toast.error(error.response.data?.message || "User not found or already verified");
+      } else if (error?.response?.status === 400) {
+        const errorMessage = formatErrorMessage(error, "Invalid email address");
+        toast.error(errorMessage);
+      } else {
+        toast.error(formatErrorMessage(error, "Failed to resend OTP. Please try again."));
+      }
     } finally {
       setLoading(false);
     }
@@ -229,26 +300,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         }
       } catch (error: any) {
         console.error("Forgot password OTP verification error:", error);
-        toast.error(formatErrorMessage(error, "OTP verification failed. Please try again."));
+        const errorMsg = formatErrorMessage(error, "OTP verification failed. Please try again.");
+        
+        // Handle specific error cases based on status code
+        if (error?.response?.status === 400) {
+          toast.error(error.response.data?.message || "Invalid or expired OTP");
+        } else if (error?.response?.status === 404) {
+          toast.error(error.response.data?.message || "User not found");
+        } else {
+          toast.error(errorMsg);
+        }
       } finally {
         setLoading(false);
       }
     } else {
       try {
         setLoading(true);
-        const res = await api.post("/auth/verify-signup/", {
+        const res = await api.post("/api/accounts/verify-otp/", {
           email: email.trim(),
           otp_code: otp.trim(),
         });
         if (res.status === 200 || res.status === 201) {
           localStorage.removeItem("Authstate");
           setAuthState({ email: null, isAuthenticated: false });
-          toast.success(res.data?.message || "Email verified successfully! You can now log in.");
+          toast.success(res.data?.message || "Verification successful. Registration completed.");
           router.push("/signin");
         }
       } catch (error: any) {
         console.error("Verify email error:", error);
-        toast.error(formatErrorMessage(error, "Email verification failed. Please try again."));
+        
+        // Handle specific error cases based on status code and API response
+        if (error?.response?.status === 400) {
+          const errorMessage = error.response.data?.message || "Invalid or expired OTP";
+          toast.error(errorMessage);
+        } else if (error?.response?.status === 404) {
+          toast.error(error.response.data?.message || "User not found");
+        } else {
+          toast.error(formatErrorMessage(error, "Email verification failed. Please try again."));
+        }
       } finally {
         setLoading(false);
       }

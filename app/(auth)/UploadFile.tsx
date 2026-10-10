@@ -60,7 +60,11 @@ const UploadFile = () => {
             </Link>
           </div>
           <h2 className="text-3xl font-bold mb-2">Registration</h2>
-          <p className="text-gray-600 mb-8">Let&apos;s get you all set up so you can access your account.</p>
+          <p className="text-gray-600 mb-8">
+            {signUpData?.customer_type === 'Lender' 
+              ? `As a ${signUpData.customer_type}, please upload your verification documents to complete your registration.`
+              : "Let's get you all set up so you can access your account."}
+          </p>
           <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-start mb-4">
               <div>
