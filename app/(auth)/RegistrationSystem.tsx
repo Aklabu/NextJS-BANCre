@@ -97,23 +97,23 @@ export default function RegistrationSystem() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       {/* Left Side - Form */}
-      <div className="w-full lg:w-1/2 bg-white p-8 lg:p-12 overflow-y-auto">
-        <div className="max-w-lg mx-auto">
+      <div className="w-full lg:w-1/2 bg-white p-4 lg:p-6 overflow-y-auto h-full flex items-center">
+        <div className="w-full max-w-lg mx-auto">
           {/* Logo */}
-          <div className="mb-8">
+          <div className="mb-3">
             <Link href="/">
-              <Image src={"/logo/BANCre.png"} alt={'logo'} width={150} height={50} className='hidden lg:flex' />
+              <Image src={"/logo/BANCre.png"} alt={'logo'} width={120} height={40} className='hidden lg:flex' />
             </Link>
           </div>
           {/* Title */}
-          <h2 className="text-3xl font-bold mb-2">Registration</h2>
-          <p className="text-gray-600 mb-8">Let&apos;s get you all set up so you can access your account.</p>
+          <h2 className="text-2xl font-bold mb-1">Registration</h2>
+          <p className="text-gray-600 text-sm mb-3">Let&apos;s get you all set up so you can access your account.</p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {/* Name Fields */}
-            <div className="grid lg:grid-cols-2 gap-4">
+            <div className="grid lg:grid-cols-2 gap-3">
               <div className='relative'>
                 <label className="absolute -top-2 left-3 bg-white px-1 text-sm text-blue-600">
                   First Name <span className="text-red-500">*</span>
@@ -143,7 +143,7 @@ export default function RegistrationSystem() {
             </div>
 
             {/* Email & Phone */}
-            <div className="grid lg:grid-cols-2 gap-4">
+            <div className="grid lg:grid-cols-2 gap-3">
               <div className='relative'>
                 <label className="absolute -top-2 left-3 bg-white px-1 text-sm text-blue-600">
                   Email <span className="text-red-500">*</span>
@@ -230,32 +230,32 @@ export default function RegistrationSystem() {
               </div>
 
               {/* Password Requirements */}
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center gap-2 text-sm">
                   {passwordValidation.minLength ? (
-                    <CheckCircle2 size={18} className="text-blue-600" />
+                    <CheckCircle2 size={16} className="text-blue-600" />
                   ) : (
-                    <Circle size={18} className="text-gray-400" />
+                    <Circle size={16} className="text-gray-400" />
                   )}
                   <span className={passwordValidation.minLength ? 'text-blue-600' : 'text-gray-600'}>
                     8 characters minimum
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-sm">
                   {passwordValidation.hasNumber ? (
-                    <CheckCircle2 size={18} className="text-blue-600" />
+                    <CheckCircle2 size={16} className="text-blue-600" />
                   ) : (
-                    <Circle size={18} className="text-gray-400" />
+                    <Circle size={16} className="text-gray-400" />
                   )}
                   <span className={passwordValidation.hasNumber ? 'text-blue-600' : 'text-gray-600'}>
                     a number
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-sm">
                   {passwordValidation.hasSymbol ? (
-                    <CheckCircle2 size={18} className="text-blue-600" />
+                    <CheckCircle2 size={16} className="text-blue-600" />
                   ) : (
-                    <Circle size={18} className="text-gray-400" />
+                    <Circle size={16} className="text-gray-400" />
                   )}
                   <span className={passwordValidation.hasSymbol ? 'text-blue-600' : 'text-gray-600'}>
                     a symbol
@@ -285,7 +285,7 @@ export default function RegistrationSystem() {
               type="submit"
               isDisabled={loading}
               text={loading ? "Processing..." : "Sign Up"}
-              className="button-primary w-full h-14"
+              className="button-primary w-full h-12"
             />
 
             {/* Login Link */}
@@ -299,7 +299,7 @@ export default function RegistrationSystem() {
         </div>
       </div>
 
-      <div className="hidden lg:block lg:w-1/2 relative bg-gray-900">
+      <div className="hidden lg:block lg:w-1/2 relative bg-gray-900 h-full overflow-hidden">
         <button className="absolute top-8 right-8 text-white flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition-colors z-10">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />

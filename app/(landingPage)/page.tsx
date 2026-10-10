@@ -46,6 +46,7 @@ const page = () => {
           <div className="flex items-center justify-center">
             <BlackButtonRightIcon
               buttonName="Contact Us"
+              href="/contact"
               iconName={FaArrowRight}
               width="w-[200px]"
               rounded="rounded-lg"

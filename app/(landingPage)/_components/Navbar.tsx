@@ -45,12 +45,6 @@ const Links: LinkProps = [
     href: "/lender",
     icon: <BsBank className="text-lg" />,
   },
-
-  {
-    text: "Contact",
-    href: "/contact",
-    icon: <BiSolidContact className="text-lg" />,
-  },
 ];
 
 const Navbar = ({ className = "" }: NavbarProps) => {
