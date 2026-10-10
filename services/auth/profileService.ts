@@ -156,6 +156,37 @@ export const changePassword = async (
 };
 
 /**
+ * Toggle two-factor authentication
+ * Endpoint: PATCH /api/accounts/two-factor/toggle/
+ * Requires authentication
+ * 
+ * Note: When enabled, login will require 2FA verification
+ */
+export interface Toggle2FARequest {
+  enable_2fa: boolean;
+}
+
+export interface Toggle2FAResponse {
+  success: boolean;
+  statusCode: number;
+  message: string;
+  timestamp: string;
+  data: {
+    two_factor_enabled: boolean;
+  };
+  errors: null | {
+    enable_2fa?: string[];
+  };
+}
+
+export const toggle2FA = async (
+  request: Toggle2FARequest
+): Promise<Toggle2FAResponse> => {
+  const response = await api.patch("/api/accounts/two-factor/toggle/", request);
+  return response.data;
+};
+
+/**
  * Switch user role (Sponsor/Lender)
  * Endpoint: PATCH /api/auth/role/
  * Requires authentication

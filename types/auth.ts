@@ -22,6 +22,7 @@ export interface User {
   roles?: string[];
   active_role?: string;
   phone?: string;
+  two_factor_enabled?: boolean;
   company_information?: CompanyInformation;
   // Legacy fields for backwards compatibility (deprecated)
   company_name?: string | null;

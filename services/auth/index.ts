@@ -53,6 +53,7 @@ export {
   getUserProfile,
   updateUserProfile,
   changePassword,
+  toggle2FA,
   switchUserRole,
   type ProfileData,
   type GetProfileResponse,
@@ -60,6 +61,8 @@ export {
   type UpdateProfileResponse,
   type ChangePasswordRequest,
   type ChangePasswordResponse,
+  type Toggle2FARequest,
+  type Toggle2FAResponse,
   type SwitchRoleRequest,
   type SwitchRoleResponse,
 } from "./profileService";
