@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import {
   LenderDashboardApiData,
   LenderDashboardLoanRequest,

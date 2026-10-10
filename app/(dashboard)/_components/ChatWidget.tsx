@@ -2,7 +2,7 @@
 import { Send, Sparkles, X, Trash2, ChevronLeft, Plus } from "lucide-react";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import ReactMarkdown from "react-markdown";
 
 interface Message {

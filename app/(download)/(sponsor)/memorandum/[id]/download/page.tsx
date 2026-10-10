@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import {
   formatSectionTitle,
   parsePropertyInformationFromSections,

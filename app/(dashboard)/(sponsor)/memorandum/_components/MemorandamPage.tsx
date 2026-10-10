@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PropertyCard from "@/components/PropertyCard";
 import StatusCard from "@/components/StatusCard";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import { toast } from "sonner";
 
 // ── Types ────────────────────────────────────────────────────────────────────

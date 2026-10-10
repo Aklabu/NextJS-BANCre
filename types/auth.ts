@@ -56,6 +56,8 @@ export interface AuthContextType {
   authState: AuthState;
   setSignupData: (data: signup) => void;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  verify2FALogin: (otp: string) => Promise<void>;
+  resend2FALoginOtp: () => Promise<void>;
   signup: (formData: signup) => Promise<void>;
   verifyOTP: (otp: string, from: string) => Promise<void>;
   resendOtp: (email: string, from?: string) => Promise<void>;

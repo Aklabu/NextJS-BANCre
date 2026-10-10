@@ -8,9 +8,29 @@ import React, {
   type ReactNode,
 } from "react";
 import type { AuthContextType, User, AuthState, signup } from "@/types/auth";
-import api from "./api";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
+
+// Import authentication services
+import {
+  // Registration
+  registerUser,
+  verifySignupOTP,
+  resendSignupOTP,
+  // Login
+  loginUser,
+  verify2FALogin as verify2FALoginService,
+  resend2FALoginOTP as resend2FALoginOTPService,
+  logoutUser,
+  // Forgot Password
+  initiateForgotPassword,
+  verifyForgotPasswordOTP,
+  resetPassword as resetPasswordService,
+  resendForgotPasswordOTP,
+  // Profile
+  getUserProfile,
+  switchUserRole,
+} from "@/services/auth";
 
 // Public routes that don't need profile fetch
 const PUBLIC_ROUTES = [
@@ -110,77 +130,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         has_files: !!(userData.media_files && userData.media_files.length > 0)
       });
 
-      // Determine if we need to send as FormData (when media files present) or JSON
-      const hasMediaFiles = userData.media_files && userData.media_files.length > 0;
-
-      if (hasMediaFiles) {
-        // Use FormData for multipart/form-data submission (with media files)
-        const formData = new FormData();
-        formData.append("customer_type", userData.customer_type || "Sponsor");
-        formData.append("first_name", userData.first_name?.trim() || "");
-        formData.append("last_name", userData.last_name?.trim() || "");
-        formData.append("email", userData.email?.trim() || "");
-        formData.append("phone", userData.phone?.trim() || "");
-        formData.append("password", userData.password || "");
-        formData.append("confirm_password", userData.confirm_password || "");
-
-        // Add media files
-        userData.media_files.forEach((file) => {
-          formData.append("media_files", file);
-        });
-
-        console.log("Sending FormData request...");
-        const res = await api.post("/api/accounts/signup/", formData);
-        
-        console.log("Signup response:", res);
-        if (res.status === 200 || res.status === 201) {
-          const email = res.data?.data?.email || userData.email || null;
-          const newAuthState = {
-            email,
-            isAuthenticated: false,
-            from: "signup",
-          };
-          setAuthState(newAuthState);
-          localStorage.setItem("Authstate", JSON.stringify(newAuthState));
-          toast.success(res.data?.message || "OTP sent to your email");
-          router.push("/verify_otp?from=signup");
-        }
-      } else {
-        // Use JSON for regular signup (without media files)
-        console.log("Sending JSON request...");
-        const payload = {
-          customer_type: userData.customer_type || "Sponsor",
-          first_name: userData.first_name?.trim(),
-          last_name: userData.last_name?.trim(),
-          email: userData.email?.trim(),
-          phone: userData.phone?.trim(),
-          password: userData.password,
-          confirm_password: userData.confirm_password,
+      const response = await registerUser(userData);
+      
+      console.log("Signup response:", response);
+      if (response.success) {
+        const email = response.data?.email || userData.email || null;
+        const newAuthState = {
+          email,
+          isAuthenticated: false,
+          from: "signup",
         };
-        
-        console.log("Request payload:", payload);
-        const res = await api.post("/api/accounts/signup/", payload);
-
-        console.log("Signup response:", res);
-        if (res.status === 200 || res.status === 201) {
-          const email = res.data?.data?.email || userData.email || null;
-          const newAuthState = {
-            email,
-            isAuthenticated: false,
-            from: "signup",
-          };
-          setAuthState(newAuthState);
-          localStorage.setItem("Authstate", JSON.stringify(newAuthState));
-          toast.success(res.data?.message || "OTP sent to your email");
-          router.push("/verify_otp?from=signup");
-        }
+        setAuthState(newAuthState);
+        localStorage.setItem("Authstate", JSON.stringify(newAuthState));
+        toast.success(response.message || "OTP sent to your email");
+        router.push("/verify_otp?from=signup");
       }
     } catch (error: any) {
       console.error("Signup error:", error);
-      console.error("Error response:", error.response);
-      console.error("Error data:", error.response?.data);
-      console.error("Error status:", error.response?.status);
-      console.error("Error headers:", error.response?.headers);
       toast.error(formatErrorMessage(error, "Signup failed. Please try again."));
     } finally {
       setLoading(false);
@@ -197,12 +163,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         toast.error("Email is required to resend OTP.");
         return;
       }
+
       const isForgot = from === "forgotPassword";
-      const endpoint = isForgot ? "/auth/forgot-otp-resend/" : "/api/accounts/resend-otp/";
-      const res = await api.post(endpoint, {
-        email: email.trim(),
-      });
-      if (res.status === 200 || res.status === 201) {
+      
+      let response;
+      if (isForgot) {
+        response = await resendForgotPasswordOTP({ email: email.trim() });
+      } else {
+        response = await resendSignupOTP(email.trim());
+      }
+
+      if (response.success) {
         const newAuthState = {
           email: email.trim(),
           isAuthenticated: false,
@@ -210,14 +181,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         };
         setAuthState(newAuthState);
         localStorage.setItem("Authstate", JSON.stringify(newAuthState));
-        toast.success(res.data?.message || "A new OTP has been sent");
+        toast.success(response.message || "A new OTP has been sent");
       }
     } catch (error: any) {
       console.error("Resend OTP error:", error);
       
-      // Handle specific error cases based on status code
       if (error?.response?.status === 404) {
-        toast.error(error.response.data?.message || "User not found or already verified");
+        toast.error(error.response.data?.message || "User with this email does not exist");
       } else if (error?.response?.status === 400) {
         const errorMessage = formatErrorMessage(error, "Invalid email address");
         toast.error(errorMessage);
@@ -239,10 +209,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         toast.error("Email is required.");
         return;
       }
-      const res = await api.post("/auth/forgot-password/", {
-        email: email.trim(),
-      });
-      if (res.status === 200 || res.status === 201) {
+
+      const response = await initiateForgotPassword({ email: email.trim() });
+
+      if (response.success) {
         const newAuthState = {
           email: email.trim(),
           isAuthenticated: false,
@@ -250,12 +220,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         };
         localStorage.setItem("Authstate", JSON.stringify(newAuthState));
         setAuthState(newAuthState);
-        toast.success(res.data?.message || "OTP sent to your email successfully!");
+        toast.success(response.message || "OTP sent to your email");
         router.push("/reset_pass_one/reset_pass_two?from=forgotPassword");
       }
     } catch (error: any) {
       console.error("Forgot password error:", error);
-      toast.error(formatErrorMessage(error, "Failed to process forgot password. Please try again."));
+      
+      if (error?.response?.status === 404) {
+        toast.error(error.response.data?.message || "User with this email does not exist");
+      } else if (error?.response?.status === 400) {
+        toast.error(formatErrorMessage(error, "Invalid email address"));
+      } else {
+        toast.error(formatErrorMessage(error, "Failed to process forgot password. Please try again."));
+      }
     } finally {
       setLoading(false);
     }
@@ -283,11 +260,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (from === "forgotPassword") {
       try {
         setLoading(true);
-        const res = await api.post("/auth/forgot-password-verify/", {
+        const response = await verifyForgotPasswordOTP({
           email: email.trim(),
           otp_code: otp.trim(),
         });
-        if (res.status === 200 || res.status === 201) {
+
+        if (response.success) {
           const updatedState = {
             email: email.trim(),
             isAuthenticated: false,
@@ -295,20 +273,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           };
           setAuthState(updatedState);
           localStorage.setItem("Authstate", JSON.stringify(updatedState));
-          toast.success(res.data?.message || "OTP verified! Please set your new password.");
+          toast.success(response.message || "OTP verified. You may now reset your password.");
           router.push("/reset_pass_one/reset_pass_two/reset_pass_three");
         }
       } catch (error: any) {
         console.error("Forgot password OTP verification error:", error);
-        const errorMsg = formatErrorMessage(error, "OTP verification failed. Please try again.");
         
-        // Handle specific error cases based on status code
         if (error?.response?.status === 400) {
           toast.error(error.response.data?.message || "Invalid or expired OTP");
         } else if (error?.response?.status === 404) {
           toast.error(error.response.data?.message || "User not found");
         } else {
-          toast.error(errorMsg);
+          toast.error(formatErrorMessage(error, "OTP verification failed. Please try again."));
         }
       } finally {
         setLoading(false);
@@ -316,20 +292,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     } else {
       try {
         setLoading(true);
-        const res = await api.post("/api/accounts/verify-otp/", {
-          email: email.trim(),
-          otp_code: otp.trim(),
-        });
-        if (res.status === 200 || res.status === 201) {
+        const response = await verifySignupOTP(email.trim(), otp.trim());
+
+        if (response.success) {
           localStorage.removeItem("Authstate");
           setAuthState({ email: null, isAuthenticated: false });
-          toast.success(res.data?.message || "Verification successful. Registration completed.");
+          toast.success(response.message || "Verification successful. Registration completed.");
           router.push("/signin");
         }
       } catch (error: any) {
         console.error("Verify email error:", error);
         
-        // Handle specific error cases based on status code and API response
         if (error?.response?.status === 400) {
           const errorMessage = error.response.data?.message || "Invalid or expired OTP";
           toast.error(errorMessage);
@@ -354,22 +327,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   ) => {
     try {
       setLoading(true);
-      const res = await api.post("/auth/reset-password/", {
+      const response = await resetPasswordService({
         email: email.trim(),
         new_password: newPassword,
         confirm_new_password: confirmNewPassword,
       });
-      if (res.status === 200 || res.status === 201) {
+
+      if (response.success) {
         localStorage.removeItem("Authstate");
         setAuthState({ email: null, isAuthenticated: false });
-        toast.success(res.data?.message || "Password reset successfully!");
+        toast.success(response.message || "Password reset successfully.");
         router.push(
           "/reset_pass_one/reset_pass_two/reset_pass_three/reset_pass_four",
         );
       }
     } catch (error: any) {
       console.error("Reset password error:", error);
-      toast.error(formatErrorMessage(error, "Failed to reset password. Please try again."));
+      
+      if (error?.response?.status === 400) {
+        const errorData = error.response.data;
+        if (errorData?.message?.includes("session has expired")) {
+          toast.error("Password reset session has expired. Please request a new OTP.");
+          router.push("/reset_pass_one");
+        } else if (errorData?.message?.includes("verify OTP first")) {
+          toast.error("Please verify OTP first");
+          router.push("/reset_pass_one/reset_pass_two?from=forgotPassword");
+        } else {
+          toast.error(formatErrorMessage(error, "Invalid password. Please check requirements."));
+        }
+      } else if (error?.response?.status === 404) {
+        toast.error(error.response.data?.message || "User not found");
+      } else {
+        toast.error(formatErrorMessage(error, "Failed to reset password. Please try again."));
+      }
     } finally {
       setLoading(false);
     }
@@ -386,15 +376,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     try {
       console.log("Attempting login for email:", email);
       setLoading(true);
-      const res = await api.post("/auth/login/", {
+
+      const response = await loginUser({
         email: email.trim(),
         password,
         remember_me: !!remember_me,
       });
 
-      console.log("Login response:", res);
-      if (res.status === 200) {
-        const { user: rawUser, access, refresh } = res.data.data;
+      console.log("Login response:", response);
+      if (response.success) {
+        const responseData = response.data;
+        
+        // Check if 2FA is required
+        if (responseData?.requires_2fa) {
+          const newAuthState = {
+            email: responseData.email || email.trim(),
+            isAuthenticated: false,
+            from: "login2fa",
+          };
+          setAuthState(newAuthState);
+          localStorage.setItem("Authstate", JSON.stringify(newAuthState));
+          toast.success(response.message || "OTP sent to your email for two-factor authentication");
+          router.push("/verify_otp?from=login2fa");
+          return;
+        }
+
+        // No 2FA - process tokens
+        const { user: rawUser, access, refresh } = responseData;
         const activeRole =
           rawUser?.active_role ||
           (rawUser?.roles && rawUser.roles[0]) ||
@@ -418,7 +426,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           }),
         );
         setUser(normalizedUser);
-        toast.success(res.data?.message || "Logged in successfully!");
+        toast.success(response.message || "Logged in successfully!");
 
         if (normalizedRole === "Sponsor") {
           console.log("Redirecting to sponsor dashboard for user:", normalizedUser);
@@ -430,7 +438,128 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error(formatErrorMessage(error, "Login failed. Please check your credentials and try again."));
+      
+      if (error?.response?.status === 401) {
+        toast.error(error.response.data?.message || "Invalid email or password");
+      } else if (error?.response?.status === 403) {
+        toast.error(error.response.data?.message || "Please verify your email before logging in");
+      } else {
+        toast.error(formatErrorMessage(error, "Login failed. Please check your credentials and try again."));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /*----------------------------------------
+            Verify 2FA Login Function 
+  ----------------------------------------------*/
+  const verify2FALogin = async (otp: string) => {
+    const savedState = localStorage.getItem("Authstate");
+    const parsedState = savedState ? JSON.parse(savedState) : null;
+    const email = authState?.email || parsedState?.email;
+
+    if (!email) {
+      toast.error("Session expired or missing email. Please login again.");
+      router.push("/signin");
+      return;
+    }
+
+    if (!otp?.trim() || otp.trim().length !== 6) {
+      toast.error("Please enter the complete 6-digit OTP code.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await verify2FALoginService({
+        email: email.trim(),
+        otp_code: otp.trim(),
+      });
+
+      if (response.success) {
+        const { user: rawUser, access, refresh } = response.data;
+        const activeRole =
+          rawUser?.active_role ||
+          (rawUser?.roles && rawUser.roles[0]) ||
+          rawUser?.role ||
+          "Sponsor";
+        const normalizedRole = normalizeRole(activeRole);
+        const normalizedUser: User = {
+          ...rawUser,
+          role: normalizedRole,
+          customer_type: normalizedRole,
+          active_role: activeRole,
+          roles: rawUser?.roles || ["Sponsor", "Lender"],
+        };
+
+        localStorage.setItem(
+          "userCredentials",
+          JSON.stringify({
+            access_token: access,
+            refresh_token: refresh,
+            user: normalizedUser,
+          }),
+        );
+        localStorage.removeItem("Authstate");
+        setAuthState({ email: null, isAuthenticated: false });
+        setUser(normalizedUser);
+        toast.success(response.message || "Two-factor authentication successful");
+
+        if (normalizedRole === "Sponsor") {
+          router.push("/sponsor");
+        } else {
+          router.push("/lender");
+        }
+      }
+    } catch (error: any) {
+      console.error("2FA Login verification error:", error);
+      
+      if (error?.response?.status === 400) {
+        toast.error(error.response.data?.message || "Invalid or expired OTP");
+      } else if (error?.response?.status === 404) {
+        toast.error(error.response.data?.message || "User not found");
+      } else {
+        toast.error(formatErrorMessage(error, "2FA verification failed. Please try again."));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /*----------------------------------------
+            Resend 2FA Login OTP Function 
+  ----------------------------------------------*/
+  const resend2FALoginOtp = async () => {
+    const savedState = localStorage.getItem("Authstate");
+    const parsedState = savedState ? JSON.parse(savedState) : null;
+    const email = authState?.email || parsedState?.email;
+
+    if (!email) {
+      toast.error("Session expired or missing email. Please login again.");
+      router.push("/signin");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await resend2FALoginOTPService({
+        email: email.trim(),
+      });
+
+      if (response.success) {
+        toast.success(response.message || "A new 2FA OTP has been sent");
+      }
+    } catch (error: any) {
+      console.error("Resend 2FA Login OTP error:", error);
+      
+      if (error?.response?.status === 400) {
+        toast.error(error.response.data?.message || "Two-factor authentication is not enabled for this account");
+      } else if (error?.response?.status === 404) {
+        toast.error(error.response.data?.message || "User not found");
+      } else {
+        toast.error(formatErrorMessage(error, "Failed to resend OTP. Please try again."));
+      }
     } finally {
       setLoading(false);
     }
@@ -442,10 +571,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const switchRole = async (targetRole: "Sponsor" | "Lender") => {
     try {
       setLoading(true);
-      const res = await api.patch("/auth/role/", { role: targetRole });
-      if (res.status === 200) {
-        const newActiveRole = res.data?.data?.active_role || targetRole;
-        const updatedRoles = res.data?.data?.roles || user?.roles || ["Sponsor", "Lender"];
+      const response = await switchUserRole({ role: targetRole });
+
+      if (response.success) {
+        const newActiveRole = response.data?.active_role || targetRole;
+        const updatedRoles = response.data?.roles || user?.roles || ["Sponsor", "Lender"];
         const normalized = normalizeRole(newActiveRole);
 
         const updatedUser: User = {
@@ -500,7 +630,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       if (userCredentials) {
         const { refresh_token } = JSON.parse(userCredentials);
         if (refresh_token) {
-          await api.post("/auth/logout/", { refresh_token });
+          await logoutUser(refresh_token);
         }
       }
     } catch (error) {
@@ -534,9 +664,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           setUser((prev) => prev ?? storedUser);
         }
 
-        const res = await api.get("/auth/profile/");
-        if (res.status === 200) {
-          const profileUser: User = res.data?.data || res.data;
+        const response = await getUserProfile();
+        if (response.success) {
+          const profileUser: User = response.data;
           const activeRole =
             profileUser?.active_role ||
             (profileUser?.roles && profileUser.roles[0]) ||
@@ -574,6 +704,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         verifyOTP,
         resendOtp,
         login,
+        verify2FALogin,
+        resend2FALoginOtp,
         resetPassword,
         switchRole,
         toggleRole,

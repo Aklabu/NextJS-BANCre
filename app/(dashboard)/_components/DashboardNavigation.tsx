@@ -15,7 +15,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import ProfilePopUp from "./ProfilePopUp";
 import ChatWidget from "./ChatWidget";
 import { MapPin, School, ArrowLeftRight } from "lucide-react";
-import { useAuth } from "@/Provider/AuthProvider";
+import { useAuth } from "@/providers/AuthProvider";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 type NavbarProps = {

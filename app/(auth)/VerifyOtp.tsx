@@ -6,19 +6,20 @@ import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import { Loader2 } from "lucide-react";
 import Button from "@/components/Button";
 import Link from "next/link";
-import { useAuth } from "@/Provider/AuthProvider";
+import { useAuth } from "@/providers/AuthProvider";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 const VerifyOtp: React.FC = () => {
   const [otp, setOtp] = useState("");
   const [resendCooldown, setResendCooldown] = useState(30);
-  const { authState, verifyOTP, resendOtp, loading } = useAuth();
+  const { authState, verifyOTP, resendOtp, verify2FALogin, resend2FALoginOtp, loading } = useAuth();
 
   const searchParams = useSearchParams();
   const queryFrom = searchParams.get("from");
   const currentFrom = queryFrom || authState?.from || "signup";
   const isForgotPassword = currentFrom === "forgotPassword";
+  const isLogin2FA = currentFrom === "login2fa";
 
   // Countdown timer for resend
   useEffect(() => {
@@ -35,7 +36,12 @@ const VerifyOtp: React.FC = () => {
       toast.error("Please enter the complete 6-digit OTP code.");
       return;
     }
-    await verifyOTP(otp, currentFrom);
+    
+    if (isLogin2FA) {
+      await verify2FALogin(otp);
+    } else {
+      await verifyOTP(otp, currentFrom);
+    }
   };
 
   // Resend OTP handler
@@ -45,7 +51,39 @@ const VerifyOtp: React.FC = () => {
       return;
     }
     setResendCooldown(30);
-    await resendOtp(authState.email, currentFrom);
+    
+    if (isLogin2FA) {
+      await resend2FALoginOtp();
+    } else {
+      await resendOtp(authState.email, currentFrom);
+    }
+  };
+
+  // Get page title based on context
+  const getTitle = () => {
+    if (isLogin2FA) return "Two-Factor Authentication";
+    if (isForgotPassword) return "Verify OTP";
+    return "Verify Email";
+  };
+
+  // Get description based on context
+  const getDescription = () => {
+    const emailText = authState?.email || "your email";
+    if (isLogin2FA) {
+      return `Please enter the 6-digit verification code sent to ${emailText} to complete your login.`;
+    }
+    if (isForgotPassword) {
+      return `Please enter the 6-digit verification code sent to ${emailText} to reset your password.`;
+    }
+    return `Please enter the 6-digit verification code sent to ${emailText}.`;
+  };
+
+  // Get button text based on context
+  const getButtonText = () => {
+    if (loading) return "Verifying...";
+    if (isLogin2FA) return "Verify & Login";
+    if (isForgotPassword) return "Verify OTP";
+    return "Verify Email";
   };
 
   return (
@@ -62,13 +100,11 @@ const VerifyOtp: React.FC = () => {
         </Link>
 
         <h2 className="text-3xl font-semibold">
-          {isForgotPassword ? "Verify OTP" : "Verify Email"}
+          {getTitle()}
         </h2>
 
         <p className="text-sm text-gray-600">
-          {isForgotPassword
-            ? `Please enter the 6-digit verification code sent to ${authState?.email || "your email"} to reset your password.`
-            : `Please enter the 6-digit verification code sent to ${authState?.email || "your email"}.`}
+          {getDescription()}
         </p>
 
         <div className="flex flex-col justify-center items-center gap-4 mt-8">
@@ -93,7 +129,7 @@ const VerifyOtp: React.FC = () => {
             <Button
               type="button"
               isDisabled={loading || otp.trim().length !== 6}
-              text={loading ? "Verifying..." : (isForgotPassword ? "Verify OTP" : "Verify Email")}
+              text={getButtonText()}
               onClick={handleOtpVerify}
               className="button-primary w-full md:w-[593px] h-14"
             />

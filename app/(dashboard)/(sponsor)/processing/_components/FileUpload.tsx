@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import Button from "@/components/Button";
 import { Upload, Lightbulb, X, FileText, FileSpreadsheet, File } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import type { UploadedFileItem } from "./place-types";
 
 type FileUploadProps = {

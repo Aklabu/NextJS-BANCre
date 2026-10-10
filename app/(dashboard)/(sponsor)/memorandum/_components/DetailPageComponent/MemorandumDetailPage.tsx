@@ -27,7 +27,7 @@ import type {
   MemorandumSection,
   MemorandumTableData,
 } from "@/types/memorandum-detail";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import { toast } from "sonner";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
 import {

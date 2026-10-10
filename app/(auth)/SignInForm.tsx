@@ -20,7 +20,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import Button from "@/components/Button";
-import { useAuth } from "@/Provider/AuthProvider";
+import { useAuth } from "@/providers/AuthProvider";
 
 
 const formSchema = z.object({

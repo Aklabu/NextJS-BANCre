@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import api from '@/Provider/api';
+import api from '@/lib/apiClient';
 
 // Zod validation schema
 const passwordSchema = z.object({
@@ -39,7 +39,7 @@ const ChangePassword = () => {
     const handleChangePassword = async (data: PasswordFormData) => {
         try {
             setIsLoading(true);
-            const response = await api.post('/auth/change-password/', {
+            const response = await api.post('/api/auth/change-password/', {
                 current_password: data.currentPassword,
                 new_password: data.newPassword,
                 confirm_password: data.confirmPassword,

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import type { LenderQuoteApiItem } from "@/types/my-quotes";
 
 type ApiEnvelope<T> = {

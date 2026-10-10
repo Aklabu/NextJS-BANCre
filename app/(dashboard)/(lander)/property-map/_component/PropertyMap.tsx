@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import { PropertyMapData } from "@/types/loan-request";
 import PropertyDetailsPanel from "./PropertyDetailsPanel";
 import PropertyMapComponent from "./PropertyMapComponent";

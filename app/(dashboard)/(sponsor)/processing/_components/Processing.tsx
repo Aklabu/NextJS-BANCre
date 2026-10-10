@@ -18,7 +18,7 @@ import {
   Percent,
 } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import type { PropertyData, UploadedFileItem } from "./place-types";
 
 type ProcessingProps = {
@@ -383,4 +383,4 @@ const Processing = ({
   );
 };
 
-export default Processing;
+export default Processing;

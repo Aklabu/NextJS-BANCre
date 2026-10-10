@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
 import type {
   LoanDocumentLink,

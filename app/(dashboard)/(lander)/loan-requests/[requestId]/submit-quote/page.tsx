@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import { readLoanQuotePrefillState } from "@/lib/quote-submit-state";
 import type { LoanRequestDetail } from "@/types/loan-request";
 

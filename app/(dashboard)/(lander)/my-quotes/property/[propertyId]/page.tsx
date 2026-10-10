@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import type { LenderPropertyMapItem } from "@/types/my-quotes";
 
 type ApiEnvelope<T> = {

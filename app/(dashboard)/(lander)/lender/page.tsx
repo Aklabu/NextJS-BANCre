@@ -6,7 +6,7 @@ import StatusCard from "@/components/StatusCard";
 import LoanRequestCard from "../loan-requests/_components/LoanRequestCard";
 import { fetchLenderCombinedData } from "../_utils/lenderLoanData";
 import { LoanRequestData } from "@/types/loan-request";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import {
   getSubmitQuotePath,
   saveLoanQuotePrefillState,

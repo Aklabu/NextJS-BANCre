@@ -5,7 +5,7 @@ import { Eye, EyeOff, CheckCircle2, Circle } from 'lucide-react';
 import Button from '@/components/Button';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAuth } from '@/Provider/AuthProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { signup } from '@/types/auth';
 
 export default function RegistrationSystem() {

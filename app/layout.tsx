@@ -1,5 +1,5 @@
-import { AuthProvider } from "@/Provider/AuthProvider";
-import QueryProvider from "@/Provider/QueryProvider";
+import { AuthProvider } from "@/providers/AuthProvider";
+import QueryProvider from "@/providers/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";

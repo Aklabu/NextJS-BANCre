@@ -17,7 +17,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/Button";
-import { useAuth } from "@/Provider/AuthProvider";
+import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
 
 const formSchema = z

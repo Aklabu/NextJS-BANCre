@@ -3,7 +3,7 @@
 import React from "react";
 import GMAP from "@/app/(dashboard)/_components/GMAP";
 import Button from "@/components/Button";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import { toast } from "sonner";
 import type { PlaceData } from "./place-types";
 

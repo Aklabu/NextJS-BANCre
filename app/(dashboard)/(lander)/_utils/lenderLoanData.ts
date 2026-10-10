@@ -1,4 +1,4 @@
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import type {
   LoanRequestData,
   PropertyMapData,

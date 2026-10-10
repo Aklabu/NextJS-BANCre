@@ -16,7 +16,7 @@ import ProfileInfo from "./ProfileInfo";
 import ChangePassword from "./ChangePassword";
 import CompanyInfo from "./CompanyInfo";
 import { User } from "@/types/auth";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -120,7 +120,7 @@ const ProfilePopUp = ({ user }: { user: User | null }) => {
                 console.log("key:", pair[0], "value:", pair[1]);
             }
 
-            const response = await api.patch(`/auth/profile/`, formDataToSend, {
+            const response = await api.patch(`/api/auth/profile/`, formDataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

@@ -10,23 +10,17 @@ let isRefreshing = false;
 let waitingQueue: ((token: string) => void)[] = [];
 // Endpoints that must never send bearer tokens and must not trigger refresh logic.
 const authBootstrapEndpoints = [
-  "/auth/login/",
-  "/auth/signup/",
-  "/auth/verify-signup/",
-  "/auth/signup-resend-otp/",
-  "/auth/forgot-password/",
-  "/auth/forgot-otp-resend/",
-  "/auth/forgot-password-verify/",
-  "/auth/reset-password/",
-  "/auth/token/refresh/",
   "/api/accounts/login/",
+  "/api/accounts/login/verify-2fa/",
+  "/api/accounts/login/resend-2fa-otp/",
   "/api/accounts/signup/",
   "/api/accounts/resend-otp/",
   "/api/accounts/verify-otp/",
   "/api/accounts/forgot-password/",
   "/api/accounts/forgot-password/verify-otp/",
+  "/api/accounts/forgot-password/resend/",
   "/api/accounts/reset-password/",
-  "/accounts/token/refresh/",
+  "/api/auth/token/refresh/",
 ];
 
 const isPublicEndpoint = (url?: string) =>
@@ -151,7 +145,7 @@ api.interceptors.response.use(
         }
 
         const { data } = await api.post<{ access_token?: string; access?: string; data?: { access?: string } }>(
-          "/auth/token/refresh/",
+          "/api/auth/token/refresh/",
           { refresh_token: refreshToken },
         );
         const newToken = data?.data?.access || data?.access || data?.access_token;

@@ -1,4 +1,4 @@
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 
 export interface NotificationItem {
   id: string | number;

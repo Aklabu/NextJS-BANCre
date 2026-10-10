@@ -9,7 +9,7 @@ import LoanCard from "./_components/LoanCard";
 import StatusCard from "@/components/StatusCard";
 import Comparison from "./_components/Comparison";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
-import api from "@/Provider/api";
+import api from "@/lib/apiClient";
 import { toast } from "sonner";
 import type {
   LoanQuote,
