@@ -117,11 +117,11 @@ export const resend2FALoginOTP = async (
 
 /**
  * Logout user
- * Endpoint: POST /api/auth/logout/
+ * Endpoint: POST /api/accounts/logout/
  * Blacklists the refresh token
  */
 export const logoutUser = async (refreshToken: string): Promise<LogoutResponse> => {
-  const response = await api.post("/api/auth/logout/", {
+  const response = await api.post("/api/accounts/logout/", {
     refresh_token: refreshToken,
   });
   return response.data;
@@ -129,12 +129,12 @@ export const logoutUser = async (refreshToken: string): Promise<LogoutResponse> 
 
 /**
  * Refresh access token
- * Endpoint: POST /api/auth/token/refresh/
+ * Endpoint: POST /api/accounts/token/refresh/
  */
 export const refreshAccessToken = async (
   refreshToken: string
 ): Promise<RefreshTokenResponse> => {
-  const response = await api.post("/api/auth/token/refresh/", {
+  const response = await api.post("/api/accounts/token/refresh/", {
     refresh_token: refreshToken,
   });
   return response.data;

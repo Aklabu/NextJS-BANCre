@@ -20,7 +20,7 @@ const authBootstrapEndpoints = [
   "/api/accounts/forgot-password/verify-otp/",
   "/api/accounts/forgot-password/resend/",
   "/api/accounts/reset-password/",
-  "/api/auth/token/refresh/",
+  "/api/accounts/token/refresh/",
 ];
 
 const isPublicEndpoint = (url?: string) =>
@@ -144,8 +144,8 @@ api.interceptors.response.use(
           return Promise.reject("No refresh token");
         }
 
-        const { data } = await api.post<{ access_token?: string; access?: string; data?: { access?: string } }>(
-          "/api/auth/token/refresh/",
+        const { data } = await api.post<{ success?: boolean; data?: { access?: string }; access?: string; access_token?: string }>(
+          "/api/accounts/token/refresh/",
           { refresh_token: refreshToken },
         );
         const newToken = data?.data?.access || data?.access || data?.access_token;
