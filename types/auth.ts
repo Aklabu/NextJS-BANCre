@@ -2,6 +2,15 @@
 
 export type UserType = "Lender" | "Sponsor";
 
+export interface CompanyInformation {
+  company_name: string | null;
+  position: string | null;
+  street_address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+}
+
 export interface User {
   id?: string | number;
   email?: string;
@@ -13,20 +22,14 @@ export interface User {
   roles?: string[];
   active_role?: string;
   phone?: string;
+  company_information?: CompanyInformation;
+  // Legacy fields for backwards compatibility (deprecated)
   company_name?: string | null;
   position?: string | null;
   street_address?: string | null;
   city?: string | null;
   state?: string | null;
   zip_code?: string | null;
-  company_information?: {
-    company_name?: string;
-    position?: string;
-    street_address?: string;
-    city?: string;
-    state?: string;
-    zip_code?: string;
-  };
   phoneNumber?: string;
   profileImage?: string;
 }

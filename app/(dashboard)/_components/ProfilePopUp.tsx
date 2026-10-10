@@ -120,7 +120,7 @@ const ProfilePopUp = ({ user }: { user: User | null }) => {
                 console.log("key:", pair[0], "value:", pair[1]);
             }
 
-            const response = await api.patch(`/api/auth/profile/`, formDataToSend, {
+            const response = await api.patch(`/api/accounts/profile/`, formDataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -154,7 +154,7 @@ const ProfilePopUp = ({ user }: { user: User | null }) => {
         : null;
 
     return (
-        <DialogContent aria-describedby="profile-description" className="max-w-[350px] sm:max-w-[425px] lg:max-w-[550px] xl:max-w-[750px] bg-white rounded-xl border-0 outline-0 p-0">
+        <DialogContent aria-describedby="profile-description" className="max-w-[750px] w-full bg-white rounded-xl border-0 outline-0 p-0">
             <DialogHeader className="bg-[#0D4DA5] text-white p-3 lg:p-5 rounded-xl flex lg:flex-row items-center">
                 <DialogTitle>
                     {imageSrc ? (
@@ -185,7 +185,7 @@ const ProfilePopUp = ({ user }: { user: User | null }) => {
                         </div>
                     ))}
                 </div>
-                <div className={`${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className={`h-[380px] w-full overflow-y-auto ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
                     {subsection}
                 </div>
 

@@ -51,8 +51,15 @@ export {
 // Profile Service
 export {
   getUserProfile,
+  updateUserProfile,
+  changePassword,
   switchUserRole,
+  type ProfileData,
   type GetProfileResponse,
+  type UpdateProfileRequest,
+  type UpdateProfileResponse,
+  type ChangePasswordRequest,
+  type ChangePasswordResponse,
   type SwitchRoleRequest,
   type SwitchRoleResponse,
 } from "./profileService";

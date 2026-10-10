@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import api from '@/lib/apiClient';
+import { changePassword } from '@/services/auth/profileService';
 
 // Zod validation schema
 const passwordSchema = z.object({
@@ -32,29 +32,81 @@ const ChangePassword = () => {
     const [showPasswordForConfirm, setShowPasswordForConfirm] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { register, handleSubmit, formState: { errors }, reset } = useForm<PasswordFormData>({
+    const { register, handleSubmit, formState: { errors }, reset, setError } = useForm<PasswordFormData>({
         resolver: zodResolver(passwordSchema),
     });
 
     const handleChangePassword = async (data: PasswordFormData) => {
         try {
             setIsLoading(true);
-            const response = await api.post('/api/auth/change-password/', {
+            
+            const response = await changePassword({
                 current_password: data.currentPassword,
                 new_password: data.newPassword,
                 confirm_password: data.confirmPassword,
             });
 
-            if (response.status !== 200) {
-                throw new Error(response.data?.message || 'Failed to change password');
+            if (response.success) {
+                toast.success(response.message || 'Password updated successfully!');
+                reset();
             }
-
-            toast.success('Password changed successfully!');
-            reset();
         } catch (error: any) {
-            const errorMessage = error?.response?.data?.message || 'Failed to change password. Please try again.';
-            toast.error(errorMessage);
             console.error('Error changing password:', error);
+            
+            // Handle specific error cases from backend
+            if (error?.response?.status === 400) {
+                const errorData = error.response.data;
+                
+                // Check if it's the "Current password is incorrect" error
+                if (errorData?.message === "Current password is incorrect") {
+                    setError('currentPassword', {
+                        type: 'manual',
+                        message: 'Current password is incorrect'
+                    });
+                    toast.error('Current password is incorrect');
+                } 
+                // Handle validation errors
+                else if (errorData?.errors) {
+                    const errors = errorData.errors;
+                    
+                    // Map backend errors to form fields
+                    if (errors.current_password) {
+                        setError('currentPassword', {
+                            type: 'manual',
+                            message: Array.isArray(errors.current_password) 
+                                ? errors.current_password[0] 
+                                : errors.current_password
+                        });
+                    }
+                    
+                    if (errors.new_password) {
+                        const messages = Array.isArray(errors.new_password) 
+                            ? errors.new_password.join(' ') 
+                            : errors.new_password;
+                        setError('newPassword', {
+                            type: 'manual',
+                            message: messages
+                        });
+                    }
+                    
+                    if (errors.confirm_password) {
+                        setError('confirmPassword', {
+                            type: 'manual',
+                            message: Array.isArray(errors.confirm_password) 
+                                ? errors.confirm_password[0] 
+                                : errors.confirm_password
+                        });
+                    }
+                    
+                    toast.error(errorData.message || 'Validation failed');
+                } else {
+                    toast.error(errorData?.message || 'Failed to change password');
+                }
+            } else if (error?.response?.status === 401) {
+                toast.error('Session expired. Please login again');
+            } else {
+                toast.error('Failed to change password. Please try again.');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -72,7 +124,7 @@ const ChangePassword = () => {
                             type={showPasswordForCurrent ? "text" : "password"}
                             id='currentPassword'
                             placeholder='Enter current password'
-                            className='border-0 flex-1 focus:outline-0'
+                            className='border-0 flex-1 focus:outline-0 bg-transparent'
                             {...register('currentPassword')}
                         />
                         {showPasswordForCurrent ? <EyeOff onClick={() => setShowPasswordForCurrent(!showPasswordForCurrent)} size={20} className='cursor-pointer' /> : <Eye onClick={() => setShowPasswordForCurrent(!showPasswordForCurrent)} size={20} className='cursor-pointer' />}
@@ -88,7 +140,7 @@ const ChangePassword = () => {
                             type={showPasswordForNew ? "text" : "password"}
                             id='newPassword'
                             placeholder='Enter new password'
-                            className='border-0 flex-1 focus:outline-0'
+                            className='border-0 flex-1 focus:outline-0 bg-transparent'
                             {...register('newPassword')}
                         />
                         {showPasswordForNew ? <EyeOff onClick={() => setShowPasswordForNew(!showPasswordForNew)} size={20} className='cursor-pointer' /> : <Eye onClick={() => setShowPasswordForNew(!showPasswordForNew)} size={20} className='cursor-pointer' />}
@@ -104,7 +156,7 @@ const ChangePassword = () => {
                             type={showPasswordForConfirm ? "text" : "password"}
                             id='confirmPassword'
                             placeholder='Confirm new password'
-                            className='border-0 flex-1 focus:outline-0'
+                            className='border-0 flex-1 focus:outline-0 bg-transparent'
                             {...register('confirmPassword')}
                         />
                         {showPasswordForConfirm ? <EyeOff onClick={() => setShowPasswordForConfirm(!showPasswordForConfirm)} size={20} className='cursor-pointer' /> : <Eye onClick={() => setShowPasswordForConfirm(!showPasswordForConfirm)} size={20} className='cursor-pointer' />}
@@ -112,7 +164,7 @@ const ChangePassword = () => {
                     {errors.confirmPassword && <p className='text-red-500 text-sm mt-1'>{errors.confirmPassword.message}</p>}
                 </div>
 
-                <Button text='Update Password' type='submit' isDisabled={isLoading} />
+                <Button text={isLoading ? 'Updating...' : 'Update Password'} type='submit' isDisabled={isLoading} />
             </form>
         </div>
     );
