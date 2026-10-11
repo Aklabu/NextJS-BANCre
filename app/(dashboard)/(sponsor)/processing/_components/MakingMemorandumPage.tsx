@@ -12,7 +12,7 @@ const MakingMemorandumPage = () => {
   const steps = [
     { id: 0, title: "Location", description: "" },
     { id: 1, title: "Property Details", description: "Review and edit the property information" },
-    { id: 2, title: "Upload", description: "Upload your property documents" },
+    { id: 2, title: "Upload", description: "" },
     { id: 3, title: "Review & Generate", description: "Review property details and generate memorandum" },
     { id: 4, title: "Completed", description: "Memorandum generated successfully" },
   ];
