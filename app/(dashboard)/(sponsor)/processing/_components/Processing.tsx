@@ -81,7 +81,7 @@ const Processing = ({
     setErrorMsg(null);
 
     try {
-      const response = await api.post("/api/v1/memorandums/generate/", {
+      const response = await api.post("/api/memorandums/generate/", {
         property_id: propertyId,
       });
 

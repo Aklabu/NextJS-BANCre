@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Step } from "./Step";
 import FileUpload from "./FileUpload";
 import SubmitSuccess from "./SubmitSuccess";
@@ -10,7 +10,7 @@ import type { PlaceData, PropertyData, UploadedFileItem } from "./place-types";
 
 const MakingMemorandumPage = () => {
   const steps = [
-    { id: 0, title: "Location", description: "Search or pin the property address" },
+    { id: 0, title: "Location", description: "" },
     { id: 1, title: "Property Details", description: "Review and edit the property information" },
     { id: 2, title: "Upload", description: "Upload your property documents" },
     { id: 3, title: "Review & Generate", description: "Review property details and generate memorandum" },
@@ -23,6 +23,11 @@ const MakingMemorandumPage = () => {
   const [propertyData, setPropertyData] = useState<PropertyData | null>(null);
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedFileItem[]>([]);
   const [memorandumId, setMemorandumId] = useState<number | null>(null);
+
+  // Scroll to top whenever the step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
 
   const handleReset = () => {
     setCurrentStep(0);

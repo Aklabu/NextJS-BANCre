@@ -75,7 +75,7 @@ const MemorandumDetailPage = () => {
 
         
         try {
-          response = await api.get(`/api/v1/memorandums/${memorandumId}/`);
+          response = await api.get(`/api/memorandums/${memorandumId}/`);
         } catch (err: any) {
           if (err?.response?.status === 404) {
             response = await api.get(`/api/memorandums/${memorandumId}/`);
@@ -98,7 +98,7 @@ const MemorandumDetailPage = () => {
                 ? fetchedData.property.id
                 : fetchedData.property;
             const propRes = await api
-              .get(`/api/v1/properties/${propId}/`)
+              .get(`/api/properties/${propId}/`)
               .catch(() => api.get(`/api/properties/${propId}/`))
               .catch(() => null);
             const propData = propRes?.data?.data ?? propRes?.data;
@@ -262,7 +262,7 @@ const MemorandumDetailPage = () => {
     try {
       try {
         await api.patch(
-          `/api/v1/memorandums/${memorandumId}/sections/${sectionId}/`,
+          `/api/memorandums/${memorandumId}/sections/${sectionId}/`,
           payload,
         );
       } catch (err: any) {
@@ -390,7 +390,7 @@ const MemorandumDetailPage = () => {
             );
           } catch {
             response = await api.post(
-              `/api/v1/memorandums/${memorandumId}/regenerate/`,
+              `/api/memorandums/${memorandumId}/regenerate/`,
               { section_id: sectionId, section_key: sectionKey },
             );
           }
@@ -473,7 +473,7 @@ const MemorandumDetailPage = () => {
       let response;
       try {
         response = await api.post(
-          `/api/v1/memorandums/${memorandumId}/regenerate/`,
+          `/api/memorandums/${memorandumId}/regenerate/`,
         );
       } catch (err: any) {
         if (err?.response?.status === 404) {
@@ -527,7 +527,7 @@ const MemorandumDetailPage = () => {
       };
 
       try {
-        await api.patch(`/api/v1/memorandums/${memorandumId}/`, payload);
+        await api.patch(`/api/memorandums/${memorandumId}/`, payload);
       } catch (err: any) {
         if (err?.response?.status === 404) {
           await api.patch(`/api/memorandums/${memorandumId}/`, payload);

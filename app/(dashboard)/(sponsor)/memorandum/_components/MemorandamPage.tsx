@@ -47,7 +47,7 @@ interface Memorandum {
 async function fetchProperties(): Promise<Property[]> {
   let response;
   try {
-    response = await api.get("/api/v1/properties/");
+    response = await api.get("/api/properties/");
   } catch {
     try {
       response = await api.get("/api/properties/");
@@ -65,7 +65,7 @@ async function fetchProperties(): Promise<Property[]> {
 async function fetchMemorandums(): Promise<Memorandum[]> {
   let response;
   try {
-    response = await api.get("/api/v1/memorandums/");
+    response = await api.get("/api/memorandums/");
   } catch (err: any) {
     if (err?.response?.status === 404) {
       response = await api.get("/api/memorandums/");
@@ -121,7 +121,7 @@ const MemorandamPage = () => {
     const fetchMissing = async () => {
       for (const p of missingProps) {
         try {
-          const res = await api.get(`/api/v1/properties/${p.id}/files/`).catch(() => null);
+          const res = await api.get(`/api/properties/${p.id}/files/`).catch(() => null);
           const rawFiles = res?.data?.data ?? res?.data ?? [];
           const files = Array.isArray(rawFiles) ? rawFiles : [];
           const img = files.find((f: any) => {
@@ -148,7 +148,7 @@ const MemorandamPage = () => {
     try {
       setDeletingId(memorandumId);
       try {
-        await api.delete(`/api/v1/memorandums/${memorandumId}/`);
+        await api.delete(`/api/memorandums/${memorandumId}/`);
       } catch (err: any) {
         if (err?.response?.status === 404) {
           await api.delete(`/api/memorandums/${memorandumId}/`);

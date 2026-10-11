@@ -16,7 +16,7 @@ import { z } from "zod";
 const propertySchema = z.object({
   property_name: z.string().min(1, "Property name is required"),
   property_address: z.string().min(1, "Address is required"),
-  property_type: z.string().optional(),
+  property_type: z.string().min(1, "Property type is required"),
   number_of_units: z.preprocess(
     (val) =>
       val === "" || val === undefined || isNaN(Number(val))
@@ -68,7 +68,7 @@ const propertySchema = z.object({
 type PropertyFormData = {
   property_name: string;
   property_address: string;
-  property_type?: string;
+  property_type: string;
   number_of_units?: number;
   rentable_area?: string;
   year_built?: number;
@@ -287,58 +287,100 @@ const AddPropertyInfo = ({
 
     try {
       const formData = new FormData();
+      
+      // Required fields
       formData.append("place_id", placeData?.place_id || "");
-      formData.append("property_name", data.property_name);
-      formData.append("property_address", data.property_address);
-      formData.append(
-        "property_type",
-        (data.property_type || "other").toLowerCase(),
-      );
-      if (data.number_of_units !== undefined && !isNaN(data.number_of_units)) {
-        formData.append("number_of_units", String(data.number_of_units));
-      }
-      if (data.rentable_area) {
-        formData.append("rentable_area", String(data.rentable_area));
-      }
-      if (data.year_built !== undefined && !isNaN(data.year_built)) {
-        formData.append("year_built", String(data.year_built));
-      }
-      if (data.occupancy) {
-        formData.append("occupancy", String(data.occupancy));
-      }
-      if (data.year_renovated !== undefined && !isNaN(data.year_renovated)) {
-        formData.append("year_renovated", String(data.year_renovated));
-      }
-      if (data.parking_spaces !== undefined && !isNaN(data.parking_spaces)) {
-        formData.append("parking_spaces", String(data.parking_spaces));
-      }
+      formData.append("property_name", data.property_name.trim());
+      formData.append("property_address", data.property_address.trim());
       formData.append("latitude", location.lat.toFixed(6));
       formData.append("longitude", location.lng.toFixed(6));
+      
+      // Property type - ensure it matches backend expectations
+      const propertyType = data.property_type?.trim() || "Other";
+      formData.append("property_type", propertyType);
+      
+      // Optional numeric fields - only append if they have valid values
+      if (data.number_of_units !== undefined && 
+          data.number_of_units !== null && 
+          !isNaN(data.number_of_units) && 
+          data.number_of_units > 0) {
+        formData.append("number_of_units", String(data.number_of_units));
+      }
+      
+      if (data.rentable_area && 
+          String(data.rentable_area).trim() !== "" && 
+          String(data.rentable_area).trim() !== "0") {
+        formData.append("rentable_area", String(data.rentable_area).trim());
+      }
+      
+      if (data.year_built !== undefined && 
+          data.year_built !== null && 
+          !isNaN(data.year_built) && 
+          data.year_built >= 1800) {
+        formData.append("year_built", String(data.year_built));
+      }
+      
+      if (data.occupancy && 
+          String(data.occupancy).trim() !== "" && 
+          String(data.occupancy).trim() !== "0") {
+        formData.append("occupancy", String(data.occupancy).trim());
+      }
+      
+      if (data.year_renovated !== undefined && 
+          data.year_renovated !== null && 
+          !isNaN(data.year_renovated) && 
+          data.year_renovated >= 1800) {
+        formData.append("year_renovated", String(data.year_renovated));
+      }
+      
+      if (data.parking_spaces !== undefined && 
+          data.parking_spaces !== null && 
+          !isNaN(data.parking_spaces) && 
+          data.parking_spaces >= 0) {
+        formData.append("parking_spaces", String(data.parking_spaces));
+      }
 
+      // Types from place data
       const typesStr = Array.isArray(placeData?.types)
         ? placeData.types.join(",")
         : String(placeData?.types || "establishment,point_of_interest");
       formData.append("types", typesStr);
 
+      // Handle images - separate place photos (URLs) from uploaded files
       const placePhotos: string[] = [];
+      const uploadedFiles: File[] = [];
+      
       propertyImages.forEach((image) => {
         if (image.source === "place") {
           placePhotos.push(image.url);
         } else if (image.source === "upload") {
-          formData.append("photos", image.file);
-          formData.append("property_image", image.file);
+          uploadedFiles.push(image.file);
         }
       });
 
+      // Append place photo URLs as JSON array if any exist
       if (placePhotos.length > 0) {
-        formData.append("photos", placePhotos.join(","));
-        formData.append(
-          "property_image_urls",
-          JSON.stringify(placePhotos),
-        );
+        formData.append("property_image_urls", JSON.stringify(placePhotos));
       }
+      
+      // Append uploaded files separately
+      uploadedFiles.forEach((file) => {
+        formData.append("property_image", file);
+      });
 
-      const response = await api.post("/api/v1/properties/", formData);
+      // Debug: Log what we're sending
+      console.log("Submitting property data:");
+      console.log("- property_name:", data.property_name);
+      console.log("- property_address:", data.property_address);
+      console.log("- property_type:", data.property_type);
+      console.log("- latitude:", location.lat);
+      console.log("- longitude:", location.lng);
+      console.log("- place_id:", placeData?.place_id);
+      console.log("- number_of_units:", data.number_of_units);
+      console.log("- Place photos count:", placePhotos.length);
+      console.log("- Uploaded files count:", uploadedFiles.length);
+
+      const response = await api.post("/api/properties/", formData);
       const createdId =
         response?.data?.data?.id ??
         response?.data?.id ??
@@ -367,15 +409,37 @@ const AddPropertyInfo = ({
       }
     } catch (error: unknown) {
       const err = error as {
-        response?: { data?: Record<string, unknown>; message?: string };
+        response?: { 
+          data?: { 
+            message?: string; 
+            errors?: Record<string, string[] | string>;
+            success?: boolean;
+          };
+          status?: number;
+        };
       };
-      console.error("Server error details:", err?.response?.data);
-      const msg =
-        (err?.response?.data?.message as string) ||
-        (err?.response?.data?.errors
-          ? JSON.stringify(err.response.data.errors)
-          : "Something went wrong. Please try again.");
-      toast.error(msg);
+      
+      console.error("Property creation error:", err?.response?.data);
+      
+      const apiErrors = err?.response?.data?.errors;
+      const message = err?.response?.data?.message;
+      
+      // Display detailed validation errors
+      if (apiErrors && typeof apiErrors === 'object') {
+        const errorMessages = Object.entries(apiErrors)
+          .map(([field, msgs]) => {
+            const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (Array.isArray(msgs)) {
+              return `${fieldName}: ${msgs.join(', ')}`;
+            }
+            return `${fieldName}: ${msgs}`;
+          })
+          .join('\n');
+        
+        toast.error(`Validation failed:\n${errorMessages}`);
+      } else {
+        toast.error(message || "Failed to save property. Please try again.");
+      }
     }
   };
 
@@ -430,34 +494,34 @@ const AddPropertyInfo = ({
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div>
-          <h1 className="text-xl">
-            Step {id + 1} : {title}
-          </h1>
-          <p className="text-[#4A5565]">{description}</p>
-        </div>
-      </div>
-
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="mt-10 border border-[#99A1AF] p-6 rounded-2xl bg-white shadow-sm"
+        className="mt-6 border border-[#99A1AF] p-6 rounded-2xl bg-white shadow-sm"
       >
         <h1 className="text-lg font-semibold text-gray-800 mb-1">
           Property Details
         </h1>
         <p className="text-sm text-[#4A5565] mb-5">
-          Fill in the information about the property below.
+          Review the AI-enriched property information below. Fields with data have been auto-populated — edit them as needed or fill in any blank fields.
         </p>
         <hr className="border-[#E5E7EB] mb-6" />
 
         {placeData ? (
           <div className="mb-6 rounded-xl border border-[#DDE3EA] bg-[#F8FAFC] p-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6A7282]">
-                Location from previous step
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6A7282]">
+                  Location from previous step
+                </p>
+                {(placeData.property_type || placeData.number_of_units) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    AI Enriched
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-sm font-medium text-gray-900">
                 {placeData.name || "Unnamed place"}
               </p>
@@ -470,6 +534,32 @@ const AddPropertyInfo = ({
                   ? ` - Rating ${placeData.rating}`
                   : ""}
               </p>
+              
+              {/* Show AI-enriched fields preview */}
+              {(placeData.property_type || placeData.number_of_units) && (
+                <div className="mt-3 pt-3 border-t border-[#E5E7EB]">
+                  <p className="text-xs font-semibold text-[#6A7282] mb-2">
+                    Auto-populated fields below:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {placeData.property_type && (
+                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 border border-green-200">
+                        Property Type: {placeData.property_type}
+                      </span>
+                    )}
+                    {placeData.number_of_units && (
+                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 border border-green-200">
+                        Units: {placeData.number_of_units}
+                      </span>
+                    )}
+                    {placeData.year_built && (
+                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 border border-green-200">
+                        Built: {placeData.year_built}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : null}
@@ -688,8 +778,10 @@ const AddPropertyInfo = ({
                 Property Images
               </Label>
               <p className="text-xs text-[#4A5565] mt-1">
-                Fetched photos are prefilled. Remove any photo or append new
-                uploads (max {MAX_IMAGES} images).
+                {propertyImages.length > 0 && propertyImages.some(img => img.source === 'place')
+                  ? `${propertyImages.filter(img => img.source === 'place').length} image${propertyImages.filter(img => img.source === 'place').length > 1 ? 's' : ''} fetched from Google Maps. `
+                  : ''}
+                Remove any photo or append new uploads (max {MAX_IMAGES} images).
               </p>
             </div>
             <span className="text-xs text-[#4A5565]">

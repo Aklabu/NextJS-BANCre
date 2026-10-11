@@ -61,7 +61,7 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
             lng: location.lng(),
             types: place.types || [],
             rating: place.rating ?? null,
-            photos: place.photos?.slice(0, 3).map((photo) => photo.getUrl({ maxWidth: 1200, maxHeight: 1200 })) || []
+            photos: place.photos?.slice(0, 6).map((photo) => photo.getUrl({ maxWidth: 1200, maxHeight: 1200 })) || []
         };
     }, []);
 
@@ -186,7 +186,7 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
                     >
                         <input
                             type="text"
-                            placeholder="Search and pin a place..."
+                            placeholder="Search for property address..."
                             className="w-full h-12 px-4 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black shadow-sm"
                         />
                     </Autocomplete>

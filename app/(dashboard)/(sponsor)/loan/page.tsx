@@ -97,7 +97,7 @@ const Page = () => {
     queryKey: ["properties"],
     queryFn: async () => {
       const res = await api
-        .get("/api/v1/properties/")
+        .get("/api/properties/")
         .catch(() => api.get("/api/properties/"));
       const raw = res?.data?.data ?? res?.data;
       return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];

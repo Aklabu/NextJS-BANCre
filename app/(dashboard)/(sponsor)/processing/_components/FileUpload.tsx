@@ -87,7 +87,7 @@ const FileUpload = ({
             files.forEach((file) => formData.append("files", file));
 
             const response = await api.post(
-                `/api/v1/properties/${propertyId}/files/`,
+                `/api/properties/${propertyId}/files/`,
                 formData,
                 {
                     headers: {

@@ -8,12 +8,12 @@ import type {
 
 /**
  * Fetch all properties
- * Postman: GET /api/v1/properties/
+ * Postman: GET /api/properties/
  */
 export async function fetchProperties(): Promise<DocviewProperty[]> {
   let response;
   try {
-    response = await api.get("/api/v1/properties/");
+    response = await api.get("/api/properties/");
   } catch {
     response = await api.get("/api/properties/");
   }
@@ -43,7 +43,7 @@ export async function fetchPropertyDocuments(
 ): Promise<DocviewDocument[]> {
   let response;
   try {
-    response = await api.get(`/api/v1/properties/${propertyId}/files/`);
+    response = await api.get(`/api/properties/${propertyId}/files/`);
   } catch {
     try {
       response = await api.get(`/api/properties/${propertyId}/files/`);
@@ -90,7 +90,7 @@ export async function fetchChatSessions(
 ): Promise<ChatSession[]> {
   let response;
   try {
-    response = await api.get(`/api/v1/properties/${propertyId}/chat/sessions/`);
+    response = await api.get(`/api/properties/${propertyId}/chat/sessions/`);
   } catch {
     response = await api.get(`/api/properties/${propertyId}/chat/sessions/`);
   }
@@ -110,7 +110,7 @@ export async function fetchChatMessages(
   let response;
   try {
     response = await api.get(
-      `/api/v1/properties/${propertyId}/chat/sessions/${sessionId}/`,
+      `/api/properties/${propertyId}/chat/sessions/${sessionId}/`,
     );
   } catch {
     response = await api.get(
@@ -145,7 +145,7 @@ export async function sendChatMessage(
 
   let response;
   try {
-    response = await api.post(`/api/v1/properties/${propertyId}/chat/`, body);
+    response = await api.post(`/api/properties/${propertyId}/chat/`, body);
   } catch {
     response = await api.post(`/api/properties/${propertyId}/chat/`, body);
   }
@@ -167,7 +167,7 @@ export async function deleteChatSession(
 ): Promise<void> {
   try {
     await api.delete(
-      `/api/v1/properties/${propertyId}/chat/sessions/${sessionId}/`,
+      `/api/properties/${propertyId}/chat/sessions/${sessionId}/`,
     );
   } catch {
     await api.delete(

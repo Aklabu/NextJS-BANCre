@@ -74,7 +74,7 @@ const DownloadPage = () => {
 
         let response;
         try {
-          response = await api.get(`/api/v1/memorandums/${memorandumId}/`);
+          response = await api.get(`/api/memorandums/${memorandumId}/`);
         } catch (err: any) {
           if (err?.response?.status === 404) {
             response = await api.get(`/api/memorandums/${memorandumId}/`);

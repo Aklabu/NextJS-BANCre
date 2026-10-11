@@ -163,14 +163,14 @@ const Page = () => {
     try {
       const [propertyRes, mapRes, memorandumRes] = await Promise.all([
         api
-          .get("/api/v1/properties/")
+          .get("/api/properties/")
           .catch(() => api.get("/api/properties/")),
         api
           .get("/api/v1/properties/map/")
           .catch(() => api.get("/api/properties/map/"))
           .catch(() => null),
         api
-          .get("/api/v1/memorandums/")
+          .get("/api/memorandums/")
           .catch(() => api.get("/api/memorandums/"))
           .catch(() => null),
       ]);
