@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Button from "@/components/Button";
 import {
   Check,
   FileText,
@@ -127,7 +126,7 @@ const Processing = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-[#0F172A]">
-              Step {id + 1}: {title || "Review & Generate"}
+              {title || "Review & Generate"}
             </h1>
             <p className="text-sm text-[#64748B]">
               {description ||
@@ -359,26 +358,7 @@ const Processing = ({
         )}
       </div>
 
-      {/* Footer Navigation */}
-      <div className="flex items-center justify-between pt-4 border-t border-[#F1F5F9]">
-        <Button
-          text="Back"
-          className="button-outline text-sm rounded-md"
-          onClick={() => {
-            if (!setCurrentStep) return;
-            setCurrentStep((prev) => Math.max(0, prev - 1));
-          }}
-        />
-        <Button
-          text="Complete & View Summary"
-          className="button-primary text-sm rounded-md"
-          isDisabled={status === "loading"}
-          onClick={() => {
-            if (!setCurrentStep) return;
-            setCurrentStep((prev) => prev + 1);
-          }}
-        />
-      </div>
+
     </div>
   );
 };
