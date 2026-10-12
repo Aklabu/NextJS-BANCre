@@ -6,7 +6,6 @@ import {
   FileText,
   Loader2,
   AlertCircle,
-  Pencil,
   Sparkles,
   Building2,
   MapPin,
@@ -135,16 +134,7 @@ const Processing = ({
           </div>
         </div>
 
-        {onEditProperty && (
-          <button
-            type="button"
-            onClick={onEditProperty}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#CBD5E1] bg-white text-xs font-semibold text-[#0F172A] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
-          >
-            <Pencil className="h-3.5 w-3.5 text-blue-600" />
-            Edit Property Details
-          </button>
-        )}
+
       </div>
 
       {/* Property Overview Card */}
