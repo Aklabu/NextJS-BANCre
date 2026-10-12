@@ -161,7 +161,7 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
   };
 
   return (
-    <nav className="flex items-start">
+    <nav className="flex items-start overflow-x-hidden w-full max-w-full">
       <div
         className={`fixed top-0 left-0 h-screen w-72 z-50 bg-black shadow-xl transform transition-transform duration-300 ease-in-out  ${
           isMenuOpen ? "translate-x-0" : "-translate-x-full"
@@ -255,8 +255,8 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
         </div>
       </div>
       {/* top section with children*/}
-      <div className="flex-1 flex flex-col lg:ml-72 min-h-screen">
-        <div className="sticky top-0 z-30 border-b border-[#E5E7EB] bg-white text-black">
+      <div className="flex-1 flex flex-col lg:ml-72 min-h-screen overflow-x-hidden w-full max-w-full">
+        <div className="sticky top-0 z-30 border-b border-[#E5E7EB] bg-white text-black overflow-x-hidden">
           <div
             className={`flex justify-between items-center px-5 lg:px-8 py-3 max-w-[1550px] mx-auto`}
           >
@@ -300,7 +300,7 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
           </div>
         </div>
         {/* main content  */}
-        <div className="flex-1 overflow-y-auto px-3 md:px-5 py-2 relative max-w-[1550px] mx-auto w-full">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 md:px-5 py-2 relative w-full" style={{ maxWidth: '1550px', margin: '0 auto' }}>
           {children}
           {hideFloatingChatWidget ? <></> : <ChatWidget />}
         </div>

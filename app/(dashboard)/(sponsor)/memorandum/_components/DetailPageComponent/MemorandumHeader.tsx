@@ -3,118 +3,77 @@
 import React from "react";
 import { MemorandumHeaderProps } from "@/types/memorandum-detail";
 import { FaDownload } from "react-icons/fa6";
-import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
   memorandumId,
   title,
   subtitle,
-  status,
-  
   activeTab,
   onTabChange,
   canPublish = false,
   isPublishing = false,
   onPublish,
   onExport,
-  onRegenerateAll,
-  isRegeneratingAll = false,
 }) => {
   const router = useRouter();
 
-  const statusClassName =
-    status === "Published"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : status === "Generating"
-        ? "bg-amber-50 text-amber-700 border-amber-200"
-        : status === "Failed"
-          ? "bg-rose-50 text-rose-700 border-rose-200"
-          : "bg-slate-50 text-slate-700 border-slate-200";
-
   return (
-    <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-      {/* ====== Title and Subtitle ====== */}
-      <div className="mb-4 flex items-start">
-        <div>
-          <h1 className="text-xl md:text-2xl font-normal text-gray-900">
-            {title}
-          </h1>
-          <p className="text-gray-600 text-sm md:text-base mt-1">{subtitle}</p>
+    <div className="mb-4 w-full max-w-full min-w-0 overflow-x-hidden">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex-1 min-w-0 max-w-full">
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl md:text-2xl font-normal text-gray-900 break-words">
+                {title}
+              </h1>
+              <p className="text-gray-600 text-sm md:text-base mt-1 break-words">{subtitle}</p>
+            </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-medium ${statusClassName}`}
-            >
-              Status: {status || "Draft"}
-            </span>
-           
+            <div className="flex flex-wrap items-center gap-2">
+              {activeTab === "editor" ? (
+                <button
+                  onClick={() => onTabChange("preview")}
+                  className="px-6 py-2.5 cursor-pointer flex items-center gap-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition shadow-sm"
+                  type="button"
+                >
+                  Take a Final Review
+                </button>
+              ) : null}
+
+              {activeTab === "preview" && canPublish && onPublish ? (
+                <button
+                  onClick={onPublish}
+                  disabled={isPublishing}
+                  className="px-4 py-2 cursor-pointer flex items-center bg-emerald-600 text-white rounded-full duration-300 hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                >
+                  {isPublishing ? "Publishing..." : "Publish"}
+                </button>
+              ) : null}
+
+              {activeTab === "preview" ? (
+                <button
+                  onClick={() => {
+                    if (onExport) {
+                      onExport();
+                      return;
+                    }
+
+                    if (!memorandumId) return;
+                    router.push(`/memorandum/${memorandumId}/download`);
+                  }}
+                  disabled={!memorandumId && !onExport}
+                  className="px-4 py-2 cursor-pointer flex items-center bg-blue-400 text-white rounded-full duration-500 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Export
+                  <FaDownload size={18} className="inline-block ml-2 text-white" />
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
-
-        <div className="ml-0 mt-3 flex items-center gap-2 md:ml-4 md:mt-0">
-          {activeTab === "editor" && onRegenerateAll ? (
-            <button
-              onClick={onRegenerateAll}
-              disabled={isRegeneratingAll}
-              className="px-4 py-2 cursor-pointer flex items-center gap-1.5 bg-indigo-600 text-white rounded-full duration-300 hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium shadow-xs"
-              type="button"
-              title="Regenerate all AI sections of this memorandum"
-            >
-              <Sparkles className={`w-4 h-4 ${isRegeneratingAll ? "animate-spin" : ""}`} />
-              <span>{isRegeneratingAll ? "Regenerating..." : "Regenerate All AI"}</span>
-            </button>
-          ) : null}
-
-          {activeTab === "preview" && canPublish && onPublish ? (
-            <button
-              onClick={onPublish}
-              disabled={isPublishing}
-              className="px-4 py-2 cursor-pointer flex items-center bg-emerald-600 text-white rounded-full duration-300 hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              type="button"
-            >
-              {isPublishing ? "Publishing..." : "Publish"}
-            </button>
-          ) : null}
-
-          <button
-            onClick={() => {
-              if (onExport) {
-                onExport();
-                return;
-              }
-
-              if (!memorandumId) return;
-              router.push(`/memorandum/${memorandumId}/download`);
-            }}
-            disabled={!memorandumId && !onExport}
-            className={`px-4 py-2 cursor-pointer flex items-center bg-blue-400 text-white rounded-full duration-500 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed ${activeTab === "editor" ? "hidden" : ""}`}
-          >
-            Export
-            <FaDownload size={18} className="inline-block ml-2 text-white" />
-          </button>
-        </div>
       </div>
-
-      {/* ====== Tab Navigation ====== */}
-      <div className="relative inline-flex rounded-full bg-[#ECECF0] p-1 mb-5">
-        <span
-          className={`absolute top-1 bottom-1 w-1/2 rounded-full bg-primary transition-all duration-300 ease-in-out ${activeTab === "editor" ? "left-1" : "left-1/2"}`}
-        />
-        <button
-          onClick={() => onTabChange("editor")}
-          className={`relative z-10 px-6 py-2 rounded-full transition-colors duration-300 ${activeTab === "editor" ? "text-white" : "text-gray-600"}`}
-        >
-          Editor
-        </button>
-        <button
-          onClick={() => onTabChange("preview")}
-          className={`relative z-10 px-4 py-2 rounded-full transition-colors duration-300 ${activeTab === "preview" ? "text-white" : "text-gray-600"}`}
-        >
-          Preview
-        </button>
-      </div>
-    
     </div>
   );
 };

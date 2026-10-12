@@ -80,7 +80,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   };
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 w-full max-w-full min-w-0 overflow-x-hidden">
       {/* ====== Hero Image Container ====== */}
       <div className="relative w-full h-64 md:h-96 lg:h-[500px] rounded-xl overflow-hidden mb-4 border border-gray-200 shadow-sm">
         <Image

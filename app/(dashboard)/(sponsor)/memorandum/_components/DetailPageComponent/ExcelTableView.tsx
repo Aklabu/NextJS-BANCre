@@ -302,7 +302,7 @@ export const ExcelTableView: React.FC<ExcelTableViewProps> = ({
 
   const tableComponent = (
     <div
-      className={`rounded-xl border border-slate-300/80 bg-white shadow-xs overflow-hidden ${
+      className={`rounded-xl border border-slate-300/80 bg-white shadow-xs overflow-hidden w-full max-w-full min-w-0 ${
         isFullscreen
           ? "fixed inset-4 z-50 flex flex-col shadow-2xl border-2 border-emerald-600 animate-in fade-in zoom-in-95 duration-200"
           : "my-4"
@@ -401,8 +401,8 @@ export const ExcelTableView: React.FC<ExcelTableViewProps> = ({
       </div>
 
       {/* ====== Excel Grid Container ====== */}
-      <div className="overflow-auto w-full max-w-full flex-1 bg-white">
-        <table className="w-full border-collapse text-left font-sans select-text">
+      <div className="overflow-x-auto overflow-y-auto w-full max-w-full flex-1 bg-white">
+        <table className="border-collapse text-left font-sans select-text" style={{ minWidth: '100%', width: 'max-content' }}>
           {/* Table Header Row */}
           <thead className="sticky top-0 z-10 bg-white">
             {/* Excel column letters banner (A, B, C, ...) */}

@@ -145,7 +145,7 @@ const DynamicSectionEditorCard = ({
 
   return (
     <div
-      className={`bg-white border rounded-2xl p-4 md:p-6 mb-6 transition-colors ${
+      className={`bg-white border rounded-2xl p-4 md:p-6 mb-6 transition-colors w-full max-w-full min-w-0 overflow-x-hidden ${
         isEditing
           ? "border-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]"
           : "border-gray-200"

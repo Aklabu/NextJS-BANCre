@@ -663,15 +663,7 @@ const MemorandumDetailPage = () => {
   );
 
   return (
-    <div className="mx-auto py-6">
-      <Link
-        href="/memorandum"
-        className="flex items-center gap-1 mb-4 text-gray-800 hover:text-blue-700 w-fit"
-      >
-        <IoIosArrowRoundBack className="text-2xl" />
-        <p className="text-sm md:text-base">Back to Memorandums</p>
-      </Link>
-
+    <div className="w-full max-w-full min-w-0 py-6 overflow-x-hidden">
       <MemorandumHeader
         memorandumId={data?.id}
         title={data?.title || "Offering Memorandum"}
@@ -708,7 +700,7 @@ const MemorandumDetailPage = () => {
       )}
 
       {activeTab === "preview" && (
-        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10">
+        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10 w-full max-w-full min-w-0 overflow-x-hidden">
           <div className="mb-4 flex justify-end">
             {isPublished ? (
               <button
