@@ -105,7 +105,7 @@ const normalizeRole = (value?: string) => {
 };
 
 const DashboardNavigation = ({ children }: NavbarProps) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [storedRole, setStoredRole] = useState<"Lender" | "Sponsor" | null>(
@@ -162,10 +162,19 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
 
   return (
     <nav className="flex items-start overflow-x-hidden w-full max-w-full">
+      {/* Backdrop overlay for mobile/tablet */}
+      {isMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 xl:hidden"
+          onClick={() => setIsMenuOpen(false)}
+          aria-label="Close menu"
+        />
+      )}
+      
       <div
-        className={`fixed top-0 left-0 h-screen w-72 z-50 bg-black shadow-xl transform transition-transform duration-300 ease-in-out  ${
+        className={`fixed top-0 left-0 h-screen w-72 z-50 bg-black shadow-xl transform transition-transform duration-300 ease-in-out ${
           isMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } xl:translate-x-0`}
       >
         <div className="flex justify-center  flex-col h-full">
           {/* Menu Header */}
@@ -183,7 +192,7 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
             </div>
             <button
               onClick={() => setIsMenuOpen(false)}
-              className="p-2 text-gray-500  rounded-md hover:bg-gray-100 lg:hidden"
+              className="p-2 text-gray-500 rounded-md hover:bg-gray-700 hover:text-white xl:hidden"
               aria-label="Close menu"
             >
               <MdClose className="h-6 w-6" />
@@ -211,9 +220,6 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
                         title={user?.first_name + " " + user?.last_name}
                       >
                         {user?.first_name + " " + user?.last_name}
-                      </p>
-                      <p className="overflow-y-hidden" title={user?.email}>
-                        {user?.email}
                       </p>
                     </div>
                   </div>
@@ -255,7 +261,7 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
         </div>
       </div>
       {/* top section with children*/}
-      <div className="flex-1 flex flex-col lg:ml-72 min-h-screen overflow-x-hidden w-full max-w-full">
+      <div className="flex-1 flex flex-col xl:ml-72 min-h-screen overflow-x-hidden w-full max-w-full">
         <div className="sticky top-0 z-30 border-b border-[#E5E7EB] bg-white text-black overflow-x-hidden">
           <div
             className={`flex justify-between items-center px-5 lg:px-8 py-3 max-w-[1550px] mx-auto`}
@@ -263,7 +269,7 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
             <div>
               <RxHamburgerMenu
                 onClick={() => setIsMenuOpen(true)}
-                className="text-xl flex lg:hidden"
+                className="text-xl flex xl:hidden cursor-pointer"
               />
             </div>
             <div
