@@ -27,7 +27,7 @@ type DynamicSectionEditorCardProps = {
     tableData?: MemorandumTableData | null,
   ) => Promise<void>;
   onImageUpload: (sectionId: number, file: File) => Promise<string | void>;
-  onRegenerate?: (sectionId: number, sectionKey?: string) => Promise<void>;
+  onRegenerate?: (sectionId: number, sectionKey?: string, customInstruction?: string) => Promise<void>;
 };
 
 const DynamicSectionEditorCard = ({
@@ -47,12 +47,31 @@ const DynamicSectionEditorCard = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isRegeneratingSection, setIsRegeneratingSection] = useState(false);
+  const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
+  const [customInstruction, setCustomInstruction] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sectionTitle =
     section.label ||
     section.title ||
     formatSectionTitle(section.section_key || section.section_type);
+
+  // Check if this is a table-only section (no custom instruction allowed)
+  const isTableOnlySection = [
+    "financing_summary",
+    "financial_analysis", 
+    "sales_comparables",
+    "lease_comparables"
+  ].includes(section.section_key || section.section_type || "");
+
+  // Debug logging
+  console.log(`Section: ${sectionTitle}`, {
+    is_regeneratable: section.is_regeneratable,
+    isTableOnlySection,
+    section_key: section.section_key,
+    section_type: section.section_type,
+    showButton: Boolean(section.is_regeneratable) && !isTableOnlySection
+  });
 
   const contentToRender = stripLeadingSectionHeading(
     editedContent,
@@ -113,7 +132,13 @@ const DynamicSectionEditorCard = ({
     if (!onRegenerate) return;
     try {
       setIsRegeneratingSection(true);
-      await onRegenerate(section.id, section.section_key);
+      await onRegenerate(
+        section.id, 
+        section.section_key,
+        customInstruction.trim() || undefined
+      );
+      setShowRegeneratePrompt(false);
+      setCustomInstruction("");
     } finally {
       setIsRegeneratingSection(false);
     }
@@ -197,10 +222,10 @@ const DynamicSectionEditorCard = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* AI Regenerate button if section is regeneratable */}
-          {Boolean(section.is_regeneratable) && onRegenerate ? (
+          {/* AI Regenerate button - ALWAYS SHOW for debugging */}
+          {!isEditing && (
             <button
-              onClick={handleRegenerate}
+              onClick={() => setShowRegeneratePrompt(!showRegeneratePrompt)}
               disabled={isRegeneratingSection || isSaving}
               className="flex items-center gap-1.5 text-indigo-700 hover:text-indigo-800 text-xs sm:text-sm font-medium px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-indigo-50 border border-indigo-200 transition-colors disabled:opacity-60 shadow-2xs cursor-pointer"
               type="button"
@@ -212,17 +237,10 @@ const DynamicSectionEditorCard = ({
                 }`}
               />
               <span>
-                {isRegeneratingSection ? "Regenerating..." : "Regenerate AI"}
+                {isRegeneratingSection ? "Regenerating..." : "Regenerate with AI"}
               </span>
             </button>
-          ) : section.is_regeneratable === false ? (
-            <span
-              className="px-2 py-1 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200"
-              title="This section is non-regeneratable (fixed/manual)"
-            >
-              Fixed Section
-            </span>
-          ) : null}
+          )}
 
           {!isEditing ? (
             <button
@@ -257,6 +275,63 @@ const DynamicSectionEditorCard = ({
           )}
         </div>
       </div>
+
+      {/* AI Regenerate Custom Instruction Prompt */}
+      {showRegeneratePrompt && !isTableOnlySection && (
+        <div className="mb-4 p-4 rounded-lg bg-indigo-50 border border-indigo-200">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <h4 className="text-sm font-semibold text-indigo-900">
+                AI Regeneration Prompt
+              </h4>
+              <p className="text-xs text-indigo-700 mt-1">
+                Provide optional instructions to guide the AI (e.g., "Focus on NOI growth and cap rate compression")
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowRegeneratePrompt(false);
+                setCustomInstruction("");
+              }}
+              className="text-indigo-600 hover:text-indigo-800 p-1"
+              type="button"
+            >
+              <FiX className="w-4 h-4" />
+            </button>
+          </div>
+
+          <textarea
+            value={customInstruction}
+            onChange={(e) => setCustomInstruction(e.target.value)}
+            placeholder="Enter custom instructions for AI regeneration (optional)..."
+            className="w-full px-3 py-2 text-sm border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white resize-y min-h-[80px]"
+            disabled={isRegeneratingSection}
+          />
+
+          <div className="flex justify-end gap-2 mt-3">
+            <button
+              onClick={() => {
+                setShowRegeneratePrompt(false);
+                setCustomInstruction("");
+              }}
+              disabled={isRegeneratingSection}
+              className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-800 disabled:opacity-50"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRegenerate}
+              disabled={isRegeneratingSection}
+              className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5 font-medium cursor-pointer"
+              type="button"
+            >
+              <Sparkles className={`w-4 h-4 ${isRegeneratingSection ? "animate-spin" : ""}`} />
+              {isRegeneratingSection ? "Regenerating..." : "Generate"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ====== Primary Content: Excel Table or Document Narrative ====== */}
       {viewMode === "table" && activeTable ? (

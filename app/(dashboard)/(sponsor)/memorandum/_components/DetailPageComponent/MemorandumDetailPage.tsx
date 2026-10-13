@@ -366,6 +366,7 @@ const MemorandumDetailPage = () => {
   const handleRegenerateSection = async (
     sectionId: number,
     sectionKey?: string,
+    customInstruction?: string,
   ) => {
     if (!memorandumId || !sectionId) {
       toast.error("Unable to regenerate this section right now.");
@@ -375,23 +376,27 @@ const MemorandumDetailPage = () => {
     const toastId = toast.loading("Regenerating section with AI...");
 
     try {
+      const payload: { section_key?: string; custom_instruction?: string } = {};
+      if (sectionKey) payload.section_key = sectionKey;
+      if (customInstruction) payload.custom_instruction = customInstruction;
+
       let response;
       try {
         response = await api.post(
-          `/api/v1/memorandums/${memorandumId}/sections/${sectionId}/regenerate/`,
-          { section_key: sectionKey },
+          `/api/memorandums/${memorandumId}/sections/${sectionId}/regenerate/`,
+          payload,
         );
       } catch (err: any) {
         if (err?.response?.status === 404) {
           try {
             response = await api.post(
               `/api/memorandums/${memorandumId}/sections/${sectionId}/regenerate/`,
-              { section_key: sectionKey },
+              payload,
             );
           } catch {
             response = await api.post(
               `/api/memorandums/${memorandumId}/regenerate/`,
-              { section_id: sectionId, section_key: sectionKey },
+              { section_id: sectionId, ...payload },
             );
           }
         } else {
@@ -400,6 +405,13 @@ const MemorandumDetailPage = () => {
       }
 
       const resData = response?.data?.data ?? response?.data;
+
+      console.log("Regenerate API response:", {
+        status: response?.status,
+        resData,
+        hasContent: !!resData?.content,
+        contentLength: resData?.content?.length,
+      });
 
       if (resData?.sections && Array.isArray(resData.sections)) {
         setData(resData);
@@ -416,7 +428,7 @@ const MemorandumDetailPage = () => {
               item.id === sectionId
                 ? {
                     ...item,
-                    content: resData.content ?? item.content,
+                    content: resData.content !== undefined ? resData.content : item.content,
                     table_data:
                       resData.table_data !== undefined
                         ? resData.table_data
@@ -425,7 +437,7 @@ const MemorandumDetailPage = () => {
                       resData.is_regeneratable !== undefined
                         ? resData.is_regeneratable
                         : item.is_regeneratable,
-                    blocks: resData.blocks ?? item.blocks,
+                    blocks: resData.blocks !== undefined ? resData.blocks : item.blocks,
                     updated_at: resData.updated_at ?? new Date().toISOString(),
                   }
                 : item,
@@ -433,10 +445,12 @@ const MemorandumDetailPage = () => {
           };
         });
       } else {
+        // If response structure is unexpected, refetch entire memorandum
+        console.log("Unexpected response structure, refetching memorandum...");
         try {
           let refetchRes;
           try {
-            refetchRes = await api.get(`/api/v1/memorandums/${memorandumId}/`);
+            refetchRes = await api.get(`/api/memorandums/${memorandumId}/`);
           } catch {
             refetchRes = await api.get(`/api/memorandums/${memorandumId}/`);
           }
@@ -444,8 +458,8 @@ const MemorandumDetailPage = () => {
           if (freshData) {
             setData(freshData);
           }
-        } catch {
-          // ignore refetch err
+        } catch (refetchErr) {
+          console.error("Failed to refetch memorandum:", refetchErr);
         }
       }
 
