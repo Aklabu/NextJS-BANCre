@@ -56,22 +56,19 @@ const DynamicSectionEditorCard = ({
     section.title ||
     formatSectionTitle(section.section_key || section.section_type);
 
-  // Check if this is a table-only section (no custom instruction allowed)
+  // Determine the section identifier (use section_key if available, fallback to section_type)
+  const sectionIdentifier = (section.section_key || section.section_type || "").toLowerCase();
+  
+  // Check if this is a table-only section (no custom instruction allowed per API spec)
   const isTableOnlySection = [
     "financing_summary",
     "financial_analysis", 
     "sales_comparables",
     "lease_comparables"
-  ].includes(section.section_key || section.section_type || "");
+  ].includes(sectionIdentifier);
 
-  // Debug logging
-  console.log(`Section: ${sectionTitle}`, {
-    is_regeneratable: section.is_regeneratable,
-    isTableOnlySection,
-    section_key: section.section_key,
-    section_type: section.section_type,
-    showButton: Boolean(section.is_regeneratable) && !isTableOnlySection
-  });
+  // Show button if: is_regeneratable is true OR undefined (not explicitly false), AND not a table-only section
+  const shouldShowRegenerateButton = section.is_regeneratable !== false && !isTableOnlySection && onRegenerate;
 
   const contentToRender = stripLeadingSectionHeading(
     editedContent,
@@ -132,9 +129,10 @@ const DynamicSectionEditorCard = ({
     if (!onRegenerate) return;
     try {
       setIsRegeneratingSection(true);
+      // Pass sectionIdentifier (section_key or section_type) for reference
       await onRegenerate(
         section.id, 
-        section.section_key,
+        sectionIdentifier || undefined,
         customInstruction.trim() || undefined
       );
       setShowRegeneratePrompt(false);
@@ -222,8 +220,8 @@ const DynamicSectionEditorCard = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* AI Regenerate button - ALWAYS SHOW for debugging */}
-          {!isEditing && (
+          {/* AI Regenerate button - show for all non-table sections */}
+          {shouldShowRegenerateButton && !isEditing && (
             <button
               onClick={() => setShowRegeneratePrompt(!showRegeneratePrompt)}
               disabled={isRegeneratingSection || isSaving}

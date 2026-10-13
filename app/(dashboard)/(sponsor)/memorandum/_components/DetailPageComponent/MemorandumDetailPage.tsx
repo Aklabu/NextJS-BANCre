@@ -373,104 +373,146 @@ const MemorandumDetailPage = () => {
       return;
     }
 
+    // Find the current section BEFORE starting regeneration to preserve content
+    const currentSection = sections.find((s: MemorandumSection) => s.id === sectionId);
+    
+    if (!currentSection) {
+      toast.error("Section not found.");
+      return;
+    }
+
     const toastId = toast.loading("Regenerating section with AI...");
 
     try {
-      const payload: { section_key?: string; custom_instruction?: string } = {};
-      if (sectionKey) payload.section_key = sectionKey;
-      if (customInstruction) payload.custom_instruction = customInstruction;
-
-      let response;
-      try {
-        response = await api.post(
-          `/api/memorandums/${memorandumId}/sections/${sectionId}/regenerate/`,
-          payload,
-        );
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          try {
-            response = await api.post(
-              `/api/memorandums/${memorandumId}/sections/${sectionId}/regenerate/`,
-              payload,
-            );
-          } catch {
-            response = await api.post(
-              `/api/memorandums/${memorandumId}/regenerate/`,
-              { section_id: sectionId, ...payload },
-            );
-          }
-        } else {
-          throw err;
-        }
+      const payload: { current_context?: string; custom_instruction?: string } = {};
+      
+      // Send current content as context for better iterations
+      if (currentSection.content && currentSection.content.trim()) {
+        payload.current_context = currentSection.content;
       }
+      
+      // Add custom instruction if provided
+      if (customInstruction && customInstruction.trim()) {
+        payload.custom_instruction = customInstruction.trim();
+      }
+
+      console.log("🔄 Regenerating section:", {
+        sectionId,
+        sectionTitle: currentSection.title || currentSection.label,
+        hasCurrentContext: !!payload.current_context,
+        currentContextLength: payload.current_context?.length,
+        hasCustomInstruction: !!payload.custom_instruction,
+        payload,
+      });
+
+      const response = await api.post(
+        `/api/memorandums/${memorandumId}/sections/${sectionId}/regenerate/`,
+        payload,
+      );
 
       const resData = response?.data?.data ?? response?.data;
 
-      console.log("Regenerate API response:", {
+      console.log("✅ Regenerate API response:", {
         status: response?.status,
+        responseStructure: {
+          hasData: !!response?.data,
+          hasNestedData: !!response?.data?.data,
+          dataKeys: Object.keys(resData || {}),
+        },
         resData,
+        sectionIdMatch: resData?.id === sectionId,
         hasContent: !!resData?.content,
         contentLength: resData?.content?.length,
+        contentPreview: resData?.content?.substring(0, 100),
       });
 
-      if (resData?.sections && Array.isArray(resData.sections)) {
-        setData(resData);
-      } else if (
-        resData?.id === sectionId ||
-        resData?.content !== undefined ||
-        resData?.table_data !== undefined
-      ) {
-        setData((prev: any) => {
-          if (!prev?.sections) return prev;
-          return {
-            ...prev,
-            sections: prev.sections.map((item: MemorandumSection) =>
-              item.id === sectionId
-                ? {
-                    ...item,
-                    content: resData.content !== undefined ? resData.content : item.content,
-                    table_data:
-                      resData.table_data !== undefined
-                        ? resData.table_data
-                        : item.table_data,
-                    is_regeneratable:
-                      resData.is_regeneratable !== undefined
-                        ? resData.is_regeneratable
-                        : item.is_regeneratable,
-                    blocks: resData.blocks !== undefined ? resData.blocks : item.blocks,
-                    updated_at: resData.updated_at ?? new Date().toISOString(),
-                  }
-                : item,
-            ),
-          };
-        });
-      } else {
-        // If response structure is unexpected, refetch entire memorandum
-        console.log("Unexpected response structure, refetching memorandum...");
-        try {
-          let refetchRes;
-          try {
-            refetchRes = await api.get(`/api/memorandums/${memorandumId}/`);
-          } catch {
-            refetchRes = await api.get(`/api/memorandums/${memorandumId}/`);
-          }
-          const freshData = refetchRes?.data?.data ?? refetchRes?.data;
-          if (freshData) {
-            setData(freshData);
-          }
-        } catch (refetchErr) {
-          console.error("Failed to refetch memorandum:", refetchErr);
-        }
+      // Validate response has required data
+      if (!resData || resData.id !== sectionId) {
+        console.error("❌ Invalid response: section ID mismatch or missing data");
+        throw new Error("Invalid response from server");
       }
+
+      if (resData.content === undefined || resData.content === null) {
+        console.error("❌ Response missing content field");
+        throw new Error("Server returned empty content");
+      }
+
+      // Check if content is too short (likely an error or "No data")
+      const contentLength = resData.content.trim().length;
+      if (contentLength < 20) {
+        // Only log in development to avoid console spam
+        if (process.env.NODE_ENV === 'development') {
+          console.warn("⚠️ Backend returned short content for section:", {
+            sectionId,
+            sectionTitle: currentSection.title || currentSection.label,
+            contentLength,
+            content: resData.content,
+          });
+        }
+        throw new Error(
+          `Unable to generate content for this section. Backend returned: "${resData.content}". ` +
+          `Please try again or contact support if the issue persists.`
+        );
+      }
+
+      // Update the section with new content
+      setData((prev: any) => {
+        if (!prev?.sections) {
+          console.error("❌ No sections in state");
+          return prev;
+        }
+        
+        const updatedSections = prev.sections.map((item: MemorandumSection) => {
+          if (item.id === sectionId) {
+            const updated = {
+              ...item,
+              content: resData.content,
+              blocks: resData.blocks || item.blocks,
+              title: resData.title || item.title,
+              section_type: resData.section_type || item.section_type,
+              image: resData.image !== undefined ? resData.image : item.image,
+              image_url: resData.image_url !== undefined ? resData.image_url : item.image_url,
+              order: resData.order !== undefined ? resData.order : item.order,
+              updated_at: resData.updated_at || new Date().toISOString(),
+            };
+            
+            console.log("📝 Updated section:", {
+              id: updated.id,
+              title: updated.title,
+              contentLength: updated.content?.length,
+            });
+            
+            return updated;
+          }
+          return item;
+        });
+
+        return {
+          ...prev,
+          sections: updatedSections,
+        };
+      });
 
       toast.success("Section regenerated successfully!", { id: toastId });
     } catch (error: any) {
-      console.error("Failed to regenerate section:", error);
+      // Only log detailed errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("⚠️ Section regeneration failed:", {
+          sectionId,
+          sectionTitle: currentSection.title || currentSection.label,
+          errorMessage: error?.message,
+        });
+      }
+      
       const apiMsg =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
-        "Failed to regenerate section with AI. Please try again.";
+        error?.message ||
+        "Failed to regenerate section.";
+      
       toast.error(apiMsg, { id: toastId });
+      
+      // Don't clear the content on error - keep the original
     }
   };
 
