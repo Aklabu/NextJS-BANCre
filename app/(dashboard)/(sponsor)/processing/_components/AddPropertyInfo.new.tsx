@@ -122,24 +122,35 @@ const AddPropertyInfo = ({
       return;
     }
 
-    const totalFiles = imageUpload.images.length + documentUpload.files.length;
-    if (totalFiles === 0) {
-      toast.error("Please upload at least one property image or document.");
-      return;
+    // Collect all files to upload
+    const uploadedImages = imageUpload.getUploadedFiles();
+    const uploadedDocs = documentUpload.files.map((doc) => doc.file);
+    const filesToUpload: File[] = [...uploadedImages, ...uploadedDocs];
+
+    // API requires at least 1 file
+    if (filesToUpload.length === 0) {
+      // Check if we have place photos but no uploaded files
+      if (imageUpload.images.length > 0) {
+        // Create a minimal placeholder file
+        const placeholderFile = new File(
+          [JSON.stringify({ note: "Property created with Google Maps photos", photos: imageUpload.getPlacePhotoUrls() })],
+          "property_metadata.json",
+          { type: "application/json" }
+        );
+        filesToUpload.push(placeholderFile);
+      } else {
+        toast.error("Please upload at least one property image or document.");
+        return;
+      }
     }
 
-    if (totalFiles > MAX_DOCUMENTS) {
-      toast.error(`Maximum ${MAX_DOCUMENTS} files allowed. You have ${totalFiles} files.`);
+    // Validate max file count
+    if (filesToUpload.length > MAX_DOCUMENTS) {
+      toast.error(`Maximum ${MAX_DOCUMENTS} files allowed. You have ${filesToUpload.length} files.`);
       return;
     }
 
     try {
-      // Collect all files to upload
-      const filesToUpload: File[] = [
-        ...imageUpload.getUploadedFiles(),
-        ...documentUpload.files.map((doc) => doc.file),
-      ];
-
       const response = await createProperty({
         property_name: data.property_name,
         property_address: data.property_address,
@@ -175,7 +186,7 @@ const AddPropertyInfo = ({
       };
       setPropertyData?.(savedProperty);
 
-      // Skip document upload step
+      // Skip document upload step since all files were uploaded during creation
       setCurrentStep?.((prev) => prev + 2);
     } catch (error: any) {
       console.error("Property creation error:", error);
@@ -184,17 +195,21 @@ const AddPropertyInfo = ({
       const message = error?.message;
 
       if (Array.isArray(apiErrors)) {
-        toast.error(`Validation failed:\n${apiErrors.join("\n")}`);
+        // Handle array of error messages
+        const errorText = apiErrors.join("\n");
+        toast.error(`Validation failed:\n${errorText}`);
       } else if (apiErrors && typeof apiErrors === "object") {
+        // Handle object with field-specific errors
         const errorMessages = Object.entries(apiErrors)
           .map(([field, msgs]) => {
             const fieldName = field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-            return `${fieldName}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`;
+            const errorMsg = Array.isArray(msgs) ? msgs.join(", ") : String(msgs);
+            return `${fieldName}: ${errorMsg}`;
           })
           .join("\n");
         toast.error(`Validation failed:\n${errorMessages}`);
       } else {
-        toast.error(message || "Failed to save property. Please try again.");
+        toast.error(message || "Failed to create property. Please try again.");
       }
     }
   };

@@ -76,6 +76,11 @@ export interface PropertyAPIError {
  * - Max size per file: 10 MB
  * - Allowed types: pdf, png, jpg, jpeg, xlsx, xls, csv, pptx, ppt, docx, doc
  * 
+ * Response includes:
+ * - Property details
+ * - Array of uploaded documents with URLs
+ * - Success message indicating number of documents uploaded
+ * 
  * @param payload - Property data and files
  * @returns Created property with documents
  * @throws Error with validation details
@@ -97,11 +102,33 @@ export async function createProperty(
   // Build FormData
   const formData = new FormData();
 
-  // Required fields
+  // Required fields with proper formatting
   formData.append("property_name", payload.property_name.trim());
   formData.append("property_address", payload.property_address.trim());
-  formData.append("latitude", payload.latitude.toFixed(6));
-  formData.append("longitude", payload.longitude.toFixed(6));
+  
+  // Latitude/Longitude: Limit to 10 total digits (including decimal point and minus sign)
+  // Example: -123.456789 (10 chars) or 12.3456789 (10 chars)
+  const formatCoordinate = (coord: number): string => {
+    const coordStr = coord.toFixed(7); // Max 7 decimal places
+    // Ensure total length doesn't exceed 10 digits (excluding decimal point and minus)
+    const parts = coordStr.split('.');
+    const intPart = parts[0].replace('-', '');
+    const decPart = parts[1] || '';
+    
+    // Total digits should be max 10 (integer + decimal, not counting - or .)
+    const totalDigits = intPart.length + decPart.length;
+    
+    if (totalDigits <= 10) {
+      return coordStr;
+    }
+    
+    // Trim decimal places to fit within 10 digits
+    const maxDecimalPlaces = 10 - intPart.length;
+    return coord.toFixed(Math.max(0, maxDecimalPlaces));
+  };
+  
+  formData.append("latitude", formatCoordinate(payload.latitude));
+  formData.append("longitude", formatCoordinate(payload.longitude));
 
   // Optional fields
   if (payload.place_id) {
@@ -162,11 +189,9 @@ export async function createProperty(
     formData.append("parking_spaces", String(payload.parking_spaces));
   }
 
-  // Property photo URLs (from Google Maps)
+  // Property photo URLs (from Google Maps) - Send as JSON string
   if (payload.property_photos && payload.property_photos.length > 0) {
-    payload.property_photos.forEach((url) => {
-      formData.append("property_photos", url);
-    });
+    formData.append("property_photos", JSON.stringify(payload.property_photos));
   }
 
   // Files - all documents/images go under "files" key
@@ -175,7 +200,12 @@ export async function createProperty(
   });
 
   try {
-    const response = await api.post("/api/properties/", formData);
+    const response = await api.post("/api/properties/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    
     const data = response?.data?.data ?? response?.data;
 
     return {
@@ -203,7 +233,7 @@ export async function createProperty(
       documents: data.documents || [],
     };
   } catch (error: any) {
-    // Re-throw with better error message
+    // Handle API error response with structured error format
     const errorData = error?.response?.data;
     
     if (errorData) {
@@ -213,7 +243,7 @@ export async function createProperty(
       throw err;
     }
     
-    throw error;
+    throw new Error("Failed to create property. Please try again.");
   }
 }
 
@@ -221,16 +251,32 @@ export async function createProperty(
  * Upload additional documents to an existing property
  * POST /api/properties/{id}/documents/
  * 
+ * This endpoint is for uploading ADDITIONAL documents to an existing property
+ * after the property has been created.
+ * 
+ * Requirements:
+ * - Property must already exist (created via POST /api/properties/)
+ * - Maximum 20 files per request
+ * - Max size per file: 10 MB
+ * - Allowed types: pdf, png, jpg, jpeg, xlsx, xls, csv, pptx, ppt, docx, doc
+ * 
  * @param propertyId - Property ID
  * @param files - Files to upload
  * @returns Uploaded document details
+ * @throws Error with validation details
  */
 export async function uploadPropertyDocuments(
   propertyId: number,
   files: File[]
 ): Promise<PropertyDocument[]> {
   if (!files || files.length === 0) {
-    throw new Error("No files provided");
+    throw new Error("At least one document is required.");
+  }
+
+  if (files.length > 20) {
+    throw new Error(
+      `Too many files. Maximum 20 files allowed, but ${files.length} files were provided.`
+    );
   }
 
   const formData = new FormData();
@@ -241,14 +287,28 @@ export async function uploadPropertyDocuments(
   try {
     const response = await api.post(
       `/api/properties/${propertyId}/documents/`,
-      formData
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
     );
     
     const data = response?.data?.data ?? response?.data;
     return Array.isArray(data?.documents) ? data.documents : [];
   } catch (error: any) {
+    // Handle API error response with structured error format
     const errorData = error?.response?.data;
-    throw new Error(errorData?.message || "Failed to upload documents");
+    
+    if (errorData) {
+      const err = new Error(errorData.message || "Failed to upload documents");
+      (err as any).errors = errorData.errors;
+      (err as any).statusCode = errorData.statusCode || error?.response?.status;
+      throw err;
+    }
+    
+    throw new Error("Failed to upload documents. Please try again.");
   }
 }
 

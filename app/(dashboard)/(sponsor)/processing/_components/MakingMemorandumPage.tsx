@@ -79,7 +79,9 @@ const MakingMemorandumPage = () => {
           description={steps[currentStep].description}
           setCurrentStep={setCurrentStep}
           propertyId={propertyId}
+          setPropertyId={setPropertyId}
           setUploadedDocuments={setUploadedDocuments}
+          propertyData={propertyData}
         />
       )}
 

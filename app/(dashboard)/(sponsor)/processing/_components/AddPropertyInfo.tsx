@@ -7,7 +7,6 @@ import { z } from "zod";
 import { toast } from "sonner";
 import Button from "@/components/Button";
 import type { PlaceData, PropertyData } from "./place-types";
-import { createProperty } from "../../_api/properties-api";
 import { useImageUpload } from "./useFileUpload";
 import { PropertyImageUpload } from "./PropertyImageUpload";
 import { PropertyFormFields } from "./PropertyFormFields";
@@ -118,84 +117,25 @@ const AddPropertyInfo = ({
       return;
     }
 
-    // At least one image required as a placeholder file for API
-    if (imageUpload.images.length === 0) {
-      toast.error("Please upload at least one property image.");
-      return;
-    }
+    // Just save the property data locally - don't create property yet
+    // Property will be created in the next step (FileUpload) with all documents
+    const savedProperty: PropertyData = {
+      ...data,
+      place_id: placeData?.place_id,
+      latitude: location.lat,
+      longitude: location.lng,
+      photos: imageUpload.images.map((img) => (img.source === "place" ? img.url : img.name)),
+      types: placeData?.types,
+      // Store uploaded image files for next step
+      uploadedImageFiles: imageUpload.getUploadedFiles(),
+      placePhotoUrls: imageUpload.getPlacePhotoUrls(),
+    };
+    
+    setPropertyData?.(savedProperty);
+    toast.success("Property details saved. Continue to upload documents.");
 
-    try {
-      // Collect uploaded image files
-      const uploadedFiles = imageUpload.getUploadedFiles();
-      
-      // Create a dummy file if only place photos exist (API requires at least 1 file)
-      let filesToUpload: File[] = uploadedFiles;
-      if (filesToUpload.length === 0) {
-        // Create a minimal placeholder file
-        const placeholderFile = new File(
-          ["Property images from Google Maps"],
-          "placeholder.txt",
-          { type: "text/plain" }
-        );
-        filesToUpload = [placeholderFile];
-      }
-
-      const response = await createProperty({
-        property_name: data.property_name,
-        property_address: data.property_address,
-        latitude: location.lat,
-        longitude: location.lng,
-        files: filesToUpload,
-        place_id: placeData?.place_id,
-        property_type: data.property_type || "Commercial",
-        number_of_units: data.number_of_units,
-        rentable_area: data.rentable_area,
-        year_built: data.year_built,
-        year_renovated: data.year_renovated,
-        occupancy: data.occupancy,
-        parking_spaces: data.parking_spaces,
-        property_photos: imageUpload.getPlacePhotoUrls(),
-      });
-
-      toast.success("Property information saved successfully.");
-
-      if (response.id) {
-        setPropertyId?.(response.id);
-      }
-
-      const savedProperty: PropertyData = {
-        ...data,
-        id: response.id,
-        place_id: placeData?.place_id,
-        latitude: location.lat,
-        longitude: location.lng,
-        photos: imageUpload.images.map((img) => (img.source === "place" ? img.url : img.name)),
-        types: placeData?.types,
-      };
-      setPropertyData?.(savedProperty);
-
-      // Continue to next step (document upload)
-      setCurrentStep?.((prev) => prev + 1);
-    } catch (error: any) {
-      console.error("Property creation error:", error);
-
-      const apiErrors = error?.errors;
-      const message = error?.message;
-
-      if (Array.isArray(apiErrors)) {
-        toast.error(`Validation failed:\n${apiErrors.join("\n")}`);
-      } else if (apiErrors && typeof apiErrors === "object") {
-        const errorMessages = Object.entries(apiErrors)
-          .map(([field, msgs]) => {
-            const fieldName = field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-            return `${fieldName}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`;
-          })
-          .join("\n");
-        toast.error(`Validation failed:\n${errorMessages}`);
-      } else {
-        toast.error(message || "Failed to save property. Please try again.");
-      }
-    }
+    // Move to next step (document upload)
+    setCurrentStep?.((prev) => prev + 1);
   };
 
   return (

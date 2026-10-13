@@ -36,6 +36,9 @@ export type PropertyData = {
   longitude?: number | string;
   photos?: string[];
   types?: string[] | string;
+  // Files to be uploaded when creating property
+  uploadedImageFiles?: File[];
+  placePhotoUrls?: string[];
   [key: string]: unknown;
 };
 

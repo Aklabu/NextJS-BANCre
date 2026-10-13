@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import Button from "@/components/Button";
 import { Upload, Lightbulb, X, FileText, FileSpreadsheet, File } from "lucide-react";
 import { toast } from "sonner";
-import { uploadPropertyDocuments } from "../../_api/properties-api";
-import type { UploadedFileItem } from "./place-types";
+import { createProperty } from "../../_api/properties-api";
+import type { UploadedFileItem, PropertyData } from "./place-types";
 
 type FileUploadProps = {
     id: number;
@@ -11,7 +11,9 @@ type FileUploadProps = {
     description?: string;
     setCurrentStep?: React.Dispatch<React.SetStateAction<number>>;
     propertyId: number | null;
+    setPropertyId?: React.Dispatch<React.SetStateAction<number | null>>;
     setUploadedDocuments?: React.Dispatch<React.SetStateAction<UploadedFileItem[]>>;
+    propertyData?: PropertyData | null;
 };
 
 const FileUpload = ({
@@ -20,7 +22,9 @@ const FileUpload = ({
     description,
     setCurrentStep,
     propertyId,
+    setPropertyId,
     setUploadedDocuments,
+    propertyData,
 }: FileUploadProps) => {
     const [files, setFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -67,62 +71,110 @@ const FileUpload = ({
     const handleContinue = async () => {
         if (!setCurrentStep) return;
 
-        // If no files are selected, allow advancing
-        if (files.length === 0) {
-            setCurrentStep((prev) => prev + 1);
+        // Check if we have property data from previous step
+        if (!propertyData) {
+            setError("Property details are missing. Please go back and complete Step 2.");
+            toast.error("Property details are missing. Please go back and complete the property details step.");
             return;
         }
 
-        if (!propertyId) {
-            setError("Property ID is missing. Please complete the property details step first.");
-            toast.error("Property ID is missing. Please go back and complete Step 2.");
+        // Collect all files: images from previous step + documents from this step
+        const imageFiles = propertyData.uploadedImageFiles || [];
+        const documentFiles = files;
+        const allFiles = [...imageFiles, ...documentFiles];
+
+        // API requires at least 1 file
+        if (allFiles.length === 0) {
+            setError("Please upload at least one document to create the property.");
+            toast.error("At least one document is required to create the property.");
             return;
         }
 
-        console.log("Uploading documents for property ID:", propertyId);
-        console.log("Number of files:", files.length);
+        // Validate file count
+        if (allFiles.length > 20) {
+            const errorMsg = `Too many files. Maximum 20 files allowed, but ${allFiles.length} files were provided.`;
+            setError(errorMsg);
+            toast.error(errorMsg);
+            return;
+        }
+
+        console.log("Creating property with all files...");
+        console.log("Image files:", imageFiles.length);
+        console.log("Document files:", documentFiles.length);
+        console.log("Total files:", allFiles.length);
 
         setIsUploading(true);
         setError(null);
 
         try {
-            // Use API service to upload documents
-            const uploadedDocs = await uploadPropertyDocuments(propertyId, files);
+            // Create property with all files
+            const response = await createProperty({
+                property_name: propertyData.property_name,
+                property_address: propertyData.property_address,
+                latitude: Number(propertyData.latitude) || 0,
+                longitude: Number(propertyData.longitude) || 0,
+                files: allFiles,
+                place_id: propertyData.place_id,
+                property_type: propertyData.property_type,
+                number_of_units: propertyData.number_of_units ? Number(propertyData.number_of_units) : undefined,
+                rentable_area: propertyData.rentable_area,
+                year_built: propertyData.year_built ? Number(propertyData.year_built) : undefined,
+                year_renovated: propertyData.year_renovated ? Number(propertyData.year_renovated) : undefined,
+                occupancy: propertyData.occupancy,
+                parking_spaces: propertyData.parking_spaces ? Number(propertyData.parking_spaces) : undefined,
+                property_photos: propertyData.placePhotoUrls || [],
+            });
 
-            const successMessage = `${files.length} document(s) uploaded successfully.`;
-            toast.success(successMessage);
+            const docCount = response.documents?.length || allFiles.length;
+            toast.success(`Property created successfully with ${docCount} document(s).`);
 
-            // Map uploaded documents to expected format
-            if (uploadedDocs && uploadedDocs.length > 0) {
+            // Set the property ID
+            if (response.id && setPropertyId) {
+                setPropertyId(response.id);
+            }
+
+            // Store uploaded documents
+            if (response.documents && response.documents.length > 0) {
                 setUploadedDocuments?.(
-                    uploadedDocs.map((doc, idx) => ({
+                    response.documents.map((doc) => ({
                         id: doc.id,
-                        name: files[idx]?.name || `Document ${doc.id}`,
+                        name: doc.name || `Document ${doc.id}`,
                         file_url: doc.file_url,
                         uploaded_at: doc.uploaded_at,
-                        size: files[idx]?.size,
-                    }))
-                );
-            } else {
-                // Fallback if data structure is different
-                setUploadedDocuments?.(
-                    files.map((file, idx) => ({
-                        id: idx + 1,
-                        name: file.name,
-                        file_url: URL.createObjectURL(file),
-                        uploaded_at: new Date().toISOString(),
-                        size: file.size,
                     }))
                 );
             }
 
             setCurrentStep((prev) => prev + 1);
         } catch (err: unknown) {
-            const errorObj = err as { message?: string };
+            const errorObj = err as { 
+                message?: string; 
+                errors?: string[] | Record<string, string[] | string>;
+                statusCode?: number;
+            };
             
-            console.error("Upload error:", errorObj);
+            console.error("Property creation error:", errorObj);
             
-            const errorMessage = errorObj?.message || "Something went wrong while uploading files.";
+            let errorMessage = errorObj?.message || "Failed to create property. Please try again.";
+            
+            // Handle structured error messages
+            if (errorObj?.errors) {
+                if (Array.isArray(errorObj.errors)) {
+                    // Array of error messages (e.g., file validation errors)
+                    errorMessage = `${errorMessage}\n${errorObj.errors.join("\n")}`;
+                } else if (typeof errorObj.errors === "object") {
+                    // Object with field-specific errors
+                    const errorList = Object.entries(errorObj.errors)
+                        .map(([field, msgs]) => {
+                            const fieldName = field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+                            const msgStr = Array.isArray(msgs) ? msgs.join(", ") : String(msgs);
+                            return `${fieldName}: ${msgStr}`;
+                        })
+                        .join("\n");
+                    errorMessage = `${errorMessage}\n${errorList}`;
+                }
+            }
+            
             setError(errorMessage);
             toast.error(errorMessage);
         } finally {
@@ -133,8 +185,8 @@ const FileUpload = ({
     return (
         <div className="space-y-6 mt-6 p-5 pb-16 border border-[#E5E7EB] rounded-lg shadow-lg">
             <div>
-                <h1 className="text-xl font-semibold text-gray-800">Upload Your Property Documents</h1>
-                <p className="text-[#4A5565] mt-1">Upload financial statements, rent rolls, photos, and other supporting documents</p>
+                <h1 className="text-xl font-semibold text-gray-800">Upload Property Documents</h1>
+                <p className="text-[#4A5565] mt-1">Upload financial statements, rent rolls, and other supporting documents. At least one document is required.</p>
             </div>
 
             {/* File upload input */}
@@ -319,7 +371,7 @@ const FileUpload = ({
             <div className="border-t-2 border-[#E5E7EB] my-4 flex justify-end gap-4 pt-4">
                 <Button
                     onClick={handleContinue}
-                    text={isUploading ? "Uploading..." : "Continue"}
+                    text={isUploading ? "Creating Property..." : "Create Property & Continue"}
                     isDisabled={isUploading}
                     className="button-primary text-sm rounded-md"
                 />
