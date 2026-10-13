@@ -1,95 +1,58 @@
 "use client";
 
-import Button from "@/components/Button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import api from "@/lib/apiClient";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ImagePlus, X } from "lucide-react";
-import type { PlaceData, PropertyData } from "./place-types";
-
 import React from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
+import Button from "@/components/Button";
+import type { PlaceData, PropertyData } from "./place-types";
+import { createProperty } from "../../_api/properties-api";
+import { useImageUpload } from "./useFileUpload";
+import { PropertyImageUpload } from "./PropertyImageUpload";
+import { PropertyFormFields } from "./PropertyFormFields";
 
 const propertySchema = z.object({
   property_name: z.string().min(1, "Property name is required"),
   property_address: z.string().min(1, "Address is required"),
   property_type: z.string().min(1, "Property type is required"),
   number_of_units: z.preprocess(
-    (val) =>
-      val === "" || val === undefined || isNaN(Number(val))
-        ? undefined
-        : Number(val),
-    z.number().int().min(1, "At least 1 unit").optional(),
+    (val) => (val === "" || val === undefined || isNaN(Number(val)) ? undefined : Number(val)),
+    z.number().int().min(1, "At least 1 unit").optional()
   ),
   rentable_area: z.preprocess(
     (val) => (val === undefined || val === null ? "" : String(val)),
-    z.string().optional(),
+    z.string().optional()
   ),
   year_built: z.preprocess(
-    (val) =>
-      val === "" || val === undefined || isNaN(Number(val))
-        ? undefined
-        : Number(val),
+    (val) => (val === "" || val === undefined || isNaN(Number(val)) ? undefined : Number(val)),
     z
       .number()
       .int()
       .min(1800, "Enter a valid year")
       .max(new Date().getFullYear(), "Cannot be in the future")
-      .optional(),
+      .optional()
   ),
   occupancy: z.preprocess(
     (val) => (val === undefined || val === null ? "" : String(val)),
-    z.string().optional(),
+    z.string().optional()
   ),
   year_renovated: z.preprocess(
-    (val) =>
-      val === "" || val === undefined || isNaN(Number(val))
-        ? undefined
-        : Number(val),
+    (val) => (val === "" || val === undefined || isNaN(Number(val)) ? undefined : Number(val)),
     z
       .number()
       .int()
       .min(1800, "Enter a valid year")
       .max(new Date().getFullYear(), "Cannot be in the future")
-      .optional(),
+      .optional()
   ),
   parking_spaces: z.preprocess(
-    (val) =>
-      val === "" || val === undefined || isNaN(Number(val))
-        ? undefined
-        : Number(val),
-    z.number().int().min(0, "Min 0").optional(),
+    (val) => (val === "" || val === undefined || isNaN(Number(val)) ? undefined : Number(val)),
+    z.number().int().min(0, "Min 0").optional()
   ),
 });
 
-type PropertyFormData = {
-  property_name: string;
-  property_address: string;
-  property_type: string;
-  number_of_units?: number;
-  rentable_area?: string;
-  year_built?: number;
-  occupancy?: string;
-  year_renovated?: number;
-  parking_spaces?: number;
-};
-
-type PropertyImageItem =
-  | {
-      id: string;
-      name: string;
-      source: "place";
-      url: string;
-    }
-  | {
-      id: string;
-      name: string;
-      source: "upload";
-      file: File;
-    };
+type PropertyFormData = z.infer<typeof propertySchema>;
 
 type AddPropertyInfoProps = {
   id: number;
@@ -102,16 +65,6 @@ type AddPropertyInfoProps = {
   propertyData?: PropertyData | null;
 };
 
-const MAX_IMAGES = 6;
-
-const getPlaceImageItems = (photos?: string[]): PropertyImageItem[] =>
-  (photos || []).slice(0, MAX_IMAGES).map((photo, index) => ({
-    id: `place-${index}-${photo}`,
-    name: `Fetched image ${index + 1}`,
-    source: "place",
-    url: photo,
-  }));
-
 const normalizeType = (t?: unknown): string => {
   if (!t) return "";
   const s = String(t).trim().toLowerCase();
@@ -119,8 +72,6 @@ const normalizeType = (t?: unknown): string => {
   if (s.includes("indus")) return "Industrial";
   if (s.includes("retail")) return "Retail";
   if (s.includes("office")) return "Office";
-  if (s.includes("other") || s.includes("park") || s.includes("establishment"))
-    return "Other";
   return "Other";
 };
 
@@ -134,150 +85,32 @@ const AddPropertyInfo = ({
   placeData,
   propertyData,
 }: AddPropertyInfoProps) => {
-  const [location, setLocation] = React.useState({
+  const [location] = React.useState({
     lat: placeData?.lat || 0,
     lng: placeData?.lng || 0,
   });
-  const [propertyImages, setPropertyImages] = React.useState<
-    PropertyImageItem[]
-  >(() => getPlaceImageItems(placeData?.photos));
-  const [isDraggingImages, setIsDraggingImages] = React.useState(false);
-  const imageInputRef = React.useRef<HTMLInputElement>(null);
-  const imagePreviews = React.useMemo(
-    () =>
-      propertyImages.map((image) => ({
-        ...image,
-        url:
-          image.source === "upload"
-            ? URL.createObjectURL(image.file)
-            : image.url,
-      })),
-    [propertyImages],
-  );
 
-  React.useEffect(() => {
-    return () => {
-      imagePreviews.forEach((preview) => {
-        if (preview.source === "upload") {
-          URL.revokeObjectURL(preview.url);
-        }
-      });
-    };
-  }, [imagePreviews]);
+  // Use custom hook for image management
+  const imageUpload = useImageUpload(6, placeData?.photos);
 
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors, isSubmitting },
   } = useForm<PropertyFormData>({
-    resolver: zodResolver(propertySchema) as never,
+    resolver: zodResolver(propertySchema),
     defaultValues: {
-      property_name:
-        propertyData?.property_name ||
-        placeData?.property_name ||
-        placeData?.name ||
-        "",
-      property_address:
-        propertyData?.property_address ||
-        placeData?.property_address ||
-        placeData?.address ||
-        "",
-      property_type: normalizeType(
-        propertyData?.property_type || placeData?.property_type,
-      ),
-      number_of_units:
-        (propertyData?.number_of_units ?? placeData?.number_of_units)
-          ? Number(propertyData?.number_of_units ?? placeData?.number_of_units)
-          : undefined,
-      rentable_area:
-        (propertyData?.rentable_area ?? placeData?.rentable_area)
-          ? String(propertyData?.rentable_area ?? placeData?.rentable_area)
-          : "",
-      year_built:
-        (propertyData?.year_built ?? placeData?.year_built)
-          ? Number(propertyData?.year_built ?? placeData?.year_built)
-          : undefined,
-      occupancy:
-        (propertyData?.occupancy ?? placeData?.occupancy)
-          ? String(propertyData?.occupancy ?? placeData?.occupancy)
-          : "",
-      year_renovated:
-        (propertyData?.year_renovated ?? placeData?.year_renovated)
-          ? Number(
-              propertyData?.year_renovated ?? placeData?.year_renovated,
-            )
-          : undefined,
-      parking_spaces:
-        (propertyData?.parking_spaces ?? placeData?.parking_spaces) !== undefined &&
-        (propertyData?.parking_spaces ?? placeData?.parking_spaces) !== null &&
-        (propertyData?.parking_spaces ?? placeData?.parking_spaces) !== ""
-          ? Number(
-              propertyData?.parking_spaces ?? placeData?.parking_spaces,
-            )
-          : undefined,
+      property_name: propertyData?.property_name || placeData?.property_name || placeData?.name || "",
+      property_address: propertyData?.property_address || placeData?.property_address || placeData?.address || "",
+      property_type: normalizeType(propertyData?.property_type || placeData?.property_type),
+      number_of_units: (propertyData?.number_of_units ?? placeData?.number_of_units) ? Number(propertyData?.number_of_units ?? placeData?.number_of_units) : undefined,
+      rentable_area: (propertyData?.rentable_area ?? placeData?.rentable_area) ? String(propertyData?.rentable_area ?? placeData?.rentable_area) : "",
+      year_built: (propertyData?.year_built ?? placeData?.year_built) ? Number(propertyData?.year_built ?? placeData?.year_built) : undefined,
+      occupancy: (propertyData?.occupancy ?? placeData?.occupancy) ? String(propertyData?.occupancy ?? placeData?.occupancy) : "",
+      year_renovated: (propertyData?.year_renovated ?? placeData?.year_renovated) ? Number(propertyData?.year_renovated ?? placeData?.year_renovated) : undefined,
+      parking_spaces: (propertyData?.parking_spaces ?? placeData?.parking_spaces) !== undefined ? Number(propertyData?.parking_spaces ?? placeData?.parking_spaces) : undefined,
     },
   });
-
-  React.useEffect(() => {
-    if (!placeData && !propertyData) return;
-
-    if (placeData?.lat && placeData?.lng) {
-      setLocation({ lat: placeData.lat, lng: placeData.lng });
-    }
-
-    reset({
-      property_name:
-        propertyData?.property_name ||
-        placeData?.property_name ||
-        placeData?.name ||
-        "",
-      property_address:
-        propertyData?.property_address ||
-        placeData?.property_address ||
-        placeData?.address ||
-        "",
-      property_type: normalizeType(
-        propertyData?.property_type || placeData?.property_type,
-      ),
-      number_of_units:
-        (propertyData?.number_of_units ?? placeData?.number_of_units)
-          ? Number(
-              propertyData?.number_of_units ?? placeData?.number_of_units,
-            )
-          : undefined,
-      rentable_area:
-        (propertyData?.rentable_area ?? placeData?.rentable_area)
-          ? String(propertyData?.rentable_area ?? placeData?.rentable_area)
-          : "",
-      year_built:
-        (propertyData?.year_built ?? placeData?.year_built)
-          ? Number(propertyData?.year_built ?? placeData?.year_built)
-          : undefined,
-      occupancy:
-        (propertyData?.occupancy ?? placeData?.occupancy)
-          ? String(propertyData?.occupancy ?? placeData?.occupancy)
-          : "",
-      year_renovated:
-        (propertyData?.year_renovated ?? placeData?.year_renovated)
-          ? Number(
-              propertyData?.year_renovated ?? placeData?.year_renovated,
-            )
-          : undefined,
-      parking_spaces:
-        (propertyData?.parking_spaces ?? placeData?.parking_spaces) !== undefined &&
-        (propertyData?.parking_spaces ?? placeData?.parking_spaces) !== null &&
-        (propertyData?.parking_spaces ?? placeData?.parking_spaces) !== ""
-          ? Number(
-              propertyData?.parking_spaces ?? placeData?.parking_spaces,
-            )
-          : undefined,
-    });
-
-    if (placeData?.photos && propertyImages.length === 0) {
-      setPropertyImages(getPlaceImageItems(placeData.photos));
-    }
-  }, [placeData, propertyData, reset]);
 
   const onSubmit = async (data: PropertyFormData) => {
     if (location.lat === 0 && location.lng === 0) {
@@ -285,157 +118,79 @@ const AddPropertyInfo = ({
       return;
     }
 
+    // At least one image required as a placeholder file for API
+    if (imageUpload.images.length === 0) {
+      toast.error("Please upload at least one property image.");
+      return;
+    }
+
     try {
-      const formData = new FormData();
+      // Collect uploaded image files
+      const uploadedFiles = imageUpload.getUploadedFiles();
       
-      // Required fields
-      formData.append("place_id", placeData?.place_id || "");
-      formData.append("property_name", data.property_name.trim());
-      formData.append("property_address", data.property_address.trim());
-      formData.append("latitude", location.lat.toFixed(6));
-      formData.append("longitude", location.lng.toFixed(6));
-      
-      // Property type - ensure it matches backend expectations
-      const propertyType = data.property_type?.trim() || "Other";
-      formData.append("property_type", propertyType);
-      
-      // Optional numeric fields - only append if they have valid values
-      if (data.number_of_units !== undefined && 
-          data.number_of_units !== null && 
-          !isNaN(data.number_of_units) && 
-          data.number_of_units > 0) {
-        formData.append("number_of_units", String(data.number_of_units));
-      }
-      
-      if (data.rentable_area && 
-          String(data.rentable_area).trim() !== "" && 
-          String(data.rentable_area).trim() !== "0") {
-        formData.append("rentable_area", String(data.rentable_area).trim());
-      }
-      
-      if (data.year_built !== undefined && 
-          data.year_built !== null && 
-          !isNaN(data.year_built) && 
-          data.year_built >= 1800) {
-        formData.append("year_built", String(data.year_built));
-      }
-      
-      if (data.occupancy && 
-          String(data.occupancy).trim() !== "" && 
-          String(data.occupancy).trim() !== "0") {
-        formData.append("occupancy", String(data.occupancy).trim());
-      }
-      
-      if (data.year_renovated !== undefined && 
-          data.year_renovated !== null && 
-          !isNaN(data.year_renovated) && 
-          data.year_renovated >= 1800) {
-        formData.append("year_renovated", String(data.year_renovated));
-      }
-      
-      if (data.parking_spaces !== undefined && 
-          data.parking_spaces !== null && 
-          !isNaN(data.parking_spaces) && 
-          data.parking_spaces >= 0) {
-        formData.append("parking_spaces", String(data.parking_spaces));
+      // Create a dummy file if only place photos exist (API requires at least 1 file)
+      let filesToUpload: File[] = uploadedFiles;
+      if (filesToUpload.length === 0) {
+        // Create a minimal placeholder file
+        const placeholderFile = new File(
+          ["Property images from Google Maps"],
+          "placeholder.txt",
+          { type: "text/plain" }
+        );
+        filesToUpload = [placeholderFile];
       }
 
-      // Types from place data
-      const typesStr = Array.isArray(placeData?.types)
-        ? placeData.types.join(",")
-        : String(placeData?.types || "establishment,point_of_interest");
-      formData.append("types", typesStr);
-
-      // Handle images - separate place photos (URLs) from uploaded files
-      const placePhotos: string[] = [];
-      const uploadedFiles: File[] = [];
-      
-      propertyImages.forEach((image) => {
-        if (image.source === "place") {
-          placePhotos.push(image.url);
-        } else if (image.source === "upload") {
-          uploadedFiles.push(image.file);
-        }
+      const response = await createProperty({
+        property_name: data.property_name,
+        property_address: data.property_address,
+        latitude: location.lat,
+        longitude: location.lng,
+        files: filesToUpload,
+        place_id: placeData?.place_id,
+        property_type: data.property_type || "Commercial",
+        number_of_units: data.number_of_units,
+        rentable_area: data.rentable_area,
+        year_built: data.year_built,
+        year_renovated: data.year_renovated,
+        occupancy: data.occupancy,
+        parking_spaces: data.parking_spaces,
+        property_photos: imageUpload.getPlacePhotoUrls(),
       });
 
-      // Append place photo URLs as JSON array if any exist
-      if (placePhotos.length > 0) {
-        formData.append("property_image_urls", JSON.stringify(placePhotos));
+      toast.success("Property information saved successfully.");
+
+      if (response.id) {
+        setPropertyId?.(response.id);
       }
-      
-      // Append uploaded files separately
-      uploadedFiles.forEach((file) => {
-        formData.append("property_image", file);
-      });
 
-      // Debug: Log what we're sending
-      console.log("Submitting property data:");
-      console.log("- property_name:", data.property_name);
-      console.log("- property_address:", data.property_address);
-      console.log("- property_type:", data.property_type);
-      console.log("- latitude:", location.lat);
-      console.log("- longitude:", location.lng);
-      console.log("- place_id:", placeData?.place_id);
-      console.log("- number_of_units:", data.number_of_units);
-      console.log("- Place photos count:", placePhotos.length);
-      console.log("- Uploaded files count:", uploadedFiles.length);
-
-      const response = await api.post("/api/properties/", formData);
-      const createdId =
-        response?.data?.data?.id ??
-        response?.data?.id ??
-        response?.data?.property_id;
-
-      if (response.status === 200 || response.status === 201) {
-        toast.success(response?.data?.message || "Property info saved.");
-        if (createdId) {
-          setPropertyId?.(Number(createdId));
-        }
-
-        const savedProperty: PropertyData = {
-          ...data,
-          id: createdId ? Number(createdId) : undefined,
-          place_id: placeData?.place_id,
-          latitude: location.lat,
-          longitude: location.lng,
-          photos: propertyImages.map((img) =>
-            img.source === "place" ? img.url : img.name,
-          ),
-          types: placeData?.types,
-        };
-        setPropertyData?.(savedProperty);
-
-        setCurrentStep?.((prev) => prev + 1);
-      }
-    } catch (error: unknown) {
-      const err = error as {
-        response?: { 
-          data?: { 
-            message?: string; 
-            errors?: Record<string, string[] | string>;
-            success?: boolean;
-          };
-          status?: number;
-        };
+      const savedProperty: PropertyData = {
+        ...data,
+        id: response.id,
+        place_id: placeData?.place_id,
+        latitude: location.lat,
+        longitude: location.lng,
+        photos: imageUpload.images.map((img) => (img.source === "place" ? img.url : img.name)),
+        types: placeData?.types,
       };
-      
-      console.error("Property creation error:", err?.response?.data);
-      
-      const apiErrors = err?.response?.data?.errors;
-      const message = err?.response?.data?.message;
-      
-      // Display detailed validation errors
-      if (apiErrors && typeof apiErrors === 'object') {
+      setPropertyData?.(savedProperty);
+
+      // Continue to next step (document upload)
+      setCurrentStep?.((prev) => prev + 1);
+    } catch (error: any) {
+      console.error("Property creation error:", error);
+
+      const apiErrors = error?.errors;
+      const message = error?.message;
+
+      if (Array.isArray(apiErrors)) {
+        toast.error(`Validation failed:\n${apiErrors.join("\n")}`);
+      } else if (apiErrors && typeof apiErrors === "object") {
         const errorMessages = Object.entries(apiErrors)
           .map(([field, msgs]) => {
-            const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            if (Array.isArray(msgs)) {
-              return `${fieldName}: ${msgs.join(', ')}`;
-            }
-            return `${fieldName}: ${msgs}`;
+            const fieldName = field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+            return `${fieldName}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`;
           })
-          .join('\n');
-        
+          .join("\n");
         toast.error(`Validation failed:\n${errorMessages}`);
       } else {
         toast.error(message || "Failed to save property. Please try again.");
@@ -443,423 +198,54 @@ const AddPropertyInfo = ({
     }
   };
 
-  const addImages = (files: File[]) => {
-    const onlyImages = files.filter((file) => file.type.startsWith("image/"));
-
-    if (onlyImages.length === 0) {
-      toast.error("Please upload image files only.");
-      return;
-    }
-
-    setPropertyImages((prev) => {
-      const uploadItems: PropertyImageItem[] = onlyImages.map((file) => ({
-        id: `upload-${file.name}-${file.size}-${file.lastModified}`,
-        name: file.name,
-        source: "upload",
-        file,
-      }));
-      const merged = [...prev, ...uploadItems];
-      const unique = merged.filter(
-        (image, index, arr) =>
-          index === arr.findIndex((item) => item.id === image.id),
-      );
-
-      if (unique.length > MAX_IMAGES) {
-        toast.error(`You can upload up to ${MAX_IMAGES} images.`);
-      }
-
-      return unique.slice(0, MAX_IMAGES);
-    });
-  };
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    addImages(Array.from(e.target.files));
-    e.target.value = "";
-  };
-
-  const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDraggingImages(false);
-    addImages(Array.from(e.dataTransfer.files));
-  };
-
-  const removeImage = (imageId: string) => {
-    setPropertyImages((prev) => prev.filter((image) => image.id !== imageId));
-  };
-
-  const inputClass =
-    "border border-[#D1D5DB] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent py-2.5 px-3 rounded-xl text-sm transition";
-  const errorClass = "text-xs text-red-500 mt-0.5";
-
   return (
     <div>
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="mt-6 border border-[#99A1AF] p-6 rounded-2xl bg-white shadow-sm"
       >
-        <h1 className="text-lg font-semibold text-gray-800 mb-1">
-          Property Details
-        </h1>
+        <h1 className="text-lg font-semibold text-gray-800 mb-1">Property Details</h1>
         <p className="text-sm text-[#4A5565] mb-5">
-          Review the AI-enriched property information below. Fields with data have been auto-populated — edit them as needed or fill in any blank fields.
+          Review the AI-enriched property information below. Fields with data have been auto-populated
+          — edit them as needed or fill in any blank fields.
         </p>
         <hr className="border-[#E5E7EB] mb-6" />
 
-        {placeData ? (
+        {/* Location Info from Previous Step */}
+        {placeData && (
           <div className="mb-6 rounded-xl border border-[#DDE3EA] bg-[#F8FAFC] p-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6A7282]">
-                  Location from previous step
-                </p>
-                {(placeData.property_type || placeData.number_of_units) && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
-                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    AI Enriched
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-sm font-medium text-gray-900">
-                {placeData.name || "Unnamed place"}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6A7282]">
+                Location from previous step
               </p>
-              <p className="mt-1 text-sm text-[#4A5565]">
-                {placeData.address || "No address available"}
-              </p>
-              <p className="mt-2 text-xs text-[#6A7282]">
-                {placeData.lat.toFixed(6)}, {placeData.lng.toFixed(6)}
-                {typeof placeData.rating === "number"
-                  ? ` - Rating ${placeData.rating}`
-                  : ""}
-              </p>
-              
-              {/* Show AI-enriched fields preview */}
               {(placeData.property_type || placeData.number_of_units) && (
-                <div className="mt-3 pt-3 border-t border-[#E5E7EB]">
-                  <p className="text-xs font-semibold text-[#6A7282] mb-2">
-                    Auto-populated fields below:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {placeData.property_type && (
-                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 border border-green-200">
-                        Property Type: {placeData.property_type}
-                      </span>
-                    )}
-                    {placeData.number_of_units && (
-                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 border border-green-200">
-                        Units: {placeData.number_of_units}
-                      </span>
-                    )}
-                    {placeData.year_built && (
-                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 border border-green-200">
-                        Built: {placeData.year_built}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  AI Enriched
+                </span>
               )}
             </div>
-          </div>
-        ) : null}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
-          {/* Property Name */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="property_name"
-              className="text-sm font-medium text-gray-700"
-            >
-              Property Name
-            </label>
-            <input
-              id="property_name"
-              type="text"
-              className={inputClass}
-              placeholder="e.g. Sunset Apartments"
-              {...register("property_name", {
-                required: "Property name is required",
-              })}
-            />
-            {errors.property_name && (
-              <p className={errorClass}>{errors.property_name.message}</p>
-            )}
-          </div>
-
-          {/* Property Address */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="property_address"
-              className="text-sm font-medium text-gray-700"
-            >
-              Property Address
-            </label>
-            <input
-              id="property_address"
-              type="text"
-              className={inputClass}
-              placeholder="e.g. 123 Main St, NY"
-              {...register("property_address", {
-                required: "Address is required",
-              })}
-            />
-            {errors.property_address && (
-              <p className={errorClass}>{errors.property_address.message}</p>
-            )}
-          </div>
-
-          {/* Property Type */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="property_type"
-              className="text-sm font-medium text-gray-700"
-            >
-              Property Type
-            </label>
-            <select
-              id="property_type"
-              className={`${inputClass} bg-white appearance-none`}
-              {...register("property_type", {
-                required: "Property type is required",
-              })}
-            >
-              <option value="">Select property type</option>
-              <option value="Multifamily">Multifamily</option>
-              <option value="Industrial">Industrial</option>
-              <option value="Retail">Retail</option>
-              <option value="Office">Office</option>
-              <option value="Other">Other</option>
-            </select>
-            {errors.property_type && (
-              <p className={errorClass}>{errors.property_type.message}</p>
-            )}
-          </div>
-
-          {/* Number of Units */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="number_of_units"
-              className="text-sm font-medium text-gray-700"
-            >
-              Number of Units
-            </label>
-            <input
-              id="number_of_units"
-              type="number"
-              className={inputClass}
-              placeholder="e.g. 24"
-              {...register("number_of_units", {
-                required: "Required",
-                valueAsNumber: true,
-                min: { value: 1, message: "Must be at least 1" },
-              })}
-            />
-            {errors.number_of_units && (
-              <p className={errorClass}>{errors.number_of_units.message}</p>
-            )}
-          </div>
-
-          {/* Rentable Area */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="rentable_area"
-              className="text-sm font-medium text-gray-700"
-            >
-              Rentable Area (RSF)
-            </label>
-            <input
-              id="rentable_area"
-              type="text"
-              className={inputClass}
-              placeholder="e.g. 12500 sq ft"
-              {...register("rentable_area")}
-            />
-            {errors.rentable_area && (
-              <p className={errorClass}>{errors.rentable_area.message}</p>
-            )}
-          </div>
-
-          {/* Year Built */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="year_built"
-              className="text-sm font-medium text-gray-700"
-            >
-              Year Built
-            </label>
-            <input
-              id="year_built"
-              type="number"
-              className={inputClass}
-              placeholder="e.g. 1998 "
-              {...register("year_built", {
-                required: "Required",
-                valueAsNumber: true,
-              })}
-            />
-            {errors.year_built && (
-              <p className={errorClass}>{errors.year_built.message}</p>
-            )}
-          </div>
-
-          {/* Occupancy Rate */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="occupancy"
-              className="text-sm font-medium text-gray-700"
-            >
-              Occupancy Rate (%)
-            </label>
-            <input
-              id="occupancy"
-              type="text"
-              className={inputClass}
-              placeholder="e.g. 92"
-              {...register("occupancy")}
-            />
-            {errors.occupancy && (
-              <p className={errorClass}>{errors.occupancy.message}</p>
-            )}
-          </div>
-
-          {/* Year Renovated */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="year_renovated"
-              className="text-sm font-medium text-gray-700"
-            >
-              Year Renovated
-            </label>
-            <input
-              id="year_renovated"
-              type="number"
-              className={inputClass}
-              placeholder="e.g. 2015"
-              {...register("year_renovated", {
-                required: "Required",
-                valueAsNumber: true,
-              })}
-            />
-            {errors.year_renovated && (
-              <p className={errorClass}>{errors.year_renovated.message}</p>
-            )}
-          </div>
-
-          {/* Parking Spaces */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="parking_spaces"
-              className="text-sm font-medium text-gray-700"
-            >
-              Parking Spaces
-            </label>
-            <input
-              id="parking_spaces"
-              type="number"
-              className={inputClass}
-              placeholder="e.g. 40 sq ft"
-              {...register("parking_spaces", {
-                required: "Required",
-                valueAsNumber: true,
-                min: { value: 0, message: "Min 0" },
-              })}
-            />
-            {errors.parking_spaces && (
-              <p className={errorClass}>{errors.parking_spaces.message}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-2xl border border-[#E5E7EB] p-5">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div>
-              <Label className="text-sm font-semibold text-gray-800">
-                Property Images
-              </Label>
-              <p className="text-xs text-[#4A5565] mt-1">
-                {propertyImages.length > 0 && propertyImages.some(img => img.source === 'place')
-                  ? `${propertyImages.filter(img => img.source === 'place').length} image${propertyImages.filter(img => img.source === 'place').length > 1 ? 's' : ''} fetched from Google Maps. `
-                  : ''}
-                Remove any photo or append new uploads (max {MAX_IMAGES} images).
-              </p>
-            </div>
-            <span className="text-xs text-[#4A5565]">
-              {propertyImages.length}/{MAX_IMAGES}
-            </span>
-          </div>
-
-          <div
-            onDrop={handleImageDrop}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDraggingImages(true);
-            }}
-            onDragLeave={() => setIsDraggingImages(false)}
-            className={`rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-              isDraggingImages
-                ? "border-blue-500 bg-blue-50"
-                : "border-[#D1D5DB]"
-            }`}
-          >
-            <div className="flex justify-center mb-3">
-              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                <ImagePlus className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-            <p className="text-sm text-gray-700 mb-2">
-              Drag and drop property images here
+            <p className="mt-1 text-sm font-medium text-gray-900">{placeData.name || "Unnamed place"}</p>
+            <p className="mt-1 text-sm text-[#4A5565]">{placeData.address || "No address available"}</p>
+            <p className="mt-2 text-xs text-[#6A7282]">
+              {placeData.lat.toFixed(6)}, {placeData.lng.toFixed(6)}
+              {typeof placeData.rating === "number" ? ` - Rating ${placeData.rating}` : ""}
             </p>
-            <p className="text-xs text-[#4A5565] mb-4">
-              or browse from your device
-            </p>
-
-            <Input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleImageSelect}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => imageInputRef.current?.click()}
-              className="inline-flex items-center justify-center rounded-md border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Browse Images
-            </button>
           </div>
+        )}
 
-          {imagePreviews.length > 0 && (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {imagePreviews.map((preview) => (
-                <div
-                  key={preview.id}
-                  className="relative aspect-[4/3] overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F9FAFB]"
-                >
-                  {/* Uploads use object URLs, fetched images use remote URLs. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={preview.url}
-                    alt={preview.name}
-                    className="h-full w-full object-cover"
-                  />
-                  <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white">
-                    {preview.source === "place" ? "Fetched" : "New"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeImage(preview.id)}
-                    aria-label={`Remove ${preview.name}`}
-                    className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/70 bg-black/55 text-white shadow-sm hover:bg-black/70"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Property Form Fields */}
+        <PropertyFormFields register={register} errors={errors} />
+
+        {/* Property Images */}
+        <div className="mt-8">
+          <PropertyImageUpload
+            images={imageUpload.images}
+            onAddImages={imageUpload.addImages}
+            onRemoveImage={imageUpload.removeImage}
+          />
         </div>
 
         {/* Footer */}

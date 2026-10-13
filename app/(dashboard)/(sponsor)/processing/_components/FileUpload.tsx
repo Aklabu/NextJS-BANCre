@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import Button from "@/components/Button";
 import { Upload, Lightbulb, X, FileText, FileSpreadsheet, File } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/lib/apiClient";
+import { uploadPropertyDocuments } from "../../_api/properties-api";
 import type { UploadedFileItem } from "./place-types";
 
 type FileUploadProps = {
@@ -86,105 +86,45 @@ const FileUpload = ({
         setError(null);
 
         try {
-            const formData = new FormData();
-            
-            // Append each file with the 'files' key as expected by the backend
-            files.forEach((file) => formData.append("files", file));
+            // Use API service to upload documents
+            const uploadedDocs = await uploadPropertyDocuments(propertyId, files);
 
-            // Correct endpoint: /api/properties/{id}/documents/
-            const response = await api.post(
-                `/api/properties/${propertyId}/documents/`,
-                formData,
-                {
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                }
-            );
+            const successMessage = `${files.length} document(s) uploaded successfully.`;
+            toast.success(successMessage);
 
-            if (response.status === 200 || response.status === 201 || response?.data?.success) {
-                const successMessage = response.data?.message || `${files.length} document(s) uploaded successfully.`;
-                toast.success(successMessage);
-
-                // Parse returned uploaded documents
-                const uploadedDocs = response.data?.data ?? [];
-                if (Array.isArray(uploadedDocs) && uploadedDocs.length > 0) {
-                    setUploadedDocuments?.(
-                        uploadedDocs.map((doc: Record<string, unknown>) => ({
-                            id: doc.id as number | string,
-                            name: files.find((f, idx) => idx === uploadedDocs.indexOf(doc))?.name || `Document ${doc.id}`,
-                            file_url: String(doc.file || ""),
-                            uploaded_at: String(doc.uploaded_at || new Date().toISOString()),
-                            size: files.find((f, idx) => idx === uploadedDocs.indexOf(doc))?.size,
-                        }))
-                    );
-                } else {
-                    // Fallback if data structure is different
-                    setUploadedDocuments?.(
-                        files.map((file, idx) => ({
-                            id: idx + 1,
-                            name: file.name,
-                            file_url: URL.createObjectURL(file),
-                            uploaded_at: new Date().toISOString(),
-                            size: file.size,
-                        }))
-                    );
-                }
-
-                setCurrentStep((prev) => prev + 1);
-            }
-        } catch (err: unknown) {
-            const errorObj = err as { 
-                response?: { 
-                    data?: { 
-                        message?: string; 
-                        errors?: Record<string, string> | unknown;
-                        detail?: string;
-                        success?: boolean;
-                        statusCode?: number;
-                    };
-                    status?: number;
-                }; 
-                message?: string 
-            };
-            
-            console.error("Upload error details:", errorObj?.response);
-            
-            const statusCode = errorObj?.response?.status || errorObj?.response?.data?.statusCode;
-            const apiErrors = errorObj?.response?.data?.errors;
-            const message = errorObj?.response?.data?.message;
-            
-            // Handle specific error cases
-            if (statusCode === 400) {
-                if (apiErrors && typeof apiErrors === 'object') {
-                    // File validation errors
-                    const errorMessages = Object.entries(apiErrors)
-                        .map(([filename, error]) => `${filename}: ${error}`)
-                        .join('\n');
-                    setError(`Validation failed:\n${errorMessages}`);
-                    toast.error(`Some files failed validation. ${message || 'Please check file types.'}`);
-                } else {
-                    // No files or other validation error
-                    setError(message || "No files provided or validation failed.");
-                    toast.error(message || "Upload failed. Please check your files.");
-                }
-            } else if (statusCode === 404) {
-                setError("The document upload endpoint is not available. Please contact support.");
-                toast.error("Upload endpoint not found. You can skip this step for now.");
-            } else if (statusCode === 401 || statusCode === 403) {
-                setError("You don't have permission to upload documents to this property.");
-                toast.error("Permission denied. Please ensure you own this property.");
+            // Map uploaded documents to expected format
+            if (uploadedDocs && uploadedDocs.length > 0) {
+                setUploadedDocuments?.(
+                    uploadedDocs.map((doc, idx) => ({
+                        id: doc.id,
+                        name: files[idx]?.name || `Document ${doc.id}`,
+                        file_url: doc.file_url,
+                        uploaded_at: doc.uploaded_at,
+                        size: files[idx]?.size,
+                    }))
+                );
             } else {
-                const apiError =
-                    message ||
-                    errorObj?.response?.data?.detail ||
-                    errorObj?.message ||
-                    "Something went wrong while uploading files.";
-                setError(apiError);
-                toast.error("Upload failed. Please try again or skip this step.");
+                // Fallback if data structure is different
+                setUploadedDocuments?.(
+                    files.map((file, idx) => ({
+                        id: idx + 1,
+                        name: file.name,
+                        file_url: URL.createObjectURL(file),
+                        uploaded_at: new Date().toISOString(),
+                        size: file.size,
+                    }))
+                );
             }
+
+            setCurrentStep((prev) => prev + 1);
+        } catch (err: unknown) {
+            const errorObj = err as { message?: string };
             
-            console.error("Full upload error:", errorObj);
+            console.error("Upload error:", errorObj);
+            
+            const errorMessage = errorObj?.message || "Something went wrong while uploading files.";
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setIsUploading(false);
         }
