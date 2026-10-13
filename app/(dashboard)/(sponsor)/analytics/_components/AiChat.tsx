@@ -5,7 +5,6 @@ import {
   Sparkles,
   Bot,
   ChevronLeft,
-  Plus,
   Trash2,
   MessageSquare,
   RefreshCw,
@@ -293,7 +292,7 @@ const AiChat = ({ propertyId }: AiChatProps) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {view === "chat" ? (
+          {view === "chat" && (
             <button
               type="button"
               className="text-xs px-2.5 py-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB] transition-colors flex items-center gap-1 font-medium text-gray-700"
@@ -301,15 +300,6 @@ const AiChat = ({ propertyId }: AiChatProps) => {
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               <span>History</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-1 font-medium shadow-2xs"
-              onClick={startNewChat}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Chat</span>
             </button>
           )}
           <span className="flex items-center gap-1 text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
