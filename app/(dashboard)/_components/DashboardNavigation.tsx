@@ -14,7 +14,7 @@ import Notifications from "../(sponsor)/notifications/page";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import ProfilePopUp from "./ProfilePopUp";
 import ChatWidget from "./ChatWidget";
-import { MapPin, School, ArrowLeftRight } from "lucide-react";
+import { MapPin, School } from "lucide-react";
 import { useAuth } from "@/providers/AuthProvider";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
 
@@ -261,24 +261,13 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
             className={`flex justify-between items-center px-5 lg:px-8 py-3 max-w-[1550px] mx-auto`}
           >
             <div>
-              <div className="hidden lg:flex">
-                {navigationLinks.map((Link) => {
-                  if (Link.href === pathName) {
-                    return Link.text;
-                  }
-                })}
-              </div>
               <RxHamburgerMenu
                 onClick={() => setIsMenuOpen(true)}
                 className="text-xl flex lg:hidden"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => toggleRole()}
-              disabled={loading}
-              title={`Switch to ${isLender ? "Sponsor" : "Lender"} dashboard`}
-              className="flex justify-center items-center gap-2 bg-[#0D4DA5] hover:bg-[#0b3e85] text-white px-4 py-2 rounded-full cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+            <div
+              className="flex justify-center items-center gap-2 bg-[#0D4DA5] text-white px-4 py-2 rounded-full"
             >
               {isLender ? (
                 <>
@@ -293,8 +282,7 @@ const DashboardNavigation = ({ children }: NavbarProps) => {
               ) : (
                 <span>User</span>
               )}
-              <ArrowLeftRight size={14} className="opacity-70 ml-1" />
-            </button>
+            </div>
             {/*----------- notification -------- */}
             <Notifications />
           </div>
