@@ -8,6 +8,7 @@ import {
   LuWrench,
   LuParkingMeter as LuParkingCircle,
   LuFileText,
+  LuTrash2,
 } from "react-icons/lu";
 import { TbRulerMeasure } from "react-icons/tb";
 import { MdOutlineOtherHouses } from "react-icons/md";
@@ -92,6 +93,7 @@ type PropertyCardProps = {
   secondaryButtonClassName?: string;
   onSecondaryAction?: () => void;
   onRequestLoan?: () => void;
+  onDelete?: () => void;
 };
 
 const sizeStyles = {
@@ -122,8 +124,19 @@ const PropertyCard = ({
   secondaryButtonClassName = "button-outline",
   onSecondaryAction,
   onRequestLoan,
+  onDelete,
 }: PropertyCardProps) => {
   const router = useRouter();
+
+  // Debug: Log what PropertyCard is actually receiving
+  useEffect(() => {
+    if (data.id === 37) { // Empire State Building
+      console.log('PropertyCard received data:', data);
+      console.log('Has number_of_units field?', 'number_of_units' in data);
+      console.log('number_of_units value:', data.number_of_units);
+      console.log('number_of_units !== undefined?', data.number_of_units !== undefined);
+    }
+  }, [data]);
 
   const rawImage =
     data.thumbnail_url ||
@@ -188,9 +201,19 @@ const PropertyCard = ({
 
       {/* ── Body ── */}
       <div className="p-3 2xl:p-5 flex flex-col gap-4">
-        {/* Title row */}
+        {/* Title row with delete button */}
         <div className="flex justify-between items-start gap-2">
           <h1 className="text-lg font-semibold leading-tight">{data.title}</h1>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors shrink-0"
+              title="Delete property"
+            >
+              <LuTrash2 className="text-base" />
+            </button>
+          )}
         </div>
 
         {/* Address */}
@@ -201,18 +224,6 @@ const PropertyCard = ({
 
         {/* ── Stats grid ── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
-          {hasCoordinates && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <IoLocationOutline className="text-sm" /> Coordinates
-              </span>
-              <span className="text-sm font-medium">
-                {formatCoordinate(data.latitude)},{" "}
-                {formatCoordinate(data.longitude)}
-              </span>
-            </div>
-          )}
-
           {data.created_at !== undefined && (
             <div className="flex flex-col gap-0.5">
               <span className="text-xs text-[#6A7282] flex items-center gap-1">
@@ -220,17 +231,6 @@ const PropertyCard = ({
               </span>
               <span className="text-sm font-medium">
                 {formatDate(data.created_at)}
-              </span>
-            </div>
-          )}
-
-          {data.updated_at !== undefined && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <LuCalendar className="text-sm" /> Updated
-              </span>
-              <span className="text-sm font-medium">
-                {formatDate(data.updated_at)}
               </span>
             </div>
           )}
@@ -323,31 +323,7 @@ const PropertyCard = ({
                 router.push(data.link);
               }}
             />
-            {onRequestLoan && (
-              <button
-                type="button"
-                onClick={onRequestLoan}
-                className="px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold border border-blue-200 transition-colors whitespace-nowrap cursor-pointer"
-              >
-                Request Loan
-              </button>
-            )}
           </div>
-          <Button
-            size="medium"
-            text={secondaryButtonText}
-            className={secondaryButtonClassName}
-            onClick={() => {
-              if (onSecondaryAction) {
-                onSecondaryAction();
-                return;
-              }
-
-              if (data.link2) {
-                router.push(data.link2);
-              }
-            }}
-          />
         </div>
       </div>
     </div>

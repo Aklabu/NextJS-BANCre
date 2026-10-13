@@ -39,6 +39,14 @@ interface Property {
   property_images?: string[];
   created_at: string;
   updated_at: string;
+  // Explicitly define extra fields so we can control them
+  number_of_units?: number;
+  rentable_area?: string;
+  year_built?: number;
+  year_renovated?: number | null;
+  occupancy?: string;
+  parking_spaces?: number;
+  documents?: any[];
 }
 
 interface MemorandumSummary {
@@ -111,9 +119,9 @@ const StatsSkeleton = () => (
 );
 
 const PropertySkeleton = () => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-    {[...Array(4)].map((_, i) => (
-      <div key={i} className="h-28 rounded-xl bg-gray-100 animate-pulse" />
+  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+    {[...Array(6)].map((_, i) => (
+      <div key={i} className="h-96 rounded-xl bg-gray-100 animate-pulse" />
     ))}
   </div>
 );
@@ -143,6 +151,7 @@ const Page = () => {
   const [properties, setProperties] = useState<PropertyCardData[]>([]);
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
+  const [visiblePropertyCount, setVisiblePropertyCount] = useState(6);
 
   // Loan Request Modals state
   const [isCreateLoanModalOpen, setIsCreateLoanModalOpen] = useState(false);
@@ -156,6 +165,7 @@ const Page = () => {
   const [selectedQuotesRequest, setSelectedQuotesRequest] =
     useState<SponsorLoanRequestItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingProperty, setDeletingProperty] = useState<PropertyCardData | null>(null);
 
   // Fetch properties + map markers + memorandums
   const fetchProperties = useCallback(async () => {
@@ -207,12 +217,18 @@ const Page = () => {
         (property) => {
           const matchedMemorandum = memorandumByProperty.get(property.id);
 
+          // Create a clean object with ONLY the fields we want (matching memorandum cards)
+          // Using explicit property selection to ensure no extra fields leak through
           return {
-            ...property,
+            id: property.id,
             property: String(property.id),
             title: property.property_name,
+            property_address: property.property_address,
             location: property.property_address,
+            property_type: property.property_type,
             status: property.property_type,
+            latitude: property.latitude,
+            longitude: property.longitude,
             thumbnail_url: property.thumbnail_url || null,
             property_image_url:
               property.thumbnail_url ||
@@ -222,10 +238,12 @@ const Page = () => {
               property.property_image_url ||
               null,
             property_images: property.property_images || [],
+            created_at: property.created_at,
+            updated_at: property.updated_at,
             link: matchedMemorandum
               ? `/memorandum/${matchedMemorandum.id}`
               : undefined,
-          };
+          } as PropertyCardData;
         },
       );
 
@@ -297,8 +315,46 @@ const Page = () => {
     }
   };
 
-  const visibleProperties = properties.slice(0, 4);
-  const hasMoreProperties = properties.length > 4;
+  // Execute property deletion (DELETE /api/properties/{id}/)
+  const confirmDeleteProperty = async () => {
+    if (!deletingProperty) return;
+
+    try {
+      setIsDeleting(true);
+      await api.delete(`/api/properties/${deletingProperty.id}/`);
+
+      // Refresh properties list
+      await fetchProperties();
+
+      // Reset visible count if we deleted a property and visible count is now more than total
+      setVisiblePropertyCount((prev) => {
+        const newTotal = properties.length - 1;
+        return prev > newTotal ? newTotal : prev;
+      });
+
+      // Invalidate dashboard queries
+      await queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] });
+
+      toast.success("Property deleted successfully.");
+      setDeletingProperty(null);
+    } catch (error: any) {
+      console.error("Failed to delete property", error);
+      const errorMessage = 
+        error?.response?.data?.message || 
+        error?.response?.data?.errors?.[0] || 
+        "Failed to delete property. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const visibleProperties = properties.slice(0, visiblePropertyCount);
+  const hasMoreProperties = properties.length > visiblePropertyCount;
+
+  const handleShowMore = () => {
+    setVisiblePropertyCount(prev => Math.min(prev + 6, properties.length));
+  };
 
   const headerStats = dashboardData?.header_stats || {
     total_properties: properties.length,
@@ -483,7 +539,7 @@ const Page = () => {
             </Link>
           </div>
 
-          <div className="my-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+          <div className="my-6">
             {propertiesLoading ? (
               <PropertySkeleton />
             ) : properties.length === 0 ? (
@@ -494,29 +550,35 @@ const Page = () => {
                 </p>
               </div>
             ) : (
-              visibleProperties.map((property) => (
-                <PropertyCard
-                  key={property.id}
-                  data={property}
-                  onRequestLoan={() => {
-                    setSelectedPropertyForLoan(property.id);
-                    setIsCreateLoanModalOpen(true);
-                  }}
-                />
-              ))
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {visibleProperties.map((property) => (
+                    <PropertyCard
+                      key={property.id}
+                      data={property}
+                      onRequestLoan={() => {
+                        setSelectedPropertyForLoan(property.id);
+                        setIsCreateLoanModalOpen(true);
+                      }}
+                      onDelete={() => setDeletingProperty(property)}
+                    />
+                  ))}
+                </div>
+
+                {hasMoreProperties && (
+                  <div className="flex justify-center pt-6">
+                    <button
+                      type="button"
+                      onClick={handleShowMore}
+                      className="button-outline rounded-full px-6 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                      Show More Properties ({properties.length - visiblePropertyCount} remaining)
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
-
-          {!propertiesLoading && hasMoreProperties ? (
-            <div className="flex justify-center pt-2">
-              <Link
-                href="/memorandum"
-                className="button-outline rounded-full px-5 py-2 text-sm font-medium hover:bg-gray-50"
-              >
-                Show More Properties
-              </Link>
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -619,6 +681,24 @@ const Page = () => {
         destructive
         isLoading={isDeleting}
         onConfirm={confirmDeleteLoanRequest}
+      />
+
+      {/* ── Delete Property Confirmation Modal ── */}
+      <ConfirmActionModal
+        open={Boolean(deletingProperty)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setDeletingProperty(null);
+        }}
+        title="Delete property?"
+        description={
+          deletingProperty
+            ? `This will permanently delete "${deletingProperty.title}" and all associated data including memorandums and documents. This action cannot be undone.`
+            : "This will permanently remove the selected property."
+        }
+        confirmText="Delete Property"
+        destructive
+        isLoading={isDeleting}
+        onConfirm={confirmDeleteProperty}
       />
 
       {/* ── Loan Request Quotes Modal ── */}
