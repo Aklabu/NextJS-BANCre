@@ -47,21 +47,24 @@ const isRouteMatch = (pathname: string, routes: string[]) =>
 
 const getRoleFromCredentials = (
   parsedCreds: Record<string, unknown>,
-  payload: Record<string, unknown>,
 ) => {
   const userData =
     parsedCreds?.user && typeof parsedCreds.user === "object"
       ? (parsedCreds.user as Record<string, unknown>)
       : null;
 
-  return normalizeRole(
+  // customer_type is stored in the user object, not in the JWT token
+  const role = normalizeRole(
     (userData?.customer_type as string | undefined) ||
       (userData?.role as string | undefined) ||
       (parsedCreds?.customer_type as string | undefined) ||
-      (parsedCreds?.role as string | undefined) ||
-      (payload?.customer_type as string | undefined) ||
-      (payload?.role as string | undefined),
+      (parsedCreds?.role as string | undefined),
   );
+  
+  console.log("AuthGuard - User data:", userData);
+  console.log("AuthGuard - Detected role:", role);
+  
+  return role;
 };
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -109,10 +112,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const role = getRoleFromCredentials(
-          parsedCreds as Record<string, unknown>,
-          payload as Record<string, unknown>,
-        );
+        const role = getRoleFromCredentials(parsedCreds as Record<string, unknown>);
+
+        console.log("AuthGuard - Current pathname:", pathname);
+        console.log("AuthGuard - User role:", role);
+        console.log("AuthGuard - Is sponsor-only route:", pathname && isRouteMatch(pathname, SPONSOR_ONLY_ROUTES));
+        console.log("AuthGuard - Is lender-only route:", pathname && isRouteMatch(pathname, LENDER_ONLY_ROUTES));
 
         if (
           pathname &&
@@ -120,6 +125,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           (isRouteMatch(pathname, SPONSOR_ONLY_ROUTES) ||
             isRouteMatch(pathname, LENDER_ONLY_ROUTES))
         ) {
+          console.log("AuthGuard - No role detected, redirecting to signin");
           setIsMounted(true);
           router.replace("/signin");
           return;
@@ -130,6 +136,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           role === "Sponsor" &&
           isRouteMatch(pathname, LENDER_ONLY_ROUTES)
         ) {
+          console.log("AuthGuard - Sponsor trying to access lender route, redirecting to /sponsor");
           setIsMounted(true);
           router.replace("/sponsor");
           return;
@@ -140,11 +147,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           role === "Lender" &&
           isRouteMatch(pathname, SPONSOR_ONLY_ROUTES)
         ) {
+          console.log("AuthGuard - Lender trying to access sponsor route, redirecting to /lender");
           setIsMounted(true);
           router.replace("/lender");
           return;
         }
 
+        console.log("AuthGuard - Access authorized");
         setIsAuthorized(true);
       } catch {
         setIsMounted(true); // always called before redirect

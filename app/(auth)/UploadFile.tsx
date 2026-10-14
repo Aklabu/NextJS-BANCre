@@ -45,97 +45,99 @@ const UploadFile = () => {
   };
 
   return (
-    <div className="flex min-h-screen">
-      <div className="w-full lg:w-1/2 bg-white p-8 lg:p-12 overflow-y-auto">
-        <div className="max-w-lg mx-auto">
-          <div className="mb-8">
-            <Link href="/">
-              <Image
-                src={"/logo/BANCre.png"}
-                alt={'logo'}
-                width={150}
-                height={50}
-                className='hidden lg:flex'
-              />
-            </Link>
-          </div>
-          <h2 className="text-3xl font-bold mb-2">Registration</h2>
-          <p className="text-gray-600 mb-8">
-            {signUpData?.customer_type === 'Lender' 
-              ? `As a ${signUpData.customer_type}, please upload your verification documents to complete your registration.`
-              : "Let's get you all set up so you can access your account."}
-          </p>
-          <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="font-semibold text-lg mb-1">Media Upload</h3>
-                <p className="text-sm text-gray-600">Add your documents here, and you can upload up to 5 files max</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => router.push("/register")}
-                className="text-gray-400 hover:text-gray-600 cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div
-              onDrop={handleDrop}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-                isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-              }`}
-            >
-              <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Upload size={32} className="text-blue-600" />
-                </div>
-              </div>
-              <p className="text-gray-700 mb-2">Drag your file(s) to start uploading</p>
-              <p className="text-gray-500 text-sm mb-4">OR</p>
-              <label className="inline-block">
-                <input
-                  type="file"
-                  multiple
-                  accept=".jpg,.png,.svg,.zip,.pdf"
-                  onChange={handleFileSelect}
-                  className="hidden"
+    <div className="flex h-screen overflow-hidden">
+      <div className="w-full lg:w-1/2 bg-white flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+          <div className="max-w-lg mx-auto">
+            <div className="mb-6">
+              <Link href="/">
+                <Image
+                  src={"/logo/BANCre.png"}
+                  alt={'logo'}
+                  width={150}
+                  height={50}
+                  className='hidden lg:flex'
                 />
-                <span className="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-50 inline-block">
-                  Browse files
-                </span>
-              </label>
+              </Link>
             </div>
-
-            <p className="text-sm text-gray-500 mt-4">Only support .jpg, .png, .svg, .pdf and .zip files</p>
-
-            {files.length > 0 && (
-              <div className="mt-4 space-y-2">
-                {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-700 truncate">{file.name}</span>
-                    <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-700">
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
+            <h2 className="text-3xl font-bold mb-2">Registration</h2>
+            <p className="text-gray-600 mb-6">
+              {signUpData?.customer_type === 'Lender' 
+                ? `As a ${signUpData.customer_type}, please upload your verification documents to complete your registration.`
+                : "Let's get you all set up so you can access your account."}
+            </p>
+            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">Media Upload</h3>
+                  <p className="text-sm text-gray-600">Add your documents here, and you can upload up to 5 files max</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/register")}
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
               </div>
-            )}
+              <div
+                onDrop={handleDrop}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                }`}
+              >
+                <div className="flex justify-center mb-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Upload size={24} className="text-blue-600" />
+                  </div>
+                </div>
+                <p className="text-gray-700 mb-1 text-sm">Drag your file(s) to start uploading</p>
+                <p className="text-gray-500 text-sm mb-3">OR</p>
+                <label className="inline-block">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".jpg,.png,.svg,.zip,.pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <span className="px-5 py-2 border border-blue-600 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-50 inline-block text-sm">
+                    Browse files
+                  </span>
+                </label>
+              </div>
+
+              <p className="text-sm text-gray-500 mt-3">Only support .jpg, .png, .svg, .pdf and .zip files</p>
+
+              {files.length > 0 && (
+                <div className="mt-3 space-y-2 max-h-32 overflow-y-auto">
+                  {files.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                      <button onClick={() => removeFile(index)} className="text-red-500 hover:text-red-700">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Button
+              onClick={handleComplete}
+              type="button"
+              isDisabled={loading || files.length === 0}
+              text={loading ? "Registering..." : "Register"}
+              className="button-primary w-full h-12 mb-2"
+            />
+            <p className="text-center text-sm text-gray-600">
+              Already have an account?{" "}
+              <Link href="/signin" className="text-red-500 cursor-pointer hover:underline">
+                Login
+              </Link>
+            </p>
           </div>
-          <Button
-            onClick={handleComplete}
-            type="button"
-            isDisabled={loading || files.length === 0}
-            text={loading ? "Registering..." : "Register"}
-            className="button-primary w-full h-14 mb-2"
-          />
-          <p className="text-center text-sm text-gray-600">
-            Already have an account?{" "}
-            <Link href="/signin" className="text-red-500 cursor-pointer hover:underline">
-              Login
-            </Link>
-          </p>
         </div>
       </div>
 

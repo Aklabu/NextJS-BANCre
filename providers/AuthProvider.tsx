@@ -403,19 +403,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
         // No 2FA - process tokens
         const { user: rawUser, access, refresh } = responseData;
-        const activeRole =
-          rawUser?.active_role ||
-          (rawUser?.roles && rawUser.roles[0]) ||
-          rawUser?.role ||
-          "Sponsor";
-        const normalizedRole = normalizeRole(activeRole);
+        
+        // Get the customer_type directly from the API response
+        const customerType = rawUser?.customer_type || rawUser?.role || "Sponsor";
+        console.log("User customer_type from API:", customerType);
+        
+        const normalizedRole = normalizeRole(customerType);
+        console.log("Normalized role:", normalizedRole);
+        
         const normalizedUser: User = {
           ...rawUser,
           role: normalizedRole,
           customer_type: normalizedRole,
-          active_role: activeRole,
-          roles: rawUser?.roles || ["Sponsor", "Lender"],
+          active_role: customerType,
+          roles: rawUser?.roles || [normalizedRole],
         };
+
+        console.log("Normalized user object:", normalizedUser);
 
         localStorage.setItem(
           "userCredentials",
@@ -428,12 +432,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         setUser(normalizedUser);
         toast.success(response.message || "Logged in successfully!");
 
-        if (normalizedRole === "Sponsor") {
-          console.log("Redirecting to sponsor dashboard for user:", normalizedUser);
-          router.push("/sponsor");
-        } else {
-          console.log("Redirecting to lender dashboard for user:", normalizedUser);
+        // Redirect based on customer_type
+        if (normalizedRole === "Lender") {
+          console.log("Redirecting to lender dashboard");
           router.push("/lender");
+        } else {
+          console.log("Redirecting to sponsor dashboard");
+          router.push("/sponsor");
         }
       }
     } catch (error: any) {
@@ -479,18 +484,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       if (response.success) {
         const { user: rawUser, access, refresh } = response.data;
-        const activeRole =
-          rawUser?.active_role ||
-          (rawUser?.roles && rawUser.roles[0]) ||
-          rawUser?.role ||
-          "Sponsor";
-        const normalizedRole = normalizeRole(activeRole);
+        
+        // Get the customer_type directly from the API response
+        const customerType = rawUser?.customer_type || rawUser?.role || "Sponsor";
+        console.log("2FA - User customer_type from API:", customerType);
+        
+        const normalizedRole = normalizeRole(customerType);
+        console.log("2FA - Normalized role:", normalizedRole);
+        
         const normalizedUser: User = {
           ...rawUser,
           role: normalizedRole,
           customer_type: normalizedRole,
-          active_role: activeRole,
-          roles: rawUser?.roles || ["Sponsor", "Lender"],
+          active_role: customerType,
+          roles: rawUser?.roles || [normalizedRole],
         };
 
         localStorage.setItem(
@@ -506,10 +513,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         setUser(normalizedUser);
         toast.success(response.message || "Two-factor authentication successful");
 
-        if (normalizedRole === "Sponsor") {
-          router.push("/sponsor");
-        } else {
+        // Redirect based on customer_type
+        if (normalizedRole === "Lender") {
+          console.log("2FA - Redirecting to lender dashboard");
           router.push("/lender");
+        } else {
+          console.log("2FA - Redirecting to sponsor dashboard");
+          router.push("/sponsor");
         }
       }
     } catch (error: any) {
