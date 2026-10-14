@@ -59,16 +59,9 @@ const DynamicSectionEditorCard = ({
   // Determine the section identifier (use section_key if available, fallback to section_type)
   const sectionIdentifier = (section.section_key || section.section_type || "").toLowerCase();
   
-  // Check if this is a table-only section (no custom instruction allowed per API spec)
-  const isTableOnlySection = [
-    "financing_summary",
-    "financial_analysis", 
-    "sales_comparables",
-    "lease_comparables"
-  ].includes(sectionIdentifier);
-
-  // Show button if: is_regeneratable is true OR undefined (not explicitly false), AND not a table-only section
-  const shouldShowRegenerateButton = section.is_regeneratable !== false && !isTableOnlySection && onRegenerate;
+  // Backend supports regeneration for all sections
+  // Show regenerate button if onRegenerate callback is provided and is_regeneratable is not explicitly false
+  const shouldShowRegenerateButton = section.is_regeneratable !== false && onRegenerate;
 
   const contentToRender = stripLeadingSectionHeading(
     editedContent,
@@ -275,7 +268,7 @@ const DynamicSectionEditorCard = ({
       </div>
 
       {/* AI Regenerate Custom Instruction Prompt */}
-      {showRegeneratePrompt && !isTableOnlySection && (
+      {showRegeneratePrompt && (
         <div className="mb-4 p-4 rounded-lg bg-indigo-50 border border-indigo-200">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
@@ -283,7 +276,7 @@ const DynamicSectionEditorCard = ({
                 AI Regeneration Prompt
               </h4>
               <p className="text-xs text-indigo-700 mt-1">
-                Provide optional instructions to guide the AI (e.g., "Focus on NOI growth and cap rate compression")
+                Provide optional instructions to guide the AI (e.g., "Focus on sustainability features" or "Emphasize cap rate compression")
               </p>
             </div>
             <button
