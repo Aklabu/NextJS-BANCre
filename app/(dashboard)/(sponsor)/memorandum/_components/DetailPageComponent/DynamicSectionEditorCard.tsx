@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
-import { FiCheck, FiEdit, FiUpload, FiX, FiFileText } from "react-icons/fi";
+import { useEffect, useState } from "react";
+import { FiCheck, FiEdit, FiX, FiFileText } from "react-icons/fi";
 import { BsFileEarmarkSpreadsheet } from "react-icons/bs";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -26,14 +25,12 @@ type DynamicSectionEditorCardProps = {
     content: string,
     tableData?: MemorandumTableData | null,
   ) => Promise<void>;
-  onImageUpload: (sectionId: number, file: File) => Promise<string | void>;
   onRegenerate?: (sectionId: number, sectionKey?: string, customInstruction?: string) => Promise<void>;
 };
 
 const DynamicSectionEditorCard = ({
   section,
   onSave,
-  onImageUpload,
   onRegenerate,
 }: DynamicSectionEditorCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -45,11 +42,9 @@ const DynamicSectionEditorCard = ({
   const [viewMode, setViewMode] = useState<"table" | "document">("table");
 
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isRegeneratingSection, setIsRegeneratingSection] = useState(false);
   const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
   const [customInstruction, setCustomInstruction] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sectionTitle =
     section.label ||
@@ -67,9 +62,6 @@ const DynamicSectionEditorCard = ({
     editedContent,
     sectionTitle,
   );
-
-  const sectionImage = section.image_url || section.image;
-  const hasSectionImage = Boolean(sectionImage);
 
   const hasExplicitTable = Boolean(
     editedTableData?.columns?.length && editedTableData?.rows?.length,
@@ -132,30 +124,6 @@ const DynamicSectionEditorCard = ({
       setCustomInstruction("");
     } finally {
       setIsRegeneratingSection(false);
-    }
-  };
-
-  const handleUploadClick = () => {
-    if (hasSectionImage) {
-      toast.error("Only one image is allowed for this section.");
-      return;
-    }
-
-    fileInputRef.current?.click();
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    try {
-      setIsUploadingImage(true);
-      await onImageUpload(section.id, file);
-    } finally {
-      setIsUploadingImage(false);
-      e.target.value = "";
     }
   };
 
@@ -364,47 +332,7 @@ const DynamicSectionEditorCard = ({
       )}
 
       {/* ====== Section Image ====== */}
-      <div className="mt-6 pt-4 border-t border-slate-100">
-        <h4 className="text-sm font-medium text-gray-800 mb-3">Section Image</h4>
-
-        {sectionImage ? (
-          <div className="relative h-48 md:h-64 rounded-lg overflow-hidden border border-gray-200 mb-4 max-w-xl">
-            <Image
-              src={sectionImage}
-              alt={`${sectionTitle} image`}
-              fill
-              className="object-cover"
-              unoptimized
-            />
-          </div>
-        ) : null}
-
-        <button
-          onClick={handleUploadClick}
-          disabled={isUploadingImage || hasSectionImage}
-          className={`px-4 py-2 rounded-lg border text-sm flex items-center gap-2 transition-colors ${
-            isUploadingImage || hasSectionImage
-              ? "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50"
-              : "border-gray-300 text-gray-700 hover:border-emerald-500 hover:text-emerald-700"
-          }`}
-          type="button"
-        >
-          <FiUpload className="w-4 h-4" />
-          {isUploadingImage
-            ? "Uploading..."
-            : hasSectionImage
-              ? "1 image max"
-              : "Upload Image"}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          className="hidden"
-          disabled={isUploadingImage || hasSectionImage}
-        />
-      </div>
+      {/* Section image upload removed as per requirement */}
     </div>
   );
 };

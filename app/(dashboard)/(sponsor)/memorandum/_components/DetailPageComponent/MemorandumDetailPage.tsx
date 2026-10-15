@@ -71,24 +71,32 @@ const MemorandumDetailPage = () => {
     const fetchDetail = async () => {
       try {
         setLoading(true);
-        let response;
-
+        const response = await api.get(`/api/memorandums/${memorandumId}/`);
         
-        try {
-          response = await api.get(`/api/memorandums/${memorandumId}/`);
-        } catch (err: any) {
-          if (err?.response?.status === 404) {
-            response = await api.get(`/api/memorandums/${memorandumId}/`);
-          } else {
-            throw err;
-          }
-        }
+        // API returns: { success, statusCode, message, data: {...}, errors }
         const fetchedData = response.data?.data ?? response.data;
 
-        // Enrich with property images/thumbnail if missing from memorandum detail
+        // Extract property_images array from API response
+        // API returns: property_images: [{ type: "cover"|"gallery", url: "..." }]
+        if (
+          fetchedData?.property_images &&
+          Array.isArray(fetchedData.property_images) &&
+          fetchedData.property_images.length > 0
+        ) {
+          // Convert array of objects to array of URLs if needed
+          const imageUrls = fetchedData.property_images.map((img: any) => 
+            typeof img === 'string' ? img : img.url
+          ).filter(Boolean);
+          
+          if (imageUrls.length > 0) {
+            fetchedData.property_images = imageUrls;
+          }
+        }
+
+        // Fallback: Enrich with property images/thumbnail if missing from memorandum
         if (
           fetchedData?.property &&
-          (!fetchedData.thumbnail_url ||
+          (!fetchedData.property_image_url ||
             !Array.isArray(fetchedData.property_images) ||
             fetchedData.property_images.length === 0)
         ) {
@@ -97,14 +105,11 @@ const MemorandumDetailPage = () => {
               typeof fetchedData.property === "object"
                 ? fetchedData.property.id
                 : fetchedData.property;
-            const propRes = await api
-              .get(`/api/properties/${propId}/`)
-              .catch(() => api.get(`/api/properties/${propId}/`))
-              .catch(() => null);
+            const propRes = await api.get(`/api/properties/${propId}/`);
             const propData = propRes?.data?.data ?? propRes?.data;
             if (propData) {
-              if (!fetchedData.thumbnail_url && propData.thumbnail_url) {
-                fetchedData.thumbnail_url = propData.thumbnail_url;
+              if (!fetchedData.property_image_url && propData.thumbnail_url) {
+                fetchedData.property_image_url = propData.thumbnail_url;
               }
               if (
                 (!fetchedData.property_images ||
@@ -121,14 +126,26 @@ const MemorandumDetailPage = () => {
                 fetchedData.property_images = [propData.thumbnail_url];
               }
             }
-          } catch {
-            // Ignore error
+          } catch (propError) {
+            // Silently ignore property fetch errors
+            console.log("Could not fetch property details for image enrichment");
           }
         }
 
         setData(fetchedData);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching memorandum details:", error);
+        
+        // Handle standardized error responses
+        if (error?.response?.status === 403) {
+          toast.error(error?.response?.data?.message || "This memorandum is not available.");
+        } else if (error?.response?.status === 404) {
+          toast.error("Memorandum not found.");
+        } else if (error?.response?.status === 401) {
+          toast.error("Authentication required. Please sign in.");
+        } else {
+          toast.error("Failed to load memorandum details.");
+        }
       } finally {
         setLoading(false);
       }
@@ -203,29 +220,24 @@ const MemorandumDetailPage = () => {
     if (!data) return [];
     const images: string[] = [];
 
-    // 1. Check array fields
+    // 1. Primary source: property_images array (already normalized to strings in fetchDetail)
     if (Array.isArray(data.property_images) && data.property_images.length > 0) {
-      images.push(...data.property_images);
+      images.push(...data.property_images.filter((img): img is string => 
+        typeof img === "string" && img.trim().length > 0
+      ));
     }
+    
+    // 2. Fallback: other array fields
     if (Array.isArray(data.images) && data.images.length > 0) {
       images.push(...data.images);
     }
-    if (Array.isArray(data.property_image_url) && data.property_image_url.length > 0) {
-      images.push(...data.property_image_url);
-    }
 
-    // 2. Check string fields
-    if (typeof data.thumbnail_url === "string" && data.thumbnail_url) {
-      images.push(data.thumbnail_url);
-    }
+    // 3. Fallback: single image fields (legacy support)
     if (typeof data.property_image_url === "string" && data.property_image_url) {
       images.push(data.property_image_url);
     }
     if (typeof data.image_url === "string" && data.image_url) {
       images.push(data.image_url);
-    }
-    if (typeof data.heroImage === "string" && data.heroImage) {
-      images.push(data.heroImage);
     }
 
     // Filter valid strings and remove duplicates
@@ -240,8 +252,7 @@ const MemorandumDetailPage = () => {
 
   const resolvedHeroImage =
     propertyImages[0] ||
-    data?.thumbnail_url ||
-    (typeof data?.property_image_url === "string" ? data?.property_image_url : "") ||
+    data?.property_image_url ||
     "";
 
   const updateSectionContent = async (
@@ -260,21 +271,10 @@ const MemorandumDetailPage = () => {
     }
 
     try {
-      try {
-        await api.patch(
-          `/api/memorandums/${memorandumId}/sections/${sectionId}/`,
-          payload,
-        );
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          await api.patch(
-            `/api/memorandums/${memorandumId}/sections/${sectionId}/`,
-            payload,
-          );
-        } else {
-          throw err;
-        }
-      }
+      await api.patch(
+        `/api/memorandums/${memorandumId}/sections/${sectionId}/`,
+        payload,
+      );
 
       setData((prev: any) => {
         if (!prev?.sections) return prev;
@@ -286,6 +286,7 @@ const MemorandumDetailPage = () => {
                   ...item,
                   content,
                   ...(tableData !== undefined ? { table_data: tableData } : {}),
+                  updated_at: new Date().toISOString(),
                 }
               : item,
           ),
@@ -307,9 +308,17 @@ const MemorandumDetailPage = () => {
       return;
     }
 
+    // API supports up to 3 images per section
+    const currentImages = section?.image_urls || section?.images || [];
+    if (Array.isArray(currentImages) && currentImages.length >= 3) {
+      toast.error("Maximum of 3 images allowed per section.");
+      return;
+    }
+
+    // Legacy: single image check for backward compatibility
     const currentImage = section?.image_url || section?.image;
-    if (currentImage) {
-      toast.error("Only one image can be uploaded for this section.");
+    if (currentImage && (!currentImages || currentImages.length === 0)) {
+      toast.error("This section already has an image.");
       return currentImage;
     }
 
@@ -317,25 +326,13 @@ const MemorandumDetailPage = () => {
     formData.append("image", file);
 
     try {
-      let response;
-      try {
-        response = await api.post(
-          `/api/v1/memorandums/${memorandumId}/sections/${sectionId}/image/`,
-          formData,
-        );
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          response = await api.post(
-            `/api/memorandums/${memorandumId}/sections/${sectionId}/image/`,
-            formData,
-          );
-        } else {
-          throw err;
-        }
-      }
+      const response = await api.post(
+        `/api/memorandums/${memorandumId}/sections/${sectionId}/image/`,
+        formData,
+      );
 
-      const uploadedImageUrl =
-        response?.data?.data?.image ?? response?.data?.image;
+      const responseData = response?.data?.data ?? response?.data;
+      const uploadedImageUrl = responseData?.image_url || responseData?.image;
 
       if (uploadedImageUrl) {
         setData((prev: any) => {
@@ -346,7 +343,10 @@ const MemorandumDetailPage = () => {
               item.id === sectionId
                 ? {
                     ...item,
+                    // Update both legacy and new fields
                     image_url: uploadedImageUrl,
+                    image_urls: [...(item.image_urls || []), uploadedImageUrl],
+                    updated_at: new Date().toISOString(),
                   }
                 : item,
             ),
@@ -526,31 +526,16 @@ const MemorandumDetailPage = () => {
     setIsRegeneratingAll(true);
 
     try {
-      let response;
-      try {
-        response = await api.post(
-          `/api/memorandums/${memorandumId}/regenerate/`,
-        );
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          response = await api.post(
-            `/api/memorandums/${memorandumId}/regenerate/`,
-          );
-        } else {
-          throw err;
-        }
-      }
+      const response = await api.post(
+        `/api/memorandums/${memorandumId}/regenerate/`,
+      );
 
       const resData = response?.data?.data ?? response?.data;
       if (resData?.sections && Array.isArray(resData.sections)) {
         setData(resData);
       } else {
-        let refetchRes;
-        try {
-          refetchRes = await api.get(`/api/v1/memorandums/${memorandumId}/`);
-        } catch {
-          refetchRes = await api.get(`/api/memorandums/${memorandumId}/`);
-        }
+        // Refetch if regenerate doesn't return full data
+        const refetchRes = await api.get(`/api/memorandums/${memorandumId}/`);
         const freshData = refetchRes?.data?.data ?? refetchRes?.data;
         if (freshData) setData(freshData);
       }
@@ -582,15 +567,7 @@ const MemorandumDetailPage = () => {
         mode: "Preview",
       };
 
-      try {
-        await api.patch(`/api/memorandums/${memorandumId}/`, payload);
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          await api.patch(`/api/memorandums/${memorandumId}/`, payload);
-        } else {
-          throw err;
-        }
-      }
+      await api.patch(`/api/memorandums/${memorandumId}/`, payload);
 
       setData((prev: any) => {
         if (!prev) return prev;
@@ -598,6 +575,7 @@ const MemorandumDetailPage = () => {
           ...prev,
           status: "Published",
           mode: "Preview",
+          updated_at: new Date().toISOString(),
         };
       });
 
@@ -748,7 +726,6 @@ const MemorandumDetailPage = () => {
               key={section.id}
               section={section}
               onSave={updateSectionContent}
-              onImageUpload={uploadSectionImage}
               onRegenerate={handleRegenerateSection}
             />
           ))}
@@ -790,35 +767,7 @@ const MemorandumDetailPage = () => {
             coverImage={resolvedHeroImage}
           />
 
-          {propertyImages.length > 1 && (
-            <div className="mb-8 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-2xs">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-                  Property Photos & Assets ({propertyImages.length})
-                </h3>
-                <span className="text-xs text-slate-500">
-                  Included in offering package
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                {propertyImages.map((img, idx) => (
-                  <div
-                    key={idx}
-                    className="relative h-28 sm:h-36 rounded-lg overflow-hidden border border-slate-200 shadow-2xs group"
-                  >
-                    <Image
-                      src={img}
-                      alt={`${resolvedPropertyName} photo ${idx + 1}`}
-                      fill
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      unoptimized
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Property Gallery removed - only header image shown above */}
 
           <TableOfContents items={tableItems} />
           <DynamicPreviewSections sections={sections} />
