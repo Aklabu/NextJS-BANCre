@@ -39,14 +39,20 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               {activeTab === "editor" ? (
                 <button
                   onClick={() => onTabChange("preview")}
-                  className="px-6 py-2.5 cursor-pointer flex items-center gap-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition shadow-sm"
+                  className="group relative px-7 py-3 cursor-pointer flex items-center gap-2 font-semibold text-white rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl"
                   type="button"
                 >
-                  Take a Final Review
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 transition-all duration-300 group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-pink-600"></div>
+                  <span className="relative flex items-center gap-2">
+                    Take a Final Review
+                    <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </span>
                 </button>
               ) : null}
 
@@ -54,10 +60,28 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
                 <button
                   onClick={onPublish}
                   disabled={isPublishing}
-                  className="px-4 py-2 cursor-pointer flex items-center bg-emerald-600 text-white rounded-full duration-300 hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="group relative px-6 py-3 cursor-pointer flex items-center gap-2 font-semibold text-white rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   type="button"
                 >
-                  {isPublishing ? "Publishing..." : "Publish"}
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 transition-all duration-300 group-hover:from-emerald-700 group-hover:via-teal-700 group-hover:to-green-700"></div>
+                  <span className="relative flex items-center gap-2">
+                    {isPublishing ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Publishing...
+                      </>
+                    ) : (
+                      <>
+                        Publish
+                        <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </>
+                    )}
+                  </span>
                 </button>
               ) : null}
 
@@ -73,10 +97,13 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
                     router.push(`/memorandum/${memorandumId}/download`);
                   }}
                   disabled={!memorandumId && !onExport}
-                  className="px-4 py-2 cursor-pointer flex items-center bg-blue-400 text-white rounded-full duration-500 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="group relative px-6 py-3 cursor-pointer flex items-center gap-2 font-semibold text-white rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  Export
-                  <FaDownload size={18} className="inline-block ml-2 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-600 to-blue-700 transition-all duration-300 group-hover:from-blue-600 group-hover:via-cyan-700 group-hover:to-blue-800"></div>
+                  <span className="relative flex items-center gap-2">
+                    Export
+                    <FaDownload size={16} className="transition-transform group-hover:translate-y-0.5" />
+                  </span>
                 </button>
               ) : null}
             </div>

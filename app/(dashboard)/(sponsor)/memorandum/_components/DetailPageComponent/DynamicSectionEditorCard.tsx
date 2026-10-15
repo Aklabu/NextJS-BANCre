@@ -129,12 +129,217 @@ const DynamicSectionEditorCard = ({
 
   return (
     <div
-      className={`bg-white border rounded-2xl p-4 md:p-6 mb-6 transition-colors w-full max-w-full min-w-0 overflow-x-hidden ${
+      className={`relative overflow-hidden backdrop-blur-sm bg-white/90 border-2 rounded-2xl p-5 md:p-7 mb-6 transition-all duration-300 w-full max-w-full min-w-0 shadow-lg hover:shadow-xl ${
         isEditing
-          ? "border-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]"
-          : "border-gray-200"
+          ? "border-emerald-400/60 shadow-emerald-100"
+          : "border-gray-200/80 hover:border-blue-200/60"
       }`}
     >
+      {/* Subtle decorative corner gradient */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-50/40 to-transparent rounded-2xl pointer-events-none"></div>
+      
+      <div className="relative z-10">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-5 gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h3 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-1 h-6 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></span>
+              {sectionTitle}
+            </h3>
+            {hasTableCapability ? (
+              <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200/50 flex items-center gap-1.5 shadow-sm">
+                <BsFileEarmarkSpreadsheet size={11} />
+                Excel Table
+              </span>
+            ) : null}
+
+            {/* View Mode Switcher */}
+            {canToggleView ? (
+              <div className="flex items-center rounded-xl bg-gradient-to-r from-slate-50 to-gray-50 p-1 border border-slate-200/80 text-xs ml-0 sm:ml-2 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 ${
+                    viewMode === "table"
+                      ? "bg-white text-emerald-700 shadow-md"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                  }`}
+                  title="View as Excel Spreadsheet"
+                >
+                  <BsFileEarmarkSpreadsheet className="text-emerald-600" size={12} />
+                  <span>Spreadsheet</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("document")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 ${
+                    viewMode === "document"
+                      ? "bg-white text-slate-800 shadow-md"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                  }`}
+                  title="View as Continuous Document Narrative"
+                >
+                  <FiFileText className="text-slate-600" size={12} />
+                  <span>Narrative</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* AI Regenerate button */}
+            {shouldShowRegenerateButton && !isEditing && (
+              <button
+                onClick={() => setShowRegeneratePrompt(!showRegeneratePrompt)}
+                disabled={isRegeneratingSection || isSaving}
+                className="group flex items-center gap-2 text-indigo-700 hover:text-indigo-800 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200/60 transition-all duration-200 disabled:opacity-60 shadow-sm hover:shadow-md cursor-pointer"
+                type="button"
+                title="Regenerate this section with AI"
+              >
+                <Sparkles
+                  className={`w-4 h-4 text-indigo-600 ${
+                    isRegeneratingSection ? "animate-spin" : "group-hover:scale-110 transition-transform"
+                  }`}
+                />
+                <span>
+                  {isRegeneratingSection ? "Regenerating..." : "Regenerate"}
+                </span>
+              </button>
+            )}
+
+            {!isEditing ? (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="group flex items-center gap-2 text-emerald-700 hover:text-emerald-800 text-sm font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 border border-emerald-200/60 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
+                type="button"
+              >
+                <FiEdit className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                {hasTableCapability ? "Edit Table" : "Edit"}
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60 shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
+                  type="button"
+                >
+                  <FiCheck className="w-4 h-4" />
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 text-gray-600 hover:text-gray-800 text-sm px-3 py-2 rounded-xl hover:bg-gray-100 disabled:opacity-60 transition-all duration-200 cursor-pointer"
+                  type="button"
+                >
+                  <FiX className="w-4 h-4" />
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* AI Regenerate Custom Instruction Prompt */}
+        {showRegeneratePrompt && (
+          <div className="mb-5 p-5 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/60 shadow-sm">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h4 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-600" />
+                  AI Regeneration
+                </h4>
+                <p className="text-xs text-indigo-700 mt-1.5 leading-relaxed">
+                  Add custom instructions to guide the AI (optional)
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowRegeneratePrompt(false);
+                  setCustomInstruction("");
+                }}
+                className="text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-100 rounded-lg transition-colors"
+                type="button"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              value={customInstruction}
+              onChange={(e) => setCustomInstruction(e.target.value)}
+              placeholder="e.g., Focus on sustainability features, Emphasize cap rate..."
+              className="w-full px-4 py-3 text-sm border border-indigo-300/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent bg-white/80 backdrop-blur-sm resize-y min-h-[90px] transition-all"
+              disabled={isRegeneratingSection}
+            />
+
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                onClick={() => {
+                  setShowRegeneratePrompt(false);
+                  setCustomInstruction("");
+                }}
+                disabled={isRegeneratingSection}
+                className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-white/60 rounded-lg disabled:opacity-50 transition-colors"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRegenerate}
+                disabled={isRegeneratingSection}
+                className="px-5 py-2 text-sm bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl disabled:opacity-50 flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all cursor-pointer"
+                type="button"
+              >
+                <Sparkles className={`w-4 h-4 ${isRegeneratingSection ? "animate-spin" : ""}`} />
+                {isRegeneratingSection ? "Generating..." : "Generate"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Primary Content */}
+        {viewMode === "table" && activeTable ? (
+          <div className="mb-4">
+            <ExcelTableView
+              tableData={activeTable}
+              title={sectionTitle}
+              subtitle={
+                section.section_key ? `Section: ${section.section_key}` : undefined
+              }
+              editable={isEditing}
+              onTableDataChange={(newTable) => {
+                setEditedTableData(newTable);
+              }}
+            />
+          </div>
+        ) : (
+          <div className="mt-4">
+            {!isEditing ? (
+              <div className="prose prose-sm md:prose-base max-w-none">
+                <SectionMarkdown
+                  content={contentToRender}
+                  className="text-sm md:text-base text-gray-700 leading-relaxed"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">
+                  Section Content (Markdown)
+                </label>
+                <textarea
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  className="w-full min-h-[180px] px-4 py-3 border-2 border-gray-300 focus:border-emerald-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-200 text-sm md:text-base resize-y font-mono bg-white shadow-inner transition-all"
+                  placeholder="Write section content in markdown..."
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <h3 className="text-lg md:text-xl font-semibold text-gray-900">
@@ -292,49 +497,6 @@ const DynamicSectionEditorCard = ({
         </div>
       )}
 
-      {/* ====== Primary Content: Excel Table or Document Narrative ====== */}
-      {viewMode === "table" && activeTable ? (
-        <div className="mb-4">
-          <ExcelTableView
-            tableData={activeTable}
-            title={sectionTitle}
-            subtitle={
-              section.section_key ? `Section: ${section.section_key}` : undefined
-            }
-            editable={isEditing}
-            onTableDataChange={(newTable) => {
-              setEditedTableData(newTable);
-            }}
-          />
-        </div>
-      ) : (
-        /* Narrative / Document Mode */
-        <div className="mt-3">
-          {!isEditing ? (
-            <SectionMarkdown
-              content={contentToRender}
-              className="text-sm md:text-base text-gray-700 leading-relaxed"
-            />
-          ) : (
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">
-                Section Narrative Content (Markdown)
-              </label>
-              <textarea
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                className="w-full min-h-[160px] px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-sm md:text-base resize-y font-mono"
-                placeholder="Write section content in markdown..."
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ====== Section Image ====== */}
-      {/* Section image upload removed as per requirement */}
-    </div>
-  );
 };
 
 export default DynamicSectionEditorCard;

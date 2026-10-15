@@ -39,57 +39,6 @@ const DynamicPreviewSections: React.FC<DynamicPreviewSectionsProps> = ({
 
   return (
     <div>
-      {/* ====== Global View Mode Switcher ====== */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-700" style={{ backgroundColor: "#0D4DA5" }}>
-            <BsFileEarmarkSpreadsheet size={16} className="text-white" />
-          </div>
-          <div>
-            <h4 className="text-xs sm:text-sm font-bold text-gray-800">
-              Offering Memorandum View Mode
-            </h4>
-            <p className="text-[11px] text-gray-600">
-              Switch between table and document view
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center rounded-md bg-white p-0.5 border border-gray-300 text-xs">
-          <button
-            type="button"
-            onClick={() => {
-              setGlobalMode("table");
-              setSectionOverrides({});
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-semibold transition-all ${
-              globalMode === "table"
-                ? "text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-            style={globalMode === "table" ? { backgroundColor: "#0D4DA5" } : {}}
-          >
-            <BsFileEarmarkSpreadsheet size={13} />
-            <span>Excel Tables</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setGlobalMode("document");
-              setSectionOverrides({});
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-semibold transition-all ${
-              globalMode === "document"
-                ? "bg-gray-800 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <FiFileText size={13} />
-            <span>Document Narrative</span>
-          </button>
-        </div>
-      </div>
-
       {/* ====== Sections Rendering ====== */}
       {sections.map((section, index) => {
         const sectionTitle =

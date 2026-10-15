@@ -722,71 +722,113 @@ const MemorandumDetailPage = () => {
       />
 
       {activeTab === "editor" && (
-        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10">
-          <PreviewCover
-            presentedBy={data?.sponsor_name || "BANCre Team"}
-            confidential={true}
-            investmentOpportunity="INVESTMENT OFFERING"
-            propertyName={resolvedPropertyName}
-            location={resolvedLocation}
-            stats={{
-              yearBuilt: resolvedYearBuilt,
-            }}
-            offeringDate={new Date(
-              data?.created_at || Date.now(),
-            ).toLocaleDateString()}
-            coverImage={resolvedHeroImage}
-          />
+        <div className="relative overflow-hidden">
+          {/* Decorative background elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-500/20 rounded-full blur-3xl -z-10"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-orange-400/20 rounded-full blur-3xl -z-10"></div>
+          
+          <div className="backdrop-blur-sm bg-white/80 shadow-2xl rounded-3xl overflow-hidden mb-10 border-2 border-white/60 hover:shadow-[0_20px_70px_rgba(0,0,0,0.15)] transition-all duration-500">
+            {/* Gradient top border */}
+            <div className="h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"></div>
+            
+            <div className="p-3 md:p-6 lg:p-10">
+              <PreviewCover
+                presentedBy={data?.sponsor_name || "BANCre Team"}
+                confidential={true}
+                investmentOpportunity="INVESTMENT OFFERING"
+                propertyName={resolvedPropertyName}
+                location={resolvedLocation}
+                stats={{
+                  yearBuilt: resolvedYearBuilt,
+                }}
+                offeringDate={new Date(
+                  data?.created_at || Date.now(),
+                ).toLocaleDateString()}
+                coverImage={resolvedHeroImage}
+              />
 
-          <TableOfContents items={tableItems} />
+              {/* Decorative divider */}
+              <div className="flex items-center justify-center my-8">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                <div className="mx-4 w-2 h-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 animate-pulse"></div>
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              </div>
 
-          {sections.map((section: MemorandumSection) => (
-            <DynamicSectionEditorCard
-              key={section.id}
-              section={section}
-              onSave={updateSectionContent}
-              onRegenerate={handleRegenerateSection}
-            />
-          ))}
+              <TableOfContents items={tableItems} />
+
+              {sections.map((section: MemorandumSection) => (
+                <DynamicSectionEditorCard
+                  key={section.id}
+                  section={section}
+                  onSave={updateSectionContent}
+                  onRegenerate={handleRegenerateSection}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {activeTab === "preview" && (
-        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10">
-          <div className="mb-4 flex justify-end">
-            {isPublished ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setLoanSubmitError("");
-                  setIsLoanModalOpen(true);
+        <div className="relative overflow-hidden">
+          {/* Decorative background elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-500/20 rounded-full blur-3xl -z-10"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-orange-400/20 rounded-full blur-3xl -z-10"></div>
+          
+          <div className="backdrop-blur-sm bg-white/80 shadow-2xl rounded-3xl overflow-hidden mb-10 border-2 border-white/60 hover:shadow-[0_20px_70px_rgba(0,0,0,0.15)] transition-all duration-500">
+            {/* Gradient top border */}
+            <div className="h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600"></div>
+            
+            <div className="p-3 md:p-6 lg:p-10">
+              <div className="mb-6 flex justify-end">
+                {isPublished ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoanSubmitError("");
+                      setIsLoanModalOpen(true);
+                    }}
+                    className="group relative px-6 py-3 rounded-xl font-semibold text-white overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 transition-all duration-300 group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-pink-600"></div>
+                    <span className="relative flex items-center gap-2">
+                      <span>Ask Loan</span>
+                      <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </span>
+                  </button>
+                ) : null}
+              </div>
+
+              <PreviewCover
+                presentedBy={data?.sponsor_name || "BANCre Team"}
+                confidential={true}
+                investmentOpportunity="INVESTMENT OFFERING"
+                propertyName={resolvedPropertyName}
+                location={resolvedLocation}
+                stats={{
+                  yearBuilt: resolvedYearBuilt,
                 }}
-                className="px-4 py-2 rounded-lg bg-[#0D4DA5] text-white text-sm font-medium hover:bg-[#0A3D84] transition-colors"
-              >
-                Ask Loan
-              </button>
-            ) : null}
+                offeringDate={new Date(
+                  data?.created_at || Date.now(),
+                ).toLocaleDateString()}
+                coverImage={resolvedHeroImage}
+              />
+
+              {/* Property Gallery removed - only header image shown above */}
+
+              {/* Decorative divider */}
+              <div className="flex items-center justify-center my-8">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                <div className="mx-4 w-2 h-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 animate-pulse"></div>
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              </div>
+
+              <TableOfContents items={tableItems} />
+              <DynamicPreviewSections sections={sections} />
+            </div>
           </div>
-
-          <PreviewCover
-            presentedBy={data?.sponsor_name || "BANCre Team"}
-            confidential={true}
-            investmentOpportunity="INVESTMENT OFFERING"
-            propertyName={resolvedPropertyName}
-            location={resolvedLocation}
-            stats={{
-              yearBuilt: resolvedYearBuilt,
-            }}
-            offeringDate={new Date(
-              data?.created_at || Date.now(),
-            ).toLocaleDateString()}
-            coverImage={resolvedHeroImage}
-          />
-
-          {/* Property Gallery removed - only header image shown above */}
-
-          <TableOfContents items={tableItems} />
-          <DynamicPreviewSections sections={sections} />
         </div>
       )}
 
