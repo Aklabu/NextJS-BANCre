@@ -12,27 +12,36 @@ const PreviewSection: React.FC<PreviewSectionProps> = ({
   anchorId,
 }) => {
   return (
-    <div
+    <section
       id={anchorId}
-      className="bg-white border border-gray-200 rounded-lg p-6 md:p-8 mb-6 scroll-mt-28"
+      className="bg-white mb-8 scroll-mt-28"
     >
-      {/* ====== Section Header ====== */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="h-1 w-12 bg-blue-600 rounded"></div>
-          <span className="text-blue-600 text-xs uppercase tracking-wider">
+      {/* Section Header - matching PDF design */}
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-1">
+          <div
+            className="h-1 w-10 rounded"
+            style={{ backgroundColor: "#0D4DA5" }}
+          />
+          <span
+            className="text-[10px] uppercase tracking-wider"
+            style={{ color: "#0D4DA5" }}
+          >
             Section {sectionNumber}
           </span>
         </div>
-        <h2 className="text-2xl md:text-3xl text-gray-900">{title}</h2>
-        <div className="h-1 w-20 bg-blue-600 rounded mt-2"></div>
+        <h2 className="text-xl md:text-2xl font-bold text-gray-900">{title}</h2>
+        <div
+          className="h-[3px] w-16 rounded mt-1"
+          style={{ backgroundColor: "#0D4DA5" }}
+        />
       </div>
 
-      {/* ====== Section Content ====== */}
-      <div className="text-gray-700 text-sm md:text-base leading-relaxed">
+      {/* Section Content */}
+      <div className="text-gray-700 leading-relaxed">
         {children}
       </div>
-    </div>
+    </section>
   );
 };
 

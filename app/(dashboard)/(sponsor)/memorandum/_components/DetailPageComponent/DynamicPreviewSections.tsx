@@ -40,33 +40,34 @@ const DynamicPreviewSections: React.FC<DynamicPreviewSectionsProps> = ({
   return (
     <div>
       {/* ====== Global View Mode Switcher ====== */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-linear-to-r from-emerald-50/70 via-slate-50 to-emerald-50/40 p-3 shadow-2xs">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
-            <BsFileEarmarkSpreadsheet size={16} />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-700" style={{ backgroundColor: "#0D4DA5" }}>
+            <BsFileEarmarkSpreadsheet size={16} className="text-white" />
           </div>
           <div>
-            <h4 className="text-xs sm:text-sm font-bold text-slate-800">
+            <h4 className="text-xs sm:text-sm font-bold text-gray-800">
               Offering Memorandum View Mode
             </h4>
-            <p className="text-[11px] text-slate-500">
-              All sections enabled with Excel spreadsheet view where data is available
+            <p className="text-[11px] text-gray-600">
+              Switch between table and document view
             </p>
           </div>
         </div>
 
-        <div className="flex items-center rounded-lg bg-white p-1 border border-slate-200 shadow-2xs text-xs">
+        <div className="flex items-center rounded-md bg-white p-0.5 border border-gray-300 text-xs">
           <button
             type="button"
             onClick={() => {
               setGlobalMode("table");
               setSectionOverrides({});
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-semibold transition-all ${
               globalMode === "table"
-                ? "bg-emerald-600 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
+                ? "text-white shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
             }`}
+            style={globalMode === "table" ? { backgroundColor: "#0D4DA5" } : {}}
           >
             <BsFileEarmarkSpreadsheet size={13} />
             <span>Excel Tables</span>
@@ -77,10 +78,10 @@ const DynamicPreviewSections: React.FC<DynamicPreviewSectionsProps> = ({
               setGlobalMode("document");
               setSectionOverrides({});
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-semibold transition-all ${
               globalMode === "document"
-                ? "bg-slate-800 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
+                ? "bg-gray-800 text-white shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             <FiFileText size={13} />
@@ -132,35 +133,33 @@ const DynamicPreviewSections: React.FC<DynamicPreviewSectionsProps> = ({
             title={sectionTitle}
             anchorId={`preview-section-${section.id}`}
           >
-            <div className="bg-gray-50 rounded-xl p-4 sm:p-6 border border-slate-100 shadow-2xs">
+            <div className="rounded-md p-4 bg-gray-50">
               {/* Optional Section Image */}
               {sectionImage ? (
-                <div className="relative h-52 md:h-72 rounded-lg overflow-hidden border border-gray-200 mb-5">
-                  <Image
-                    src={sectionImage}
-                    alt={`${sectionTitle} image`}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
+                <div className="mb-4 rounded-md overflow-hidden border border-gray-200">
+                  <div className="relative w-full h-[220px]">
+                    <Image
+                      src={sectionImage}
+                      alt={`${sectionTitle} image`}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
                 </div>
               ) : null}
 
               {/* Section-level toggle (when both table and prose exist) */}
               {canToggleView ? (
-                <div className="mb-4 flex items-center justify-between pb-2 border-b border-slate-200/70">
-                  <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <FiLayers className="text-slate-400" />
-                    <span>Displaying {effectiveMode === "table" ? "Spreadsheet View" : "Document Narrative"}</span>
-                  </span>
-                  <div className="flex items-center rounded-lg bg-white p-0.5 border border-slate-200 text-xs">
+                <div className="mb-3 flex items-center justify-end pb-2 border-b border-gray-200">
+                  <div className="flex items-center rounded-md bg-white p-0.5 border border-gray-300 text-xs">
                     <button
                       type="button"
                       onClick={() => toggleSectionMode(section.id, "table")}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
                         effectiveMode === "table"
-                          ? "bg-emerald-100 text-emerald-800 font-semibold"
-                          : "text-slate-500 hover:text-slate-800"
+                          ? "bg-[#0D4DA5] text-white"
+                          : "text-gray-600 hover:text-gray-900"
                       }`}
                     >
                       <BsFileEarmarkSpreadsheet size={11} />
@@ -169,10 +168,10 @@ const DynamicPreviewSections: React.FC<DynamicPreviewSectionsProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleSectionMode(section.id, "document")}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
                         effectiveMode === "document"
-                          ? "bg-slate-200 text-slate-800 font-semibold"
-                          : "text-slate-500 hover:text-slate-800"
+                          ? "bg-gray-700 text-white"
+                          : "text-gray-600 hover:text-gray-900"
                       }`}
                     >
                       <FiFileText size={11} />

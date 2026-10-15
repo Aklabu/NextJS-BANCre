@@ -714,12 +714,26 @@ const MemorandumDetailPage = () => {
       />
 
       {activeTab === "editor" && (
-        <div>
-          <HeroSection
-            heroImage={resolvedHeroImage}
-            galleryImages={propertyImages}
-            title={data?.property_name || resolvedPropertyName}
+        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10 w-full max-w-full min-w-0 overflow-x-hidden">
+          <PreviewCover
+            presentedBy={data?.sponsor_name || "Memorandum Team"}
+            confidential={true}
+            investmentOpportunity="INVESTMENT OFFERING"
+            propertyName={resolvedPropertyName}
+            location={resolvedLocation}
+            stats={{
+              propertyType: resolvedPropertyType,
+              units: resolvedUnits,
+              yearBuilt: resolvedYearBuilt,
+              occupancy: resolvedOccupancy,
+            }}
+            offeringDate={new Date(
+              data?.created_at || Date.now(),
+            ).toLocaleDateString()}
+            coverImage={resolvedHeroImage}
           />
+
+          <TableOfContents items={tableItems} />
 
           {sections.map((section: MemorandumSection) => (
             <DynamicSectionEditorCard
