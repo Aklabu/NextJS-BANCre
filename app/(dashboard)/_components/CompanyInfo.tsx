@@ -59,7 +59,7 @@ const CompanyInfo = ({ user, onDataChange }: { user: User | null; onDataChange?:
                         <input
                             type="text"
                             id='company_name'
-                            defaultValue={user?.company_information?.company_name}
+                            defaultValue={user?.company_information?.company_name ?? ""}
                             onChange={handleInputChange}
                             placeholder='Company Name'
                             disabled={!isEdit}
@@ -73,7 +73,7 @@ const CompanyInfo = ({ user, onDataChange }: { user: User | null; onDataChange?:
                     <input
                         type="text"
                         id='position'
-                        defaultValue={user?.company_information?.position}
+                        defaultValue={user?.company_information?.position ?? ""}
                         onChange={handleInputChange}
                         placeholder='position at company'
                         disabled={!isEdit}
@@ -89,7 +89,7 @@ const CompanyInfo = ({ user, onDataChange }: { user: User | null; onDataChange?:
                         <input
                             type="text"
                             id='street_address'
-                            defaultValue={user?.company_information?.street_address}
+                            defaultValue={user?.company_information?.street_address ?? ""}
                             onChange={handleInputChange}
                             placeholder='street address'
                             disabled={!isEdit}
@@ -104,7 +104,7 @@ const CompanyInfo = ({ user, onDataChange }: { user: User | null; onDataChange?:
                         <input
                             type="text"
                             id='city'
-                            defaultValue={user?.company_information?.city}
+                            defaultValue={user?.company_information?.city ?? ""}
                             onChange={handleInputChange}
                             placeholder='City'
                             disabled={!isEdit}
@@ -116,7 +116,7 @@ const CompanyInfo = ({ user, onDataChange }: { user: User | null; onDataChange?:
                         <input
                             type="text"
                             id='state'
-                            defaultValue={user?.company_information?.state}
+                            defaultValue={user?.company_information?.state ?? ""}
                             onChange={handleInputChange}
                             placeholder='State'
                             disabled={!isEdit}
@@ -128,7 +128,7 @@ const CompanyInfo = ({ user, onDataChange }: { user: User | null; onDataChange?:
                         <input
                             type="text"
                             id='zip_code'
-                            defaultValue={user?.company_information?.zip_code}
+                            defaultValue={user?.company_information?.zip_code ?? ""}
                             onChange={handleInputChange}
                             placeholder='ZIP Code'
                             disabled={!isEdit}

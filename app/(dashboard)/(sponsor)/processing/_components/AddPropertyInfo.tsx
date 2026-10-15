@@ -97,7 +97,7 @@ const AddPropertyInfo = ({
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PropertyFormData>({
-    resolver: zodResolver(propertySchema),
+    resolver: zodResolver(propertySchema) as any,
     defaultValues: {
       property_name: propertyData?.property_name || placeData?.property_name || placeData?.name || "",
       property_address: propertyData?.property_address || placeData?.property_address || placeData?.address || "",

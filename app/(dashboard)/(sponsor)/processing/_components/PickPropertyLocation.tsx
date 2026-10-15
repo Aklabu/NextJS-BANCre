@@ -107,22 +107,34 @@ const PickPropertyLocation = ({
           ? String(enrichedData.property_type)
           : undefined,
         number_of_units: enrichedData.number_of_units !== null && enrichedData.number_of_units !== undefined
-          ? enrichedData.number_of_units
+          ? (typeof enrichedData.number_of_units === 'number' || typeof enrichedData.number_of_units === 'string' 
+              ? enrichedData.number_of_units 
+              : undefined)
           : undefined,
         rentable_area: enrichedData.rentable_area !== null && enrichedData.rentable_area !== undefined
-          ? enrichedData.rentable_area
+          ? (typeof enrichedData.rentable_area === 'number' || typeof enrichedData.rentable_area === 'string' 
+              ? enrichedData.rentable_area 
+              : undefined)
           : undefined,
         year_built: enrichedData.year_built !== null && enrichedData.year_built !== undefined
-          ? enrichedData.year_built
+          ? (typeof enrichedData.year_built === 'number' || typeof enrichedData.year_built === 'string' 
+              ? enrichedData.year_built 
+              : undefined)
           : undefined,
         occupancy: enrichedData.occupancy !== null && enrichedData.occupancy !== undefined
-          ? enrichedData.occupancy
+          ? (typeof enrichedData.occupancy === 'number' || typeof enrichedData.occupancy === 'string' 
+              ? enrichedData.occupancy 
+              : undefined)
           : undefined,
         year_renovated: enrichedData.year_renovated !== null && enrichedData.year_renovated !== undefined
-          ? enrichedData.year_renovated
+          ? (typeof enrichedData.year_renovated === 'number' || typeof enrichedData.year_renovated === 'string' 
+              ? enrichedData.year_renovated 
+              : undefined)
           : undefined,
         parking_spaces: enrichedData.parking_spaces !== null && enrichedData.parking_spaces !== undefined
-          ? enrichedData.parking_spaces
+          ? (typeof enrichedData.parking_spaces === 'number' || typeof enrichedData.parking_spaces === 'string' 
+              ? enrichedData.parking_spaces 
+              : undefined)
           : undefined,
       };
 

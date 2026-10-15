@@ -25,6 +25,8 @@ export type ParsedPropertyInformation = {
   numberOfUnits?: number;
   yearBuilt?: number;
   occupancy?: number;
+  yearRenovated?: number;
+  parkingSpaces?: number;
 };
 
 export const sanitizeInlineMarkdownText = (value?: string): string => {

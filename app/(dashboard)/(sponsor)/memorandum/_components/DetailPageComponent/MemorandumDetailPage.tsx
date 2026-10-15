@@ -230,7 +230,7 @@ const MemorandumDetailPage = () => {
 
     // 1. Primary source: property_images array (already normalized to strings in fetchDetail)
     if (Array.isArray(data.property_images) && data.property_images.length > 0) {
-      images.push(...data.property_images.filter((img): img is string => 
+      images.push(...data.property_images.filter((img: any): img is string => 
         typeof img === "string" && img.trim().length > 0
       ));
     }
@@ -316,16 +316,9 @@ const MemorandumDetailPage = () => {
       return;
     }
 
-    // API supports up to 3 images per section
-    const currentImages = section?.image_urls || section?.images || [];
-    if (Array.isArray(currentImages) && currentImages.length >= 3) {
-      toast.error("Maximum of 3 images allowed per section.");
-      return;
-    }
-
-    // Legacy: single image check for backward compatibility
+    // Check if section already has an image
     const currentImage = section?.image_url || section?.image;
-    if (currentImage && (!currentImages || currentImages.length === 0)) {
+    if (currentImage) {
       toast.error("This section already has an image.");
       return currentImage;
     }
@@ -351,9 +344,7 @@ const MemorandumDetailPage = () => {
               item.id === sectionId
                 ? {
                     ...item,
-                    // Update both legacy and new fields
                     image_url: uploadedImageUrl,
-                    image_urls: [...(item.image_urls || []), uploadedImageUrl],
                     updated_at: new Date().toISOString(),
                   }
                 : item,
