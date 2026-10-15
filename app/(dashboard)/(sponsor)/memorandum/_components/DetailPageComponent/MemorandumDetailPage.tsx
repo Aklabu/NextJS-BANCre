@@ -562,7 +562,7 @@ const MemorandumDetailPage = () => {
   };
 
   const updateMemorandumStatus = async () => {
-    if (!memorandumId || !data?.title) {
+    if (!memorandumId) {
       toast.error("Unable to publish memorandum right now.");
       return;
     }
@@ -570,28 +570,36 @@ const MemorandumDetailPage = () => {
     try {
       setIsPublishing(true);
       const payload = {
-        title: data.title,
-        status: "Published",
-        mode: "Preview",
+        status: "published",
       };
 
-      await api.patch(`/api/memorandums/${memorandumId}/`, payload);
+      const response = await api.patch(`/api/memorandums/${memorandumId}/`, payload);
+
+      // API returns: { success, statusCode, message, data: { status: "published" }, errors }
+      const responseData = response?.data?.data ?? response?.data;
 
       setData((prev: any) => {
         if (!prev) return prev;
         return {
           ...prev,
-          status: "Published",
-          mode: "Preview",
+          status: responseData?.status || "published",
           updated_at: new Date().toISOString(),
         };
       });
 
       toast.success("Memorandum published successfully.");
       setIsPublishModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to publish memorandum:", error);
-      toast.error("Failed to publish memorandum. Please try again.");
+      
+      // Handle different error scenarios
+      const errorMessage = 
+        error?.response?.data?.message || 
+        error?.response?.data?.errors?.status?.[0] ||
+        error?.response?.data?.detail ||
+        "Failed to publish memorandum. Please try again.";
+      
+      toast.error(errorMessage);
     } finally {
       setIsPublishing(false);
     }
@@ -836,7 +844,7 @@ const MemorandumDetailPage = () => {
         open={isPublishModalOpen}
         onOpenChange={setIsPublishModalOpen}
         title="Publish memorandum?"
-        description="This will update the memorandum status to Published and mode to Preview."
+        description="Publishing this memorandum will make it visible to lenders, allowing you to request loan quotes for this property."
         confirmText="Publish"
         cancelText="Cancel"
         onConfirm={updateMemorandumStatus}
