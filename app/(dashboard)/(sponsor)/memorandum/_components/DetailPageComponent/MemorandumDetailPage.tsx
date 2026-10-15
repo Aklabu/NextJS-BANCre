@@ -697,7 +697,7 @@ const MemorandumDetailPage = () => {
   );
 
   return (
-    <div className="w-full max-w-full min-w-0 py-6 overflow-x-hidden">
+    <div className="w-full py-6 px-4 md:px-8 lg:px-12 overflow-x-hidden">
       <MemorandumHeader
         memorandumId={data?.id}
         title={data?.title || "Offering Memorandum"}
@@ -714,7 +714,7 @@ const MemorandumDetailPage = () => {
       />
 
       {activeTab === "editor" && (
-        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10 w-full max-w-full min-w-0 overflow-x-hidden">
+        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10">
           <PreviewCover
             presentedBy={data?.sponsor_name || "Memorandum Team"}
             confidential={true}
@@ -747,7 +747,7 @@ const MemorandumDetailPage = () => {
       )}
 
       {activeTab === "preview" && (
-        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10 w-full max-w-full min-w-0 overflow-x-hidden">
+        <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10">
           <div className="mb-4 flex justify-end">
             {isPublished ? (
               <button
