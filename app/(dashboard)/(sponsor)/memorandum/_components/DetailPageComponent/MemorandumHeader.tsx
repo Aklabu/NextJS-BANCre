@@ -27,7 +27,16 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
               <h1 className="text-xl md:text-2xl font-normal text-gray-900 break-words">
                 {title}
               </h1>
-              <p className="text-gray-600 text-sm md:text-base mt-1 break-words">{subtitle}</p>
+              {/* Subtitle removed - show "Back to Editor" button instead when in preview mode */}
+              {activeTab === "preview" ? (
+                <button
+                  onClick={() => onTabChange("editor")}
+                  className="mt-2 text-blue-600 text-sm font-medium hover:text-blue-700 transition"
+                  type="button"
+                >
+                  ← Back to Editor
+                </button>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">

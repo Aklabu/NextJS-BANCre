@@ -210,10 +210,18 @@ const MemorandumDetailPage = () => {
     Number(data?.year_built) > 0
       ? Number(data?.year_built)
       : Number(parsedPropertyInformation.yearBuilt) || 0;
+  const resolvedYearRenovated =
+    Number(data?.year_renovated) > 0
+      ? Number(data?.year_renovated)
+      : Number(parsedPropertyInformation.yearRenovated) || undefined;
   const resolvedOccupancy =
     Number(data?.occupancy) > 0
       ? Number(data?.occupancy)
       : Number(parsedPropertyInformation.occupancy) || 0;
+  const resolvedParkingSpaces =
+    Number(data?.parking_spaces) > 0
+      ? Number(data?.parking_spaces)
+      : Number(parsedPropertyInformation.parkingSpaces) || 0;
   const isPublished = String(data?.status || "").toLowerCase() === "published";
 
   const propertyImages = useMemo(() => {
@@ -716,16 +724,13 @@ const MemorandumDetailPage = () => {
       {activeTab === "editor" && (
         <div className="shadow-xl rounded-lg p-3 md:p-6 lg:p-10 mb-10">
           <PreviewCover
-            presentedBy={data?.sponsor_name || "Memorandum Team"}
+            presentedBy={data?.sponsor_name || "BANCre Team"}
             confidential={true}
             investmentOpportunity="INVESTMENT OFFERING"
             propertyName={resolvedPropertyName}
             location={resolvedLocation}
             stats={{
-              propertyType: resolvedPropertyType,
-              units: resolvedUnits,
               yearBuilt: resolvedYearBuilt,
-              occupancy: resolvedOccupancy,
             }}
             offeringDate={new Date(
               data?.created_at || Date.now(),
@@ -764,16 +769,13 @@ const MemorandumDetailPage = () => {
           </div>
 
           <PreviewCover
-            presentedBy={data?.sponsor_name || "Memorandum Team"}
+            presentedBy={data?.sponsor_name || "BANCre Team"}
             confidential={true}
             investmentOpportunity="INVESTMENT OFFERING"
             propertyName={resolvedPropertyName}
             location={resolvedLocation}
             stats={{
-              propertyType: resolvedPropertyType,
-              units: resolvedUnits,
               yearBuilt: resolvedYearBuilt,
-              occupancy: resolvedOccupancy,
             }}
             offeringDate={new Date(
               data?.created_at || Date.now(),

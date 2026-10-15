@@ -75,30 +75,16 @@ const PreviewCover: React.FC<PreviewCoverProps> = ({
             <p className="text-white/90 text-lg md:text-xl mb-8">{location}</p>
           )}
 
-          {/* Stat cards — flex row, max 4 cards */}
-          <div className="flex flex-wrap justify-center gap-4 mt-6 w-full max-w-[600px]">
-            {[
-              { label: "Property Type", value: stats.propertyType },
-              { label: "Units", value: stats.units },
-              { label: "Year Built", value: stats.yearBuilt },
-              { label: "Occupancy", value: `${stats.occupancy}%` },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="flex-1 min-w-[120px] max-w-[140px] rounded-md px-4 py-4 text-center"
-                style={
-                  {
-                    backgroundColor: "rgba(255,255,255,0.12)",
-                    backdropFilter: "blur(6px)",
-                  } as React.CSSProperties
-                }
-              >
-                <p className="text-white/70 text-[10px] uppercase tracking-wider mb-1">
-                  {item.label}
-                </p>
-                <p className="text-white text-lg font-semibold">{item.value}</p>
-              </div>
-            ))}
+          {/* Year Built — text only, no box */}
+          <div className="flex justify-center mt-6 w-full">
+            <div className="text-center">
+              <p className="text-white/70 text-[9px] uppercase tracking-wider mb-0.5">
+                Year Built
+              </p>
+              <p className="text-white text-base font-semibold">
+                {stats.yearBuilt || "N/A"}
+              </p>
+            </div>
           </div>
         </div>
 

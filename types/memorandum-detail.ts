@@ -390,13 +390,17 @@ export interface DisclaimerData {
 
 //========== Preview Cover Types ===========
 
+export interface PreviewCoverStats {
+  yearBuilt: number;
+}
+
 export interface PreviewCoverProps {
   presentedBy: string;
   confidential: boolean;
   investmentOpportunity: string;
   propertyName: string;
   location: string;
-  stats: PropertyStats;
+  stats: PreviewCoverStats;
   offeringDate: string;
   coverImage?: string;
 }
