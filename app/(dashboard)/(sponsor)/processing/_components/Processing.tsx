@@ -83,11 +83,8 @@ const Processing = ({
         property_id: propertyId,
       });
 
-      const memId =
-        response?.data?.data?.memorandum_id ??
-        response?.data?.data?.id ??
-        response?.data?.memorandum_id ??
-        response?.data?.id;
+      // API returns: { success, statusCode, message, data: { memorandum_id }, errors }
+      const memId = response?.data?.data?.memorandum_id;
 
       if (memId) {
         setGeneratedMemorandumId(Number(memId));
@@ -96,22 +93,43 @@ const Processing = ({
 
       setStatus("success");
       toast.success(
-        response?.data?.message ||
-          "Memorandum generation initiated successfully! AI is analyzing your documents.",
+        response?.data?.message || "Memorandum generation started.",
       );
     } catch (err: unknown) {
       const errorObj = err as {
-        response?: { data?: { message?: string; errors?: unknown } };
+        response?: { 
+          data?: { 
+            message?: string; 
+            errors?: Record<string, string[]> | null;
+            detail?: string;
+          } 
+        };
         message?: string;
       };
-      const msg =
-        errorObj?.response?.data?.message ||
-        (errorObj?.response?.data?.errors
-          ? JSON.stringify(errorObj.response.data.errors)
-          : errorObj?.message || "Failed to start memorandum generation.");
-      setErrorMsg(typeof msg === "string" ? msg : JSON.stringify(msg));
+
+      // Handle different error response formats
+      const apiData = errorObj?.response?.data;
+      let msg = "Failed to start memorandum generation.";
+
+      if (apiData?.detail) {
+        // Handle 401/404 responses with "detail" field
+        msg = apiData.detail;
+      } else if (apiData?.message) {
+        // Handle standardized error responses with "message"
+        msg = apiData.message;
+      } else if (apiData?.errors) {
+        // Handle validation errors with "errors" object
+        const errorMessages = Object.entries(apiData.errors)
+          .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
+          .join("; ");
+        msg = errorMessages || msg;
+      } else if (errorObj?.message) {
+        msg = errorObj.message;
+      }
+
+      setErrorMsg(msg);
       setStatus("error");
-      toast.error("Failed to generate memorandum. Please try again.");
+      toast.error(msg);
     }
   };
 
