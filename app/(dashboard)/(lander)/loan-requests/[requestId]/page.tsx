@@ -664,10 +664,7 @@ const Page = () => {
                 propertyName={memorandumPropertyName}
                 location={memorandumLocation}
                 stats={{
-                  propertyType: memorandumPropertyType,
-                  units: memorandumUnits,
                   yearBuilt: memorandumYearBuilt,
-                  occupancy: memorandumOccupancy,
                 }}
                 offeringDate={new Date(
                   selectedMemorandum.created_at || Date.now(),
