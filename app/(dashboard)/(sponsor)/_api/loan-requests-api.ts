@@ -58,17 +58,18 @@ export interface SponsorDashboardData {
 
 /**
  * Fetch Sponsor Dashboard data
- * Postman: GET /api/v1/loans/dashboard/sponsor/
+ * Postman: GET /api/loans/dashboard/sponsor/
  */
 export async function fetchSponsorDashboard(): Promise<SponsorDashboardData> {
   let response;
   try {
-    response = await api.get("/api/v1/loans/dashboard/sponsor/");
+    response = await api.get("/api/loans/dashboard/sponsor/");
   } catch {
     try {
-      response = await api.get("/api/loans/dashboard/sponsor/");
-    } catch {
       response = await api.get("/api/dashboard/sponsor/");
+    } catch (err) {
+      console.error("Failed to fetch sponsor dashboard", err);
+      throw err;
     }
   }
 
@@ -94,19 +95,15 @@ export async function fetchSponsorDashboard(): Promise<SponsorDashboardData> {
 
 /**
  * Fetch All Loan Requests
- * Postman: GET /api/v1/loans/requests/
+ * Postman: GET /api/loans/requests/
  */
 export async function fetchLoanRequests(): Promise<SponsorLoanRequestItem[]> {
   let response;
   try {
-    response = await api.get("/api/v1/loans/requests/");
-  } catch {
-    try {
-      response = await api.get("/api/loans/requests/");
-    } catch (err) {
-      console.error("Failed to fetch loan requests", err);
-      return [];
-    }
+    response = await api.get("/api/loans/requests/");
+  } catch (err) {
+    console.error("Failed to fetch loan requests", err);
+    return [];
   }
 
   const raw =
@@ -166,13 +163,10 @@ export async function fetchLoanRequestDetail(
 ): Promise<SponsorLoanRequestItem | null> {
   let response;
   try {
-    response = await api.get(`/api/v1/loans/requests/${id}/`);
-  } catch {
-    try {
-      response = await api.get(`/api/loans/requests/${id}/`);
-    } catch {
-      return null;
-    }
+    response = await api.get(`/api/loans/requests/${id}/`);
+  } catch (err) {
+    console.error(`Failed to fetch loan request #${id}`, err);
+    return null;
   }
 
   const raw = response?.data?.data ?? response?.data;
@@ -238,13 +232,9 @@ export async function createLoanRequest(
 
   let response;
   try {
-    response = await api.post("/api/v1/loans/requests/", formattedBody);
+    response = await api.post("/api/loans/requests/", formattedBody);
   } catch (err: any) {
-    if (err?.response?.status === 404) {
-      response = await api.post("/api/loans/requests/", formattedBody);
-    } else {
-      throw err;
-    }
+    throw err;
   }
 
   const raw = response?.data?.data ?? response?.data;
@@ -281,13 +271,9 @@ export async function updateLoanRequest(
 
   let response;
   try {
-    response = await api.patch(`/api/v1/loans/requests/${id}/`, formattedBody);
+    response = await api.patch(`/api/loans/requests/${id}/`, formattedBody);
   } catch (err: any) {
-    if (err?.response?.status === 404) {
-      response = await api.patch(`/api/loans/requests/${id}/`, formattedBody);
-    } else {
-      throw err;
-    }
+    throw err;
   }
 
   const raw = response?.data?.data ?? response?.data;
@@ -300,33 +286,25 @@ export async function updateLoanRequest(
  */
 export async function deleteLoanRequest(id: number): Promise<void> {
   try {
-    await api.delete(`/api/v1/loans/requests/${id}/`);
+    await api.delete(`/api/loans/requests/${id}/`);
   } catch (err: any) {
-    if (err?.response?.status === 404) {
-      await api.delete(`/api/loans/requests/${id}/`);
-    } else {
-      throw err;
-    }
+    throw err;
   }
 }
 
 /**
  * Fetch all quotes for a specific Loan Request ID
- * Postman: GET /api/v1/loans/requests/{{id}}/quotes/
+ * Postman: GET /api/loans/requests/{{id}}/quotes/
  */
 export async function fetchQuotesForLoanRequest(
   loanRequestId: number,
 ): Promise<LoanQuoteDetail[]> {
   let response;
   try {
-    response = await api.get(`/api/v1/loans/requests/${loanRequestId}/quotes/`);
-  } catch {
-    try {
-      response = await api.get(`/api/loans/requests/${loanRequestId}/quotes/`);
-    } catch (err) {
-      console.error(`Failed to fetch quotes for loan request #${loanRequestId}`, err);
-      return [];
-    }
+    response = await api.get(`/api/loans/requests/${loanRequestId}/quotes/`);
+  } catch (err) {
+    console.error(`Failed to fetch quotes for loan request #${loanRequestId}`, err);
+    return [];
   }
 
   const raw =
@@ -383,13 +361,10 @@ export async function fetchLoanQuoteDetail(
 ): Promise<LoanQuoteDetail | null> {
   let response;
   try {
-    response = await api.get(`/api/v1/loans/quotes/${quoteId}/`);
-  } catch {
-    try {
-      response = await api.get(`/api/loans/quotes/${quoteId}/`);
-    } catch {
-      return null;
-    }
+    response = await api.get(`/api/loans/quotes/${quoteId}/`);
+  } catch (err) {
+    console.error(`Failed to fetch loan quote #${quoteId}`, err);
+    return null;
   }
 
   const raw = response?.data?.data ?? response?.data;
@@ -435,13 +410,9 @@ export async function fetchLoanQuoteDetail(
 export async function acceptLoanQuote(quoteId: number): Promise<any> {
   let response;
   try {
-    response = await api.post(`/api/v1/loans/quotes/${quoteId}/accept/`);
+    response = await api.post(`/api/loans/quotes/${quoteId}/accept/`);
   } catch (err: any) {
-    if (err?.response?.status === 404) {
-      response = await api.post(`/api/loans/quotes/${quoteId}/accept/`);
-    } else {
-      throw err;
-    }
+    throw err;
   }
   return response?.data;
 }
@@ -453,13 +424,9 @@ export async function acceptLoanQuote(quoteId: number): Promise<any> {
 export async function declineLoanQuote(quoteId: number): Promise<any> {
   let response;
   try {
-    response = await api.post(`/api/v1/loans/quotes/${quoteId}/decline/`);
+    response = await api.post(`/api/loans/quotes/${quoteId}/decline/`);
   } catch (err: any) {
-    if (err?.response?.status === 404) {
-      response = await api.post(`/api/loans/quotes/${quoteId}/decline/`);
-    } else {
-      throw err;
-    }
+    throw err;
   }
   return response?.data;
 }
