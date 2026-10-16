@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -66,6 +66,60 @@ const Processing = ({
   const [generatedMemorandumId, setGeneratedMemorandumId] = useState<
     number | null
   >(null);
+  const [pollingAttempts, setPollingAttempts] = useState(0);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const checkMemorandumStatus = async (memId: number): Promise<boolean> => {
+    try {
+      const response = await api.get(`/api/memorandums/${memId}/`);
+      const status = response?.data?.data?.status || response?.data?.status;
+      
+      // Check if generation is complete
+      // Adjust these status values based on your actual API response
+      return status === "published" || status === "draft" || status === "completed";
+    } catch (error) {
+      console.error("Failed to check memorandum status:", error);
+      return false;
+    }
+  };
+
+  const pollMemorandumStatus = async (memId: number) => {
+    const maxAttempts = 60; // Poll for up to 5 minutes (60 attempts * 5 seconds)
+    let attempts = 0;
+
+    const poll = async () => {
+      attempts++;
+      setPollingAttempts(attempts);
+
+      const isComplete = await checkMemorandumStatus(memId);
+
+      if (isComplete) {
+        setStatus("success");
+        toast.success("Memorandum generated successfully!");
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        setStatus("success"); // Still show success but with a note
+        toast.info("Memorandum is still being generated. You can view it now.");
+        return;
+      }
+
+      // Continue polling every 5 seconds
+      pollingTimeoutRef.current = setTimeout(poll, 5000);
+    };
+
+    poll();
+  };
 
   const generateMemorandum = async () => {
     if (!propertyId) {
@@ -77,6 +131,7 @@ const Processing = ({
 
     setStatus("loading");
     setErrorMsg(null);
+    setPollingAttempts(0);
 
     try {
       const response = await api.post("/api/memorandums/generate/", {
@@ -87,14 +142,17 @@ const Processing = ({
       const memId = response?.data?.data?.memorandum_id;
 
       if (memId) {
-        setGeneratedMemorandumId(Number(memId));
-        setParentMemorandumId?.(Number(memId));
+        const numericMemId = Number(memId);
+        setGeneratedMemorandumId(numericMemId);
+        setParentMemorandumId?.(numericMemId);
+        
+        // Start polling for completion
+        toast.info("Memorandum generation started. Please wait...");
+        pollMemorandumStatus(numericMemId);
+      } else {
+        setStatus("error");
+        setErrorMsg("Failed to get memorandum ID from response.");
       }
-
-      setStatus("success");
-      toast.success(
-        response?.data?.message || "Memorandum generation started.",
-      );
     } catch (err: unknown) {
       const errorObj = err as {
         response?: { 
@@ -336,7 +394,10 @@ const Processing = ({
         {status === "loading" && (
           <div className="mt-4 flex items-center gap-2.5 text-xs text-blue-800 bg-blue-100/80 rounded-lg p-3 border border-blue-200 animate-pulse">
             <Loader2 className="h-4 w-4 animate-spin shrink-0 text-blue-600" />
-            <span>AI is processing property data, analyzing documents, and drafting your memorandum...</span>
+            <span>
+              AI is processing property data, analyzing documents, and drafting your memorandum...
+              {pollingAttempts > 0 && ` (${pollingAttempts * 5}s elapsed)`}
+            </span>
           </div>
         )}
 
