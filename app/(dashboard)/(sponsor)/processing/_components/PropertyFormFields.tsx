@@ -62,14 +62,13 @@ export const PropertyFormFields = ({ register, errors }: PropertyFormFieldsProps
         <label htmlFor="property_type" className="text-sm font-medium text-gray-700">
           Property Type
         </label>
-        <select id="property_type" className={`${inputClass} bg-white`} {...register("property_type")}>
-          <option value="">Select property type</option>
-          <option value="Multifamily">Multifamily</option>
-          <option value="Industrial">Industrial</option>
-          <option value="Retail">Retail</option>
-          <option value="Office">Office</option>
-          <option value="Other">Other</option>
-        </select>
+        <input
+          id="property_type"
+          type="text"
+          className={inputClass}
+          placeholder="e.g. Multifamily, Office, Retail"
+          {...register("property_type")}
+        />
         {errors.property_type && <p className={errorClass}>{errors.property_type.message}</p>}
       </div>
 

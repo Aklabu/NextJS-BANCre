@@ -64,16 +64,6 @@ type AddPropertyInfoProps = {
   propertyData?: PropertyData | null;
 };
 
-const normalizeType = (t?: unknown): string => {
-  if (!t) return "";
-  const s = String(t).trim().toLowerCase();
-  if (s.includes("multi")) return "Multifamily";
-  if (s.includes("indus")) return "Industrial";
-  if (s.includes("retail")) return "Retail";
-  if (s.includes("office")) return "Office";
-  return "Other";
-};
-
 const AddPropertyInfo = ({
   id,
   title,
@@ -101,7 +91,7 @@ const AddPropertyInfo = ({
     defaultValues: {
       property_name: propertyData?.property_name || placeData?.property_name || placeData?.name || "",
       property_address: propertyData?.property_address || placeData?.property_address || placeData?.address || "",
-      property_type: normalizeType(propertyData?.property_type || placeData?.property_type),
+      property_type: propertyData?.property_type || placeData?.property_type || "",
       number_of_units: (propertyData?.number_of_units ?? placeData?.number_of_units) ? Number(propertyData?.number_of_units ?? placeData?.number_of_units) : undefined,
       rentable_area: (propertyData?.rentable_area ?? placeData?.rentable_area) ? String(propertyData?.rentable_area ?? placeData?.rentable_area) : "",
       year_built: (propertyData?.year_built ?? placeData?.year_built) ? Number(propertyData?.year_built ?? placeData?.year_built) : undefined,
