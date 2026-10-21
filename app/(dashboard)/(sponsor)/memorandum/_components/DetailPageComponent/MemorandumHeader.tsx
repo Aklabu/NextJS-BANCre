@@ -9,6 +9,7 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
   memorandumId,
   title,
   subtitle,
+  status,
   activeTab,
   onTabChange,
   canPublish = false,
@@ -18,15 +19,57 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
 }) => {
   const router = useRouter();
 
+  // Determine status badge
+  const renderStatusBadge = () => {
+    if (status === "published") {
+      return (
+        <span className="px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
+          Published
+        </span>
+      );
+    }
+    if (status === "generating") {
+      return (
+        <span className="px-3 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full flex items-center gap-1.5">
+          <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Generating...
+        </span>
+      );
+    }
+    if (status === "draft") {
+      return (
+        <span className="px-3 py-1 text-xs font-semibold bg-gray-100 text-gray-700 rounded-full">
+          Draft
+        </span>
+      );
+    }
+    if (status === "failed") {
+      return (
+        <span className="px-3 py-1 text-xs font-semibold bg-red-100 text-red-800 rounded-full">
+          Failed
+        </span>
+      );
+    }
+    return null;
+  };
+
+  const isReadOnly = status === "published";
+
   return (
     <div className="mb-4 w-full max-w-full min-w-0 overflow-x-hidden">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex-1 min-w-0 max-w-full">
           <div className="flex flex-wrap items-start gap-3">
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl md:text-2xl font-normal text-gray-900 break-words">
-                {title}
-              </h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-xl md:text-2xl font-normal text-gray-900 break-words">
+                  {title}
+                </h1>
+                {renderStatusBadge()}
+              </div>
               {/* Subtitle removed - show "Back to Editor" button instead when in preview mode */}
               {activeTab === "preview" ? (
                 <button
@@ -40,7 +83,7 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {activeTab === "editor" ? (
+              {activeTab === "editor" && !isReadOnly ? (
                 <button
                   onClick={() => onTabChange("preview")}
                   className="group relative px-7 py-3 cursor-pointer flex items-center gap-2 font-semibold text-white rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl"
@@ -56,7 +99,7 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
                 </button>
               ) : null}
 
-              {activeTab === "preview" && canPublish && onPublish ? (
+              {activeTab === "preview" && canPublish && onPublish && !isReadOnly ? (
                 <button
                   onClick={onPublish}
                   disabled={isPublishing}

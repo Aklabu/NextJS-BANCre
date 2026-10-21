@@ -3,12 +3,23 @@
 export interface HeadingBlock {
   type: "heading";
   level: number;
-  content: string;
+  text: string;
 }
 
 export interface ParagraphBlock {
   type: "paragraph";
-  content: string;
+  text: string;
+}
+
+export interface ListBlock {
+  type: "list";
+  items: string[];
+}
+
+export interface TableBlock {
+  type: "table";
+  headers: string[];
+  rows: string[][];
 }
 
 export interface KeyValueRow {
@@ -23,16 +34,12 @@ export interface KeyValueTableBlock {
   rows: KeyValueRow[];
 }
 
-export interface BulletListBlock {
-  type: "bullet_list";
-  items: string[];
-}
-
 export type SectionBlock =
   | HeadingBlock
   | ParagraphBlock
-  | KeyValueTableBlock
-  | BulletListBlock;
+  | ListBlock
+  | TableBlock
+  | KeyValueTableBlock;
 
 export interface MemorandumTableData {
   columns: string[];
@@ -41,16 +48,12 @@ export interface MemorandumTableData {
 
 export interface MemorandumSection {
   id: number;
-  section_key?: string;
-  label?: string;
-  section_type: "text" | "table" | string;
-  title?: string;
+  section_type: string; // e.g., "property_information", "executive_summary", "financial_analysis"
+  title: string;
   content: string;
-  table_data?: MemorandumTableData | null;
-  is_regeneratable?: boolean;
   blocks?: SectionBlock[];
-  image?: string | null;
-  image_url?: string | null;
+  attachment?: string | null; // Relative file path
+  attachment_url?: string | null; // Full URL for download
   order: number;
   updated_at?: string;
 }
@@ -153,7 +156,7 @@ export interface MemorandumHeaderProps {
   memorandumId?: number | string;
   title: string;
   subtitle: string;
-  status?: string;
+  status?: string; // "draft", "published", "generating", "failed"
   mode?: string;
   activeTab: MemorandumTab;
   onTabChange: (tab: MemorandumTab) => void;

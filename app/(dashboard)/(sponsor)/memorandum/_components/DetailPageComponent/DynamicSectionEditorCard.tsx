@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { FiCheck, FiEdit, FiX, FiFileText } from "react-icons/fi";
 import { BsFileEarmarkSpreadsheet } from "react-icons/bs";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import SectionMarkdown from "./SectionMarkdown";
 import ExcelTableView from "./ExcelTableView";
+import YearlyComparisonTable from "./YearlyComparisonTable";
 
 import type {
   MemorandumSection,
@@ -77,6 +78,36 @@ const DynamicSectionEditorCard = ({
   const hasTableCapability = Boolean(activeTable);
   const hasProseContent = Boolean(contentToRender && contentToRender.trim().length > 0);
   const canToggleView = hasTableCapability && hasProseContent;
+
+  // Detect if this section should use yearly comparison format
+  // Check if table has YEAR column and LINE ITEM column
+  const shouldUseYearlyComparison = useMemo(() => {
+    if (!activeTable?.columns || !activeTable?.rows) return false;
+    
+    const hasYearColumn = activeTable.columns.some(col => 
+      String(col).toLowerCase().includes('year') ||
+      String(col).toLowerCase().includes('date')
+    );
+    const hasLineItemColumn = activeTable.columns.some(col => 
+      String(col).toLowerCase().includes('line item') ||
+      String(col).toLowerCase().includes('property') ||
+      String(col).toLowerCase() === 'item'
+    );
+    
+    // Check if section type is one that benefits from yearly comparison
+    const yearlyComparisonSections = [
+      'sales_comparables',
+      'lease_comparables', 
+      'financial_analysis',
+      'rent_roll'
+    ];
+    
+    const isYearlySection = yearlyComparisonSections.some(type => 
+      sectionIdentifier.includes(type)
+    );
+    
+    return hasYearColumn && hasLineItemColumn && isYearlySection;
+  }, [activeTable, sectionIdentifier]);
 
   useEffect(() => {
     setEditedContent(section.content || "");
@@ -301,17 +332,24 @@ const DynamicSectionEditorCard = ({
         {/* Primary Content */}
         {viewMode === "table" && activeTable ? (
           <div className="mb-4">
-            <ExcelTableView
-              tableData={activeTable}
-              title={sectionTitle}
-              subtitle={
-                section.section_key ? `Section: ${section.section_key}` : undefined
-              }
-              editable={isEditing}
-              onTableDataChange={(newTable) => {
-                setEditedTableData(newTable);
-              }}
-            />
+            {shouldUseYearlyComparison ? (
+              <YearlyComparisonTable
+                tableData={activeTable}
+                title={sectionTitle}
+              />
+            ) : (
+              <ExcelTableView
+                tableData={activeTable}
+                title={sectionTitle}
+                subtitle={
+                  section.section_key ? `Section: ${section.section_key}` : undefined
+                }
+                editable={isEditing}
+                onTableDataChange={(newTable) => {
+                  setEditedTableData(newTable);
+                }}
+              />
+            )}
           </div>
         ) : (
           <div className="mt-4">
@@ -335,6 +373,39 @@ const DynamicSectionEditorCard = ({
                 />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Attachment Download - Special emphasis for financial sections */}
+        {section.attachment_url && (
+          <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center shadow-md">
+                  <BsFileEarmarkSpreadsheet className="text-white" size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">
+                    Excel Financial Model Available
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    Download the full financial analysis spreadsheet
+                  </p>
+                </div>
+              </div>
+              <a
+                href={section.attachment_url}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition-all cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download Excel
+              </a>
+            </div>
           </div>
         )}
       </div>

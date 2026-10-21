@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { IoIosArrowRoundBack } from "react-icons/io";
@@ -61,11 +61,62 @@ const MemorandumDetailPage = () => {
   const [loanSubmitError, setLoanSubmitError] = useState("");
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isRegeneratingAll, setIsRegeneratingAll] = useState(false);
+  const [status, setStatus] = useState<string>("draft"); // "draft", "published", "generating", "failed"
+  const [progress, setProgress] = useState<number>(0);
+  const [currentBatch, setCurrentBatch] = useState<number>(0);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [loanForm, setLoanForm] = useState<LoanRequestForm>({
     requestedAmount: "5000000.00",
     loanTerm: "24",
     ltv: "75.00",
   });
+
+  // Polling functions for "generating" status
+  const startPolling = () => {
+    stopPolling(); // Clear any existing interval
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await api.get(`/api/memorandums/${memorandumId}/`);
+        const fetchedData = response.data?.data ?? response.data;
+        
+        const memorandumStatus = fetchedData?.status || "draft";
+        const memorandumProgress = fetchedData?.progress || 0;
+        const memorandumBatch = fetchedData?.current_batch || 0;
+
+        setStatus(memorandumStatus);
+        setProgress(memorandumProgress);
+        setCurrentBatch(memorandumBatch);
+
+        // Sort sections by order
+        if (fetchedData?.sections && Array.isArray(fetchedData.sections)) {
+          fetchedData.sections.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+        }
+
+        setData(fetchedData);
+
+        // Stop polling if generation is complete
+        if (memorandumStatus !== "generating") {
+          stopPolling();
+          if (memorandumStatus === "draft" || memorandumStatus === "published") {
+            toast.success("Memorandum generated successfully!");
+          } else if (memorandumStatus === "failed") {
+            toast.error("Memorandum generation failed.");
+          }
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+        // Don't stop polling on error, just log it
+      }
+    }, 15000); // Poll every 15 seconds
+  };
+
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -73,11 +124,24 @@ const MemorandumDetailPage = () => {
         setLoading(true);
         const response = await api.get(`/api/memorandums/${memorandumId}/`);
         
-        // API returns: { success, statusCode, message, data: {...}, errors }
+        // API returns: { success, message, data: { id, title, status, progress, current_batch, sections, ... } }
         const fetchedData = response.data?.data ?? response.data;
 
+        // Extract status, progress, and current_batch
+        const memorandumStatus = fetchedData?.status || "draft";
+        const memorandumProgress = fetchedData?.progress || 0;
+        const memorandumBatch = fetchedData?.current_batch || 0;
+
+        setStatus(memorandumStatus);
+        setProgress(memorandumProgress);
+        setCurrentBatch(memorandumBatch);
+
+        // Sort sections by order
+        if (fetchedData?.sections && Array.isArray(fetchedData.sections)) {
+          fetchedData.sections.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+        }
+
         // Extract property_images array from API response
-        // API returns: property_images: [{ type: "cover"|"gallery", url: "..." }]
         if (
           fetchedData?.property_images &&
           Array.isArray(fetchedData.property_images) &&
@@ -133,6 +197,14 @@ const MemorandumDetailPage = () => {
         }
 
         setData(fetchedData);
+
+        // Start polling if status is "generating"
+        if (memorandumStatus === "generating") {
+          startPolling();
+        } else {
+          stopPolling();
+        }
+
       } catch (error: any) {
         console.error("Error fetching memorandum details:", error);
         
@@ -146,12 +218,17 @@ const MemorandumDetailPage = () => {
         } else {
           toast.error("Failed to load memorandum details.");
         }
+        stopPolling();
       } finally {
         setLoading(false);
       }
     };
 
     if (memorandumId) fetchDetail();
+
+    return () => {
+      stopPolling();
+    };
   }, [memorandumId]);
 
   useEffect(() => {
@@ -709,16 +786,44 @@ const MemorandumDetailPage = () => {
         memorandumId={data?.id}
         title={data?.title || "Offering Memorandum"}
         subtitle={data?.property_name || ""}
-        status={data?.status}
+        status={status}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        canPublish={activeTab === "preview" && data?.status !== "Published"}
+        canPublish={activeTab === "preview" && status === "draft"}
         isPublishing={isPublishing}
         onPublish={() => setIsPublishModalOpen(true)}
         onExport={handleExport}
         onRegenerateAll={handleRegenerateAll}
         isRegeneratingAll={isRegeneratingAll}
       />
+
+      {/* Progress Bar for Generating Status */}
+      {status === "generating" && (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-sm font-semibold text-blue-900">
+                Generating Memorandum... 
+                {currentBatch > 0 && ` (Batch ${currentBatch}/5)`}
+              </span>
+            </div>
+            <span className="text-sm font-medium text-blue-800">{progress}%</span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2.5">
+            <div
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <p className="text-xs text-blue-700 mt-2">
+            AI is analyzing your property data and drafting sections. This page will automatically update when complete.
+          </p>
+        </div>
+      )}
 
       {activeTab === "editor" && (
         <div className="relative overflow-hidden">
