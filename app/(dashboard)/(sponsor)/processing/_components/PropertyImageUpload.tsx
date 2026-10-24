@@ -17,7 +17,7 @@ export const PropertyImageUpload = ({
   images,
   onAddImages,
   onRemoveImage,
-  maxImages = 6,
+  maxImages = 10,
 }: PropertyImageUploadProps) => {
   const [isDragging, setIsDragging] = React.useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,12 +59,7 @@ export const PropertyImageUpload = ({
         <div>
           <Label className="text-sm font-semibold text-gray-800">Property Images</Label>
           <p className="text-xs text-[#4A5565] mt-1">
-            {images.length > 0 && images.some((img) => img.source === "place")
-              ? `${images.filter((img) => img.source === "place").length} image${
-                  images.filter((img) => img.source === "place").length > 1 ? "s" : ""
-                } fetched from Google Maps. `
-              : ""}
-            Remove any photo or append new uploads (max {maxImages} images).
+            Upload property images (max {maxImages} images).
           </p>
         </div>
         <span className="text-xs text-[#4A5565]">
@@ -117,9 +112,6 @@ export const PropertyImageUpload = ({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={preview.url} alt={preview.name} className="h-full w-full object-cover" />
-              <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white">
-                {preview.source === "place" ? "Fetched" : "New"}
-              </span>
               <button
                 type="button"
                 onClick={() => onRemoveImage(preview.id)}

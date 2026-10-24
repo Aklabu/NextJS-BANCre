@@ -22,7 +22,8 @@ export type ImageItem =
       file: File;
     };
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for documents
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB for images
 const ALLOWED_EXTENSIONS = [
   ".pdf",
   ".png",
@@ -37,13 +38,15 @@ const ALLOWED_EXTENSIONS = [
   ".doc",
 ];
 
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"];
+
 export const useFileUpload = (maxFiles: number = 20) => {
   const [files, setFiles] = useState<FileItem[]>([]);
 
   const validateFile = useCallback(
     (file: File): string | null => {
       if (file.size > MAX_FILE_SIZE) {
-        return `'${file.name}' exceeds 10MB (${(file.size / (1024 * 1024)).toFixed(2)}MB)`;
+        return `'${file.name}' exceeds 50MB (${(file.size / (1024 * 1024)).toFixed(2)}MB)`;
       }
 
       const ext = "." + file.name.split(".").pop()?.toLowerCase();
@@ -116,15 +119,10 @@ export const useFileUpload = (maxFiles: number = 20) => {
   };
 };
 
-export const useImageUpload = (maxImages: number = 6, placePhotos?: string[]) => {
+export const useImageUpload = (maxImages: number = 10, placePhotos?: string[]) => {
   const getInitialImages = (): ImageItem[] => {
-    if (!placePhotos) return [];
-    return placePhotos.slice(0, maxImages).map((photo, index) => ({
-      id: `place-${index}-${photo}`,
-      name: `Fetched image ${index + 1}`,
-      source: "place" as const,
-      url: photo,
-    }));
+    // Don't show fetched images from Google Maps in property details page
+    return [];
   };
 
   const [images, setImages] = useState<ImageItem[]>(getInitialImages);
@@ -138,8 +136,38 @@ export const useImageUpload = (maxImages: number = 6, placePhotos?: string[]) =>
         return;
       }
 
+      // Validate image sizes (2MB max) and types (JPG/PNG only)
+      const errors: string[] = [];
+      const validImages: File[] = [];
+
+      imageFiles.forEach((file) => {
+        const ext = "." + file.name.split(".").pop()?.toLowerCase();
+        
+        if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+          errors.push(`'${file.name}' must be JPG or PNG format.`);
+          return;
+        }
+
+        if (file.size > MAX_IMAGE_SIZE) {
+          errors.push(
+            `'${file.name}' exceeds 2MB (${(file.size / (1024 * 1024)).toFixed(2)}MB)`
+          );
+          return;
+        }
+
+        validImages.push(file);
+      });
+
+      if (errors.length > 0) {
+        toast.error(errors.join("\n"), { duration: 5000 });
+      }
+
+      if (validImages.length === 0) {
+        return;
+      }
+
       setImages((prev) => {
-        const uploadItems: ImageItem[] = imageFiles.map((file) => ({
+        const uploadItems: ImageItem[] = validImages.map((file) => ({
           id: `upload-${file.name}-${file.size}-${file.lastModified}`,
           name: file.name,
           source: "upload" as const,

@@ -16,7 +16,7 @@ export interface CreatePropertyPayload {
   property_address: string;
   latitude: number;
   longitude: number;
-  files: File[]; // At least 1 file required, max 20
+  files: File[]; // At least 1 document required, max 20, max 50MB each
 
   // Optional fields
   place_id?: string;
@@ -27,7 +27,7 @@ export interface CreatePropertyPayload {
   year_renovated?: number;
   occupancy?: string | number;
   parking_spaces?: number;
-  property_photos?: string[]; // URLs from Google Maps
+  gallery_photos?: File[]; // Max 10 images, 2MB each, JPG/PNG only
 }
 
 export interface PropertyResponse {
@@ -44,11 +44,8 @@ export interface PropertyResponse {
   year_renovated?: number;
   occupancy: string;
   parking_spaces: number;
-  property_image?: string | null;
-  property_image_url?: string | null;
-  property_photos: string[];
-  property_image_urls: string[];
-  photos: string[];
+  property_image_url?: string | null; // Cover image URL
+  property_photos_urls?: string[]; // Gallery photo URLs
   sponsor: string;
   created_at: string;
   updated_at: string;
@@ -67,21 +64,23 @@ export interface PropertyAPIError {
 // ── API Methods ──────────────────────────────────────────────────────────────
 
 /**
- * Create a new Property with documents
+ * Create a new Property with documents and images
  * POST /api/properties/
  * 
  * Requirements:
- * - At least 1 file required
- * - Maximum 20 files allowed
- * - Max size per file: 10 MB
- * - Allowed types: pdf, png, jpg, jpeg, xlsx, xls, csv, pptx, ppt, docx, doc
+ * - At least 1 document file required
+ * - Maximum 20 document files allowed
+ * - Max size per document: 50 MB
+ * - Document types: pdf, png, jpg, jpeg, xlsx, xls, csv, pptx, ppt, docx, doc
+ * - Gallery photos: Max 10 images, 2MB each, JPG/PNG only
+ * - Cover image: First gallery photo is used as cover
  * 
  * Response includes:
  * - Property details
  * - Array of uploaded documents with URLs
  * - Success message indicating number of documents uploaded
  * 
- * @param payload - Property data and files
+ * @param payload - Property data, files, and gallery photos
  * @returns Created property with documents
  * @throws Error with validation details
  */
@@ -99,6 +98,13 @@ export async function createProperty(
     );
   }
 
+  // Validate gallery photos
+  if (payload.gallery_photos && payload.gallery_photos.length > 10) {
+    throw new Error(
+      `Too many gallery photos. Maximum 10 photos allowed, but ${payload.gallery_photos.length} photos were provided.`
+    );
+  }
+
   // Build FormData
   const formData = new FormData();
 
@@ -107,22 +113,18 @@ export async function createProperty(
   formData.append("property_address", payload.property_address.trim());
   
   // Latitude/Longitude: Limit to 10 total digits (including decimal point and minus sign)
-  // Example: -123.456789 (10 chars) or 12.3456789 (10 chars)
   const formatCoordinate = (coord: number): string => {
     const coordStr = coord.toFixed(7); // Max 7 decimal places
-    // Ensure total length doesn't exceed 10 digits (excluding decimal point and minus)
     const parts = coordStr.split('.');
     const intPart = parts[0].replace('-', '');
     const decPart = parts[1] || '';
     
-    // Total digits should be max 10 (integer + decimal, not counting - or .)
     const totalDigits = intPart.length + decPart.length;
     
     if (totalDigits <= 10) {
       return coordStr;
     }
     
-    // Trim decimal places to fit within 10 digits
     const maxDecimalPlaces = 10 - intPart.length;
     return coord.toFixed(Math.max(0, maxDecimalPlaces));
   };
@@ -189,12 +191,18 @@ export async function createProperty(
     formData.append("parking_spaces", String(payload.parking_spaces));
   }
 
-  // Property photo URLs (from Google Maps) - Send as JSON string
-  if (payload.property_photos && payload.property_photos.length > 0) {
-    formData.append("property_photos", JSON.stringify(payload.property_photos));
+  // Gallery photos (uploaded images) - Max 10, 2MB each, JPG/PNG only
+  if (payload.gallery_photos && payload.gallery_photos.length > 0) {
+    // Use first photo as cover_image
+    formData.append("cover_image", payload.gallery_photos[0]);
+    
+    // Add all photos to gallery_photos
+    payload.gallery_photos.forEach((photo) => {
+      formData.append("gallery_photos", photo);
+    });
   }
 
-  // Files - all documents/images go under "files" key
+  // Document files - all documents go under "files" key
   payload.files.forEach((file) => {
     formData.append("files", file);
   });
@@ -222,11 +230,8 @@ export async function createProperty(
       year_renovated: data.year_renovated,
       occupancy: data.occupancy || "0.00",
       parking_spaces: data.parking_spaces || 0,
-      property_image: data.property_image,
       property_image_url: data.property_image_url,
-      property_photos: data.property_photos || [],
-      property_image_urls: data.property_image_urls || [],
-      photos: data.photos || [],
+      property_photos_urls: data.property_photos_urls || [],
       sponsor: data.sponsor,
       created_at: data.created_at,
       updated_at: data.updated_at,
@@ -257,7 +262,7 @@ export async function createProperty(
  * Requirements:
  * - Property must already exist (created via POST /api/properties/)
  * - Maximum 20 files per request
- * - Max size per file: 10 MB
+ * - Max size per file: 50 MB
  * - Allowed types: pdf, png, jpg, jpeg, xlsx, xls, csv, pptx, ppt, docx, doc
  * 
  * @param propertyId - Property ID
@@ -340,11 +345,8 @@ export async function fetchProperty(
       year_renovated: data.year_renovated,
       occupancy: data.occupancy || "0.00",
       parking_spaces: data.parking_spaces || 0,
-      property_image: data.property_image,
       property_image_url: data.property_image_url,
-      property_photos: data.property_photos || [],
-      property_image_urls: data.property_image_urls || [],
-      photos: data.photos || [],
+      property_photos_urls: data.property_photos_urls || [],
       sponsor: data.sponsor,
       created_at: data.created_at,
       updated_at: data.updated_at,
@@ -365,7 +367,7 @@ export async function fetchProperty(
  */
 export async function updateProperty(
   propertyId: number,
-  payload: Partial<Omit<CreatePropertyPayload, "files">>
+  payload: Partial<Omit<CreatePropertyPayload, "files" | "gallery_photos">>
 ): Promise<PropertyResponse> {
   try {
     const response = await api.patch(`/api/properties/${propertyId}/`, payload);
@@ -385,11 +387,8 @@ export async function updateProperty(
       year_renovated: data.year_renovated,
       occupancy: data.occupancy || "0.00",
       parking_spaces: data.parking_spaces || 0,
-      property_image: data.property_image,
       property_image_url: data.property_image_url,
-      property_photos: data.property_photos || [],
-      property_image_urls: data.property_image_urls || [],
-      photos: data.photos || [],
+      property_photos_urls: data.property_photos_urls || [],
       sponsor: data.sponsor,
       created_at: data.created_at,
       updated_at: data.updated_at,
@@ -447,11 +446,8 @@ export async function fetchProperties(): Promise<PropertyResponse[]> {
       year_renovated: data.year_renovated,
       occupancy: data.occupancy || "0.00",
       parking_spaces: data.parking_spaces || 0,
-      property_image: data.property_image,
       property_image_url: data.property_image_url,
-      property_photos: data.property_photos || [],
-      property_image_urls: data.property_image_urls || [],
-      photos: data.photos || [],
+      property_photos_urls: data.property_photos_urls || [],
       sponsor: data.sponsor,
       created_at: data.created_at,
       updated_at: data.updated_at,

@@ -79,8 +79,8 @@ const AddPropertyInfo = ({
     lng: placeData?.lng || 0,
   });
 
-  // Use custom hook for image management
-  const imageUpload = useImageUpload(6, placeData?.photos);
+  // Use custom hook for image management (max 10 images, 2MB each)
+  const imageUpload = useImageUpload(10, placeData?.photos);
 
   const {
     register,

@@ -81,39 +81,51 @@ const FileUpload = ({
         // Collect all files: images from previous step + documents from this step
         const imageFiles = propertyData.uploadedImageFiles || [];
         const documentFiles = files;
-        const allFiles = [...imageFiles, ...documentFiles];
 
-        // API requires at least 1 file
-        if (allFiles.length === 0) {
+        // Separate images for gallery_photos (max 10, 2MB each)
+        const galleryPhotos = imageFiles.filter(file => 
+            file.type.startsWith('image/') && file.size <= 2 * 1024 * 1024
+        ).slice(0, 10);
+
+        // API requires at least 1 document file
+        if (documentFiles.length === 0) {
             setError("Please upload at least one document to create the property.");
             toast.error("At least one document is required to create the property.");
             return;
         }
 
-        // Validate file count
-        if (allFiles.length > 20) {
-            const errorMsg = `Too many files. Maximum 20 files allowed, but ${allFiles.length} files were provided.`;
+        // Validate document file count
+        if (documentFiles.length > 20) {
+            const errorMsg = `Too many documents. Maximum 20 files allowed, but ${documentFiles.length} files were provided.`;
             setError(errorMsg);
             toast.error(errorMsg);
             return;
         }
 
-        console.log("Creating property with all files...");
-        console.log("Image files:", imageFiles.length);
+        // Validate gallery photos
+        if (galleryPhotos.length > 10) {
+            const errorMsg = `Too many gallery photos. Maximum 10 photos allowed.`;
+            setError(errorMsg);
+            toast.error(errorMsg);
+            return;
+        }
+
+        console.log("Creating property...");
+        console.log("Gallery photos:", galleryPhotos.length);
         console.log("Document files:", documentFiles.length);
-        console.log("Total files:", allFiles.length);
 
         setIsUploading(true);
         setError(null);
 
         try {
-            // Create property with all files
+            // Create property with documents and gallery photos
             const response = await createProperty({
                 property_name: propertyData.property_name,
                 property_address: propertyData.property_address,
                 latitude: Number(propertyData.latitude) || 0,
                 longitude: Number(propertyData.longitude) || 0,
-                files: allFiles,
+                files: documentFiles,
+                gallery_photos: galleryPhotos.length > 0 ? galleryPhotos : undefined,
                 place_id: propertyData.place_id,
                 property_type: propertyData.property_type,
                 number_of_units: propertyData.number_of_units ? Number(propertyData.number_of_units) : undefined,
@@ -122,10 +134,9 @@ const FileUpload = ({
                 year_renovated: propertyData.year_renovated ? Number(propertyData.year_renovated) : undefined,
                 occupancy: propertyData.occupancy,
                 parking_spaces: propertyData.parking_spaces ? Number(propertyData.parking_spaces) : undefined,
-                property_photos: propertyData.placePhotoUrls || [],
             });
 
-            const docCount = response.documents?.length || allFiles.length;
+            const docCount = response.documents?.length || documentFiles.length;
             toast.success(`Property created successfully with ${docCount} document(s).`);
 
             // Set the property ID
