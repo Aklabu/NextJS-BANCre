@@ -29,7 +29,6 @@ import type {
 } from "@/types/memorandum-detail";
 import api from "@/lib/apiClient";
 import { toast } from "sonner";
-import ConfirmActionModal from "@/components/ConfirmActionModal";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +53,6 @@ const MemorandumDetailPage = () => {
   const [activeTab, setActiveTab] = useState<MemorandumTab>("editor");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [isSubmittingLoan, setIsSubmittingLoan] = useState(false);
@@ -655,8 +653,11 @@ const MemorandumDetailPage = () => {
         };
       });
 
-      toast.success("Memorandum published successfully.");
-      setIsPublishModalOpen(false);
+      setStatus("published");
+      toast.success("Your memorandum has been published. Now you can request a loan.");
+      
+      // Show loan request modal after successful publish
+      setIsLoanModalOpen(true);
     } catch (error: any) {
       console.error("Failed to publish memorandum:", error);
       
@@ -671,23 +672,6 @@ const MemorandumDetailPage = () => {
     } finally {
       setIsPublishing(false);
     }
-  };
-
-  const handleExport = () => {
-    if (!data?.id) {
-      return;
-    }
-
-    try {
-      sessionStorage.setItem(
-        `memorandum-download-${data.id}`,
-        JSON.stringify(data),
-      );
-    } catch (error) {
-      console.error("Failed to persist memorandum snapshot for export:", error);
-    }
-
-    router.push(`/memorandum/${data.id}/download`);
   };
 
   const handleLoanFormChange = (
@@ -746,6 +730,9 @@ const MemorandumDetailPage = () => {
 
       toast.success("Loan request created successfully.");
       setIsLoanModalOpen(false);
+      
+      // Redirect to sponsor dashboard
+      router.push("/sponsor");
     } catch (error: any) {
       const apiMessage =
         error?.response?.data?.message ||
@@ -791,8 +778,7 @@ const MemorandumDetailPage = () => {
         onTabChange={setActiveTab}
         canPublish={activeTab === "preview" && status === "draft"}
         isPublishing={isPublishing}
-        onPublish={() => setIsPublishModalOpen(true)}
-        onExport={handleExport}
+        onPublish={updateMemorandumStatus}
         onRegenerateAll={handleRegenerateAll}
         isRegeneratingAll={isRegeneratingAll}
       />
@@ -885,24 +871,6 @@ const MemorandumDetailPage = () => {
             
             <div className="p-3 md:p-6 lg:p-10">
               <div className="mb-6 flex justify-end">
-                {isPublished ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoanSubmitError("");
-                      setIsLoanModalOpen(true);
-                    }}
-                    className="group relative px-6 py-3 rounded-xl font-semibold text-white overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 transition-all duration-300 group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-pink-600"></div>
-                    <span className="relative flex items-center gap-2">
-                      <span>Ask Loan</span>
-                      <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </span>
-                  </button>
-                ) : null}
               </div>
 
               <PreviewCover
@@ -936,17 +904,6 @@ const MemorandumDetailPage = () => {
         </div>
       )}
 
-      <ConfirmActionModal
-        open={isPublishModalOpen}
-        onOpenChange={setIsPublishModalOpen}
-        title="Publish memorandum?"
-        description="Publishing this memorandum will make it visible to lenders, allowing you to request loan quotes for this property."
-        confirmText="Publish"
-        cancelText="Cancel"
-        onConfirm={updateMemorandumStatus}
-        isLoading={isPublishing}
-      />
-
       <Dialog open={isLoanModalOpen} onOpenChange={setIsLoanModalOpen}>
         <DialogContent
           showCloseButton={!isSubmittingLoan}
@@ -957,10 +914,10 @@ const MemorandumDetailPage = () => {
           <div className="p-6">
             <DialogHeader className="gap-2">
               <DialogTitle className="text-xl font-semibold text-[#0F172A]">
-                Ask Loan
+                Request a Loan
               </DialogTitle>
               <DialogDescription className="text-sm leading-relaxed text-[#475569]">
-                Submit a loan request for this memorandum property.
+                You can ask for a loan right now, or you can do that later from the Loan Quotes section.
               </DialogDescription>
             </DialogHeader>
 
@@ -1029,11 +986,14 @@ const MemorandumDetailPage = () => {
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsLoanModalOpen(false)}
+                onClick={() => {
+                  setIsLoanModalOpen(false);
+                  router.push("/sponsor");
+                }}
                 disabled={isSubmittingLoan}
                 className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                Skip
               </button>
               <button
                 type="button"

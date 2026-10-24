@@ -32,9 +32,23 @@ type ProcessingProps = {
 };
 
 const getFileName = (url?: string, defaultName?: string) => {
+  // If name is provided, use it
   if (defaultName) return defaultName;
+  
+  // Otherwise extract from URL
   if (!url) return "Document";
-  return decodeURIComponent(url.split("/").pop() || url);
+  
+  try {
+    // Get the last part of the URL path
+    const urlPath = url.split("/").pop() || url;
+    // Decode any URL encoding
+    const decoded = decodeURIComponent(urlPath);
+    // Remove any query parameters or hash
+    const fileName = decoded.split("?")[0].split("#")[0];
+    return fileName || "Document";
+  } catch {
+    return "Document";
+  }
 };
 
 const formatDate = (iso?: string) => {

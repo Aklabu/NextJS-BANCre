@@ -2,7 +2,6 @@
 
 import React from "react";
 import { MemorandumHeaderProps } from "@/types/memorandum-detail";
-import { FaDownload } from "react-icons/fa6";
 import { useRouter } from "next/navigation";
 
 const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
@@ -15,7 +14,6 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
   canPublish = false,
   isPublishing = false,
   onPublish,
-  onExport,
 }) => {
   const router = useRouter();
 
@@ -36,13 +34,6 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           Generating...
-        </span>
-      );
-    }
-    if (status === "draft") {
-      return (
-        <span className="px-3 py-1 text-xs font-semibold bg-gray-100 text-gray-700 rounded-full">
-          Draft
         </span>
       );
     }
@@ -124,28 +115,6 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
                         </svg>
                       </>
                     )}
-                  </span>
-                </button>
-              ) : null}
-
-              {activeTab === "preview" ? (
-                <button
-                  onClick={() => {
-                    if (onExport) {
-                      onExport();
-                      return;
-                    }
-
-                    if (!memorandumId) return;
-                    router.push(`/memorandum/${memorandumId}/download`);
-                  }}
-                  disabled={!memorandumId && !onExport}
-                  className="group relative px-6 py-3 cursor-pointer flex items-center gap-2 font-semibold text-white rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-600 to-blue-700 transition-all duration-300 group-hover:from-blue-600 group-hover:via-cyan-700 group-hover:to-blue-800"></div>
-                  <span className="relative flex items-center gap-2">
-                    Export
-                    <FaDownload size={16} className="transition-transform group-hover:translate-y-0.5" />
                   </span>
                 </button>
               ) : null}

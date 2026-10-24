@@ -147,12 +147,27 @@ const FileUpload = ({
             // Store uploaded documents
             if (response.documents && response.documents.length > 0) {
                 setUploadedDocuments?.(
-                    response.documents.map((doc) => ({
-                        id: doc.id,
-                        name: doc.name || `Document ${doc.id}`,
-                        file_url: doc.file_url,
-                        uploaded_at: doc.uploaded_at,
-                    }))
+                    response.documents.map((doc) => {
+                        // Try to get name from doc.name first, then extract from URL
+                        let fileName = doc.name;
+                        
+                        if (!fileName && doc.file_url) {
+                            // Extract filename from URL
+                            try {
+                                const urlPath = doc.file_url.split("/").pop() || "";
+                                fileName = decodeURIComponent(urlPath).split("?")[0].split("#")[0];
+                            } catch {
+                                fileName = `Document ${doc.id}`;
+                            }
+                        }
+                        
+                        return {
+                            id: doc.id,
+                            name: fileName || `Document ${doc.id}`,
+                            file_url: doc.file_url,
+                            uploaded_at: doc.uploaded_at,
+                        };
+                    })
                 );
             }
 
