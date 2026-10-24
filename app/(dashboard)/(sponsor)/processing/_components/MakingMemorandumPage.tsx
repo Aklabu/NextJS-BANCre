@@ -10,11 +10,11 @@ import type { PlaceData, PropertyData, UploadedFileItem } from "./place-types";
 
 const MakingMemorandumPage = () => {
   const steps = [
-    { id: 0, title: "Location", description: "" },
+    { id: 0, title: "Select Location", description: "" },
     { id: 1, title: "Property Details", description: "Review and edit the property information" },
-    { id: 2, title: "Upload", description: "" },
-    { id: 3, title: "Review & Generate", description: "Review property details and generate memorandum" },
-    { id: 4, title: "Completed", description: "Memorandum generated successfully" },
+    { id: 2, title: "Upload Documents", description: "" },
+    { id: 3, title: "Generate Memorandum", description: "Review property details and generate memorandum" },
+    { id: 4, title: "Publish Memorandum", description: "Memorandum generated successfully" },
   ];
 
   const [currentStep, setCurrentStep] = useState(0);

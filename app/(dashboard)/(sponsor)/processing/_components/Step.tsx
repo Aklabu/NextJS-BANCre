@@ -85,13 +85,13 @@ export const Step = ({ steps, value, loading, onChange }: StepperProps) => {
       </div>
 
       {/* Desktop: full horizontal stepper */}
-      <div className="hidden md:flex justify-center items-center">
+      <div className="hidden md:flex items-center">
         {steps.map((step, index) => {
           const isActive = step.id === value;
           const isCompleted = step.id < value;
 
           return (
-            <div key={step.id} className="flex flex-1 items-center">
+            <div key={step.id} className="flex flex-1 items-center gap-2">
               {/* Step circle */}
               <button
                 disabled={loading}
@@ -113,7 +113,7 @@ export const Step = ({ steps, value, loading, onChange }: StepperProps) => {
 
               {/* Title */}
               <span
-                className={`w-20 text-center text-sm transition-colors ${isCompleted ? "text-primary font-medium" : "text-[#6A7282]"
+                className={`w-20 text-left text-sm transition-colors ${isCompleted ? "text-primary font-medium" : "text-[#6A7282]"
                   }`}
               >
                 {step.title}
