@@ -1,10 +1,10 @@
 'use client'
-import { memo, useMemo, useState, useRef, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, OverlayView, Autocomplete } from '@react-google-maps/api';
+import { memo, useMemo, useState, useRef, useCallback, useEffect } from 'react';
+import { GoogleMap, useJsApiLoader, OverlayView, Autocomplete, StreetViewPanorama } from '@react-google-maps/api';
 import type { PlaceData } from "@/app/(dashboard)/(sponsor)/processing/_components/place-types";
 
 const LIBRARIES: ("places" | "geometry" | "drawing")[] = ['places', 'geometry', 'drawing'];
-type MapViewMode = "roadmap" | "satellite";
+type MapViewMode = "roadmap" | "satellite" | "streetview";
 
 type Marker = {
     id: number | string;
@@ -33,10 +33,13 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
 
     const [map, setMap] = useState<google.maps.Map | null>(null);
     const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+    const streetViewRef = useRef<HTMLDivElement | null>(null);
+    const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
 
     // State to show a "temporary" pin when the user clicks
     const [tempMarker, setTempMarker] = useState<google.maps.LatLngLiteral | null>(null);
     const [mapViewMode, setMapViewMode] = useState<MapViewMode>("satellite");
+    const [streetViewAvailable, setStreetViewAvailable] = useState<boolean>(true);
 
     const [center, setCenter] = useState<google.maps.LatLngLiteral>({
         lat: 40.7128, // Default to New York
@@ -179,6 +182,58 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
         }
     };
 
+    // Initialize Street View when needed
+    useEffect(() => {
+        if (mapViewMode === 'streetview' && streetViewRef.current && isLoaded && window.google) {
+            const position = tempMarker || center;
+            
+            // Small delay to ensure DOM is ready
+            const timer = setTimeout(() => {
+                if (!streetViewRef.current) return;
+                
+                // Check if Street View is available at this location
+                const streetViewService = new window.google.maps.StreetViewService();
+                streetViewService.getPanorama(
+                    { location: position, radius: 100 },
+                    (data, status) => {
+                        if (status === window.google.maps.StreetViewStatus.OK && data?.location?.latLng) {
+                            setStreetViewAvailable(true);
+                            
+                            // Always create a new panorama instance
+                            if (streetViewRef.current) {
+                                const panorama = new window.google.maps.StreetViewPanorama(
+                                    streetViewRef.current,
+                                    {
+                                        position: data.location.latLng,
+                                        pov: { heading: 0, pitch: 0 },
+                                        zoom: 1,
+                                        addressControl: true,
+                                        linksControl: true,
+                                        panControl: true,
+                                        enableCloseButton: false,
+                                        fullscreenControl: true,
+                                        motionTracking: true,
+                                        motionTrackingControl: true,
+                                    }
+                                );
+                                panoramaRef.current = panorama;
+                            }
+                        } else {
+                            setStreetViewAvailable(false);
+                        }
+                    }
+                );
+            }, 100);
+            
+            return () => clearTimeout(timer);
+        }
+        
+        // Cleanup when switching away from street view
+        if (mapViewMode !== 'streetview' && panoramaRef.current) {
+            panoramaRef.current = null;
+        }
+    }, [mapViewMode, tempMarker, center, isLoaded]);
+
     if (loadError) {
         return (
             <div className="my-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
@@ -219,6 +274,7 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
                     {[
                         { label: "2D Map", value: "roadmap" as const },
                         { label: "Satellite", value: "satellite" as const },
+                        { label: "Street View (360°)", value: "streetview" as const },
                     ].map((option) => (
                         <button
                             key={option.value}
@@ -234,59 +290,101 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
                         </button>
                     ))}
                 </div>
-                <GoogleMap
-                    mapContainerStyle={{ width: "100%" }}
-                    mapContainerClassName='h-[400px] xl:h-[600px] rounded-xl shadow-inner'
-                    center={center}
-                    zoom={12}
-                    mapTypeId={mapViewMode}
-                    options={mapOptions}
-                    onLoad={(inst) => setMap(inst)}
-                    onClick={onMapClick}
-                >
-                    {/* Render existing markers from backend */}
-                    {markersList?.map((marker) => (
-                        <OverlayView
-                            key={marker.id}
-                            position={marker.position}
-                            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                        >
-                            <div style={{ backgroundColor: marker.color, width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                            </div>
-                        </OverlayView>
-                    ))}
 
-                    {/* Render the temporary pin */}
-                    {tempMarker && (
-                        <OverlayView
-                            position={tempMarker}
-                            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                        >
-                            <div style={{
-                                position: 'relative',
-                                width: '30px',
-                                height: '30px',
-                                backgroundColor: '#EF4444',
-                                borderRadius: '50% 50% 50% 0',
-                                transform: 'translate(-50%, -100%) rotate(-45deg)',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                                border: '2px solid white',
-                            }}>
-                                <div style={{
-                                    position: 'absolute',
-                                    width: '12px',
-                                    height: '12px',
-                                    backgroundColor: 'white',
-                                    borderRadius: '50%',
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                }} />
+                {/* Street View Container */}
+                {mapViewMode === 'streetview' && (
+                    <div className="relative">
+                        <div 
+                            ref={streetViewRef}
+                            className="h-[400px] xl:h-[600px] rounded-xl shadow-inner bg-gray-900"
+                            style={{ width: '100%', overflow: 'hidden' }}
+                        />
+                        {!streetViewAvailable && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-xl z-10">
+                                <div className="text-center p-6">
+                                    <svg 
+                                        className="mx-auto h-12 w-12 text-gray-400 mb-3"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path 
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
+                                    </svg>
+                                    <p className="text-gray-600 font-medium">Street View not available</p>
+                                    <p className="text-gray-500 text-sm mt-1">Try selecting a different location on the map</p>
+                                    <button
+                                        onClick={() => setMapViewMode('satellite')}
+                                        className="mt-4 px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors"
+                                    >
+                                        Return to Map View
+                                    </button>
+                                </div>
                             </div>
-                        </OverlayView>
-                    )}
-                </GoogleMap>
+                        )}
+                    </div>
+                )}
+
+                {/* Map Container */}
+                {mapViewMode !== 'streetview' && (
+                    <GoogleMap
+                        mapContainerStyle={{ width: "100%" }}
+                        mapContainerClassName='h-[400px] xl:h-[600px] rounded-xl shadow-inner'
+                        center={center}
+                        zoom={12}
+                        mapTypeId={mapViewMode}
+                        options={mapOptions}
+                        onLoad={(inst) => setMap(inst)}
+                        onClick={onMapClick}
+                    >
+                        {/* Render existing markers from backend */}
+                        {markersList?.map((marker) => (
+                            <OverlayView
+                                key={marker.id}
+                                position={marker.position}
+                                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                            >
+                                <div style={{ backgroundColor: marker.color, width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                </div>
+                            </OverlayView>
+                        ))}
+
+                        {/* Render the temporary pin */}
+                        {tempMarker && (
+                            <OverlayView
+                                position={tempMarker}
+                                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                            >
+                                <div style={{
+                                    position: 'relative',
+                                    width: '30px',
+                                    height: '30px',
+                                    backgroundColor: '#EF4444',
+                                    borderRadius: '50% 50% 50% 0',
+                                    transform: 'translate(-50%, -100%) rotate(-45deg)',
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                                    border: '2px solid white',
+                                }}>
+                                    <div style={{
+                                        position: 'absolute',
+                                        width: '12px',
+                                        height: '12px',
+                                        backgroundColor: 'white',
+                                        borderRadius: '50%',
+                                        top: '50%',
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                    }} />
+                                </div>
+                            </OverlayView>
+                        )}
+                    </GoogleMap>
+                )}
             </div>
         </div>
     );
