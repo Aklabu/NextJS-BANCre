@@ -179,152 +179,164 @@ const PropertyCard = ({
 
   return (
     <div
-      className={`border border-[#E5E7EB] rounded-lg flex flex-col gap-0 ${sizeStyles[size]}`}
+      className={`group bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col ${sizeStyles[size]}`}
     >
-      {/* ── Image ── */}
-      <div className="w-full h-48 relative">
+      {/* ── Image Section with Overlay ── */}
+      <div className="relative w-full h-56 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
         <Image
           src={imageError ? FALLBACK_IMAGE : propertyImageSrc}
           alt={data.title || "Property"}
           fill
-          className="rounded-t-lg object-cover object-center"
+          className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
           unoptimized
           onError={() => setImageError(true)}
         />
-        {/* Property type badge overlaid on image */}
-        <span
-          className={`absolute top-3 left-3 text-xs font-medium px-2.5 py-1 rounded-full ${pillColor}`}
-        >
-          {data.property_type}
-        </span>
+        
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        
+        {/* Property Type Badge */}
+        <div className="absolute top-4 left-4">
+          <span
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-md bg-white/90 shadow-lg ${pillColor.replace('bg-', 'bg-opacity-90 ')}`}
+          >
+            {data.property_type}
+          </span>
+        </div>
+        
+        {/* Delete Button */}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/90 backdrop-blur-md text-red-600 hover:bg-red-50 transition-all shadow-lg hover:shadow-xl"
+            title="Delete property"
+          >
+            <LuTrash2 className="text-lg" />
+          </button>
+        )}
+
+        {/* Property Title Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-5">
+          <h2 className="text-white text-xl font-bold leading-tight drop-shadow-lg line-clamp-2">
+            {data.title}
+          </h2>
+        </div>
       </div>
 
-      {/* ── Body ── */}
-      <div className="p-3 2xl:p-5 flex flex-col gap-4">
-        {/* Title row with delete button */}
-        <div className="flex justify-between items-start gap-2">
-          <h1 className="text-lg font-semibold leading-tight">{data.title}</h1>
-          {onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors shrink-0"
-              title="Delete property"
-            >
-              <LuTrash2 className="text-base" />
-            </button>
-          )}
-        </div>
-
+      {/* ── Content Body ── */}
+      <div className="flex flex-col flex-grow p-5 space-y-4">
+        
         {/* Address */}
-        <div className="text-[#4A5565] flex items-center gap-1.5 text-sm">
-          <IoLocationOutline className="text-base shrink-0" />
-          <span>{data.location}</span>
+        <div className="flex items-start gap-2 text-gray-700">
+          <IoLocationOutline className="text-xl shrink-0 mt-0.5 text-blue-600" />
+          <span className="text-sm leading-relaxed line-clamp-2">{data.location}</span>
         </div>
 
-        {/* ── Stats grid ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
-          {data.created_at !== undefined && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <LuCalendar className="text-sm" /> Created
-              </span>
-              <span className="text-sm font-medium">
-                {formatDate(data.created_at)}
-              </span>
-            </div>
-          )}
+        {/* Created Date */}
+        {data.created_at !== undefined && (
+          <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+            <LuCalendar className="text-base text-gray-500" />
+            <span className="font-medium">Created: {formatDate(data.created_at)}</span>
+          </div>
+        )}
 
+        {/* Divider */}
+        <div className="border-t border-gray-200" />
+
+        {/* ── Stats Grid ── */}
+        <div className="grid grid-cols-2 gap-4">
           {data.number_of_units !== undefined && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <MdOutlineOtherHouses className="text-sm" /> Units
-              </span>
-              <span className="text-sm font-medium">
-                {data.number_of_units}
-              </span>
+            <div className="flex items-center gap-2 bg-blue-50 rounded-lg p-3 border border-blue-100">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <MdOutlineOtherHouses className="text-lg text-blue-600" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-600 font-medium">Units</span>
+                <span className="text-base font-bold text-gray-900">{data.number_of_units}</span>
+              </div>
             </div>
           )}
 
           {data.occupancy !== undefined && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <LuBuilding2 className="text-sm" /> Occupancy
-              </span>
-              <span className="text-sm font-medium">{data.occupancy}%</span>
+            <div className="flex items-center gap-2 bg-green-50 rounded-lg p-3 border border-green-100">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <LuBuilding2 className="text-lg text-green-600" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-600 font-medium">Occupancy</span>
+                <span className="text-base font-bold text-gray-900">{data.occupancy}%</span>
+              </div>
             </div>
           )}
 
           {data.rentable_area !== undefined && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <TbRulerMeasure className="text-sm" /> Rentable Area
-              </span>
-              <span className="text-sm font-medium">
-                {Number(data.rentable_area).toLocaleString()} sqft
-              </span>
+            <div className="flex items-center gap-2 bg-purple-50 rounded-lg p-3 border border-purple-100">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <TbRulerMeasure className="text-lg text-purple-600" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-600 font-medium">Rentable</span>
+                <span className="text-sm font-bold text-gray-900">{Number(data.rentable_area).toLocaleString()} sqft</span>
+              </div>
             </div>
           )}
 
           {data.year_built !== undefined && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <LuCalendar className="text-sm" /> Year Built
-              </span>
-              <span className="text-sm font-medium">{data.year_built}</span>
+            <div className="flex items-center gap-2 bg-orange-50 rounded-lg p-3 border border-orange-100">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <LuCalendar className="text-lg text-orange-600" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-600 font-medium">Built</span>
+                <span className="text-base font-bold text-gray-900">{data.year_built}</span>
+              </div>
             </div>
           )}
 
           {data.year_renovated != null && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <LuWrench className="text-sm" /> Renovated
-              </span>
-              <span className="text-sm font-medium">{data.year_renovated}</span>
+            <div className="flex items-center gap-2 bg-teal-50 rounded-lg p-3 border border-teal-100">
+              <div className="p-2 bg-teal-100 rounded-lg">
+                <LuWrench className="text-lg text-teal-600" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-600 font-medium">Renovated</span>
+                <span className="text-base font-bold text-gray-900">{data.year_renovated}</span>
+              </div>
             </div>
           )}
 
           {data.parking_spaces !== undefined && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-[#6A7282] flex items-center gap-1">
-                <LuParkingCircle className="text-sm" /> Parking
-              </span>
-              <span className="text-sm font-medium">
-                {data.parking_spaces} spaces
-              </span>
+            <div className="flex items-center gap-2 bg-indigo-50 rounded-lg p-3 border border-indigo-100">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <LuParkingCircle className="text-lg text-indigo-600" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-600 font-medium">Parking</span>
+                <span className="text-base font-bold text-gray-900">{data.parking_spaces}</span>
+              </div>
             </div>
           )}
         </div>
 
-        {/* ── Documents strip (only when detail data is present) ── */}
+        {/* ── Documents Info (only when detail data is present) ── */}
         {data.documents !== undefined && (
-          <div className="flex items-center gap-2 text-sm text-[#4A5565] border-t pt-3 border-[#E5E7EB]">
-            <LuFileText className="shrink-0 text-base" />
+          <div className="flex items-center gap-2 text-sm pt-3 border-t border-gray-200">
+            <div className={`p-2 rounded-lg ${hasDocuments ? 'bg-blue-50' : 'bg-gray-50'}`}>
+              <LuFileText className={`text-base ${hasDocuments ? 'text-blue-600' : 'text-gray-400'}`} />
+            </div>
             {hasDocuments ? (
-              <span>
-                {data.documents!.length} document
-                {data.documents!.length !== 1 ? "s" : ""} attached
+              <span className="text-gray-700 font-medium">
+                {data.documents!.length} document{data.documents!.length !== 1 ? "s" : ""} attached
               </span>
             ) : (
-              <span className="text-[#9CA3AF]">No documents uploaded</span>
+              <span className="text-gray-500">No documents uploaded</span>
             )}
           </div>
         )}
-
-        {/* ── Actions ── */}
-        <div className="flex flex-col sm:flex-row gap-2 justify-between items-stretch sm:items-center">
-          <div className="flex gap-2 items-center flex-wrap">
-            <Button
-              text={hasPrimaryLink ? "View Document" : "No Memorandum"}
-              size="medium"
-              isDisabled={!hasPrimaryLink}
-              onClick={() => {
-                if (!data.link) return;
-                router.push(data.link);
-              }}
-            />
-          </div>
-        </div>
       </div>
     </div>
   );

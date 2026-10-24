@@ -1,10 +1,10 @@
 "use client";
-import { useMemo, useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 import PropertyCard from "@/components/PropertyCard";
 import StatusCard from "@/components/StatusCard";
-import ConfirmActionModal from "@/components/ConfirmActionModal";
 import api from "@/lib/apiClient";
 import { toast } from "sonner";
 
@@ -12,20 +12,26 @@ import { toast } from "sonner";
 
 interface Property {
   id: number;
+  place_id?: string;
   property_name: string;
   property_address: string;
   property_type: string;
   latitude?: string;
   longitude?: string;
   property_image_url?: string | null;
-  thumbnail_url?: string | null;
-  property_images?: string[];
-  number_of_units?: number;
-  rentable_area?: string;
-  year_built?: number;
-  occupancy?: string;
-  created_at?: string;
-  updated_at?: string;
+  memorandum_id?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PropertiesResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  total_pages: number;
+  current_page: number;
+  page_size: number;
+  results: Property[];
 }
 
 interface Memorandum {
@@ -44,55 +50,69 @@ interface Memorandum {
 
 // ── API Fetchers ─────────────────────────────────────────────────────────────
 
-async function fetchProperties(): Promise<Property[]> {
-  let response;
+async function fetchProperties(page: number = 1, pageSize: number = 9): Promise<PropertiesResponse> {
   try {
-    response = await api.get("/api/properties/");
-  } catch {
-    try {
-      response = await api.get("/api/properties/");
-    } catch {
-      return [];
-    }
+    const response = await api.get(`/api/properties/?page=${page}&page_size=${pageSize}`);
+    
+    const data = response?.data?.data ?? response?.data;
+    
+    return {
+      count: data?.count || 0,
+      next: data?.next || null,
+      previous: data?.previous || null,
+      total_pages: data?.total_pages || 1,
+      current_page: data?.current_page || page,
+      page_size: data?.page_size || pageSize,
+      results: Array.isArray(data?.results) ? data.results : [],
+    };
+  } catch (error: any) {
+    console.error("Failed to fetch properties:", error);
+    toast.error(error?.response?.data?.message || "Failed to load properties");
+    return {
+      count: 0,
+      next: null,
+      previous: null,
+      total_pages: 1,
+      current_page: 1,
+      page_size: pageSize,
+      results: [],
+    };
   }
-
-  const raw = response?.data?.data ?? response?.data;
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw?.results)) return raw.results;
-  return [];
 }
 
 async function fetchMemorandums(): Promise<Memorandum[]> {
-  let response;
   try {
-    response = await api.get("/api/memorandums/");
+    const response = await api.get("/api/memorandums/");
+    const raw = response?.data?.data ?? response?.data?.results ?? response?.data;
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw?.results)) return raw.results;
+    return [];
   } catch (err: any) {
-    if (err?.response?.status === 404) {
-      response = await api.get("/api/memorandums/");
-    } else {
-      throw err;
-    }
+    console.error("Failed to fetch memorandums:", err);
+    return [];
   }
-
-  const raw = response?.data?.data ?? response?.data?.results ?? response?.data;
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw?.results)) return raw.results;
-  return [];
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 const MemorandamPage = () => {
-  const queryClient = useQueryClient();
+  const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 9;
 
-  // Fetch properties (cached with TanStack Query, shared across pages)
-  const { data: properties = [] } = useQuery<Property[]>({
-    queryKey: ["properties"],
-    queryFn: fetchProperties,
-    staleTime: 5 * 60 * 1000,
+  // Fetch properties with pagination
+  const {
+    data: propertiesData,
+    isLoading: propertiesLoading,
+  } = useQuery({
+    queryKey: ["properties", currentPage, pageSize],
+    queryFn: () => fetchProperties(currentPage, pageSize),
+    staleTime: 60 * 1000,
   });
 
-  // Fetch memorandums
+  const properties = propertiesData?.results || [];
+
+  // Fetch memorandums for statistics
   const {
     data: memorandums = [],
     isLoading: memorandumsLoading,
@@ -101,79 +121,6 @@ const MemorandamPage = () => {
     queryFn: fetchMemorandums,
     staleTime: 60 * 1000,
   });
-
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [pendingDeleteMemorandum, setPendingDeleteMemorandum] = useState<{
-    id: number;
-    title: string;
-  } | null>(null);
-
-  // Fallback thumbnails fetched from property files if property.thumbnail_url is missing
-  const [fileThumbnails, setFileThumbnails] = useState<Record<number, string>>({});
-
-  useEffect(() => {
-    const missingProps = properties.filter(
-      (p) => !p.thumbnail_url && (!p.property_images || p.property_images.length === 0)
-    );
-    if (missingProps.length === 0) return;
-
-    let isMounted = true;
-    const fetchMissing = async () => {
-      for (const p of missingProps) {
-        try {
-          const res = await api.get(`/api/properties/${p.id}/files/`).catch(() => null);
-          const rawFiles = res?.data?.data ?? res?.data ?? [];
-          const files = Array.isArray(rawFiles) ? rawFiles : [];
-          const img = files.find((f: any) => {
-            const url = f.file_url || f.file || f.url || "";
-            return /\.(jpe?g|png|webp|gif|svg)(\?.*)?$/i.test(url);
-          });
-          if (img && isMounted) {
-            const imgUrl = img.file_url || img.file || img.url;
-            setFileThumbnails((prev) => ({ ...prev, [p.id]: imgUrl }));
-          }
-        } catch {
-          // ignore error
-        }
-      }
-    };
-    fetchMissing();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [properties]);
-
-  const handleDeleteMemorandum = async (memorandumId: number) => {
-    try {
-      setDeletingId(memorandumId);
-      try {
-        await api.delete(`/api/memorandums/${memorandumId}/`);
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          await api.delete(`/api/memorandums/${memorandumId}/`);
-        } else {
-          throw err;
-        }
-      }
-      queryClient.setQueryData<Memorandum[]>(["memorandums"], (prev = []) =>
-        prev.filter((item) => item.id !== memorandumId),
-      );
-      toast.success("Memorandum deleted successfully.");
-    } catch (error) {
-      console.error("Failed to delete memorandum:", error);
-      toast.error("Failed to delete memorandum. Please try again.");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const confirmDeleteMemorandum = async () => {
-    if (!pendingDeleteMemorandum) return;
-
-    await handleDeleteMemorandum(pendingDeleteMemorandum.id);
-    setPendingDeleteMemorandum(null);
-  };
 
   const memorandumStats = useMemo(() => {
     const stats = {
@@ -197,99 +144,41 @@ const MemorandamPage = () => {
     return stats;
   }, [memorandums]);
 
-  // Lookup maps to correlate memorandum to property
-  const propertyMap = useMemo(() => {
-    const map = new Map<number, Property>();
-    for (const p of properties) {
-      if (p.id) map.set(Number(p.id), p);
-    }
-    return map;
-  }, [properties]);
-
-  const propertyByNameMap = useMemo(() => {
-    const map = new Map<string, Property>();
-    for (const p of properties) {
-      if (p.property_name) {
-        map.set(p.property_name.trim().toLowerCase(), p);
-      }
-    }
-    return map;
-  }, [properties]);
-
-  // Build card data exactly as dashboard page does with thumbnail and property details
+  // Build card data from properties
   const cardData = useMemo(
     () =>
-      memorandums.map((item) => {
-        const propId =
-          typeof item.property === "object" && item.property !== null
-            ? Number((item.property as any).id)
-            : Number(item.property || (item as any).property_id);
-
-        const matchedProperty =
-          (Number.isFinite(propId) ? propertyMap.get(propId) : undefined) ||
-          propertyByNameMap.get((item.property_name || "").trim().toLowerCase());
-
-        const matchedPropId =
-          matchedProperty?.id || (Number.isFinite(propId) ? propId : undefined);
-        const fallbackThumb = matchedPropId ? fileThumbnails[matchedPropId] : null;
-
-        const resolvedThumbnail =
-          item.thumbnail_url ||
-          matchedProperty?.thumbnail_url ||
-          (Array.isArray(matchedProperty?.property_images) && matchedProperty.property_images.length > 0
-            ? matchedProperty.property_images[0]
-            : null) ||
-          matchedProperty?.property_image_url ||
-          fallbackThumb ||
-          (Array.isArray(item.property_images) && item.property_images.length > 0
-            ? item.property_images[0]
-            : null) ||
-          item.property_image_url ||
-          null;
-
-        const resolvedImages =
-          (Array.isArray(matchedProperty?.property_images) && matchedProperty.property_images.length > 0
-            ? matchedProperty.property_images
-            : null) ||
-          (Array.isArray(item.property_images) && item.property_images.length > 0
-            ? item.property_images
-            : resolvedThumbnail
-              ? [resolvedThumbnail]
-              : []);
-
-        const resolvedAddress =
-          matchedProperty?.property_address || item.property_name || "N/A";
-
-        const resolvedType =
-          matchedProperty?.property_type || item.status || "Other";
-
-        return {
-          id: item.id,
-          property: String(matchedProperty?.id || item.property || ""),
-          title: item.title || item.property_name || "Offering Memorandum",
-          property_address: resolvedAddress,
-          property_type: resolvedType,
-          thumbnail_url: resolvedThumbnail,
-          property_image_url: resolvedThumbnail,
-          property_images: resolvedImages,
-          number_of_units: matchedProperty?.number_of_units,
-          rentable_area: matchedProperty?.rentable_area,
-          year_built: matchedProperty?.year_built,
-          occupancy: matchedProperty?.occupancy,
-          latitude: matchedProperty?.latitude,
-          longitude: matchedProperty?.longitude,
-          created_at: item.created_at || matchedProperty?.created_at,
-          updated_at: item.updated_at || matchedProperty?.updated_at,
-          status: item.status,
-          location: resolvedAddress,
-          link: `/memorandum/${item.id}`,
-          link2: `/memorandum/${item.id}/download`,
-        };
-      }),
-    [memorandums, propertyMap, propertyByNameMap, fileThumbnails],
+      properties.map((property) => ({
+        id: property.id,
+        property: String(property.id),
+        title: property.property_name,
+        property_address: property.property_address,
+        property_type: property.property_type,
+        thumbnail_url: property.property_image_url,
+        property_image_url: property.property_image_url,
+        property_images: property.property_image_url ? [property.property_image_url] : [],
+        latitude: property.latitude,
+        longitude: property.longitude,
+        created_at: property.created_at,
+        updated_at: property.updated_at,
+        location: property.property_address,
+        status: property.memorandum_id ? "published" : "draft",
+        link: `/property/${property.id}`,
+        memorandum_id: property.memorandum_id,
+      })),
+    [properties],
   );
 
-  const isLoading = memorandumsLoading && memorandums.length === 0;
+  const isLoading = propertiesLoading;
+
+  const handleCardClick = (propertyId: number) => {
+    router.push(`/property/${propertyId}`);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= (propertiesData?.total_pages || 1)) {
+      setCurrentPage(newPage);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -363,52 +252,53 @@ const MemorandamPage = () => {
 
       <div className="mb-10">
         {cardData.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-5 place-items-center">
-            {cardData.map((memorandum) => (
-              <PropertyCard
-                key={memorandum.id}
-                data={memorandum}
-                size="large"
-                secondaryButtonText={
-                  deletingId === memorandum.id ? "Deleting..." : "Delete"
-                }
-                secondaryButtonClassName="bg-red-600 text-white hover:bg-red-700"
-                onSecondaryAction={() => {
-                  if (deletingId === memorandum.id) return;
-                  setPendingDeleteMemorandum({
-                    id: memorandum.id,
-                    title: memorandum.title,
-                  });
-                }}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-5 place-items-center">
+              {cardData.map((property) => (
+                <div
+                  key={property.id}
+                  onClick={() => handleCardClick(property.id)}
+                  className="cursor-pointer transition-transform hover:scale-[1.02] w-full"
+                >
+                  <PropertyCard
+                    data={property}
+                    size="large"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {propertiesData && propertiesData.total_pages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-8">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={!propertiesData.previous}
+                  className="px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  Previous
+                </button>
+                
+                <span className="text-sm text-gray-600">
+                  Page {propertiesData.current_page} of {propertiesData.total_pages}
+                </span>
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!propertiesData.next}
+                  className="px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         ) : (
-          <p className="text-center text-gray-500 py-10">No memorandums available.</p>
+          <p className="text-center text-gray-500 py-10">No properties available.</p>
         )}
       </div>
-
-      <ConfirmActionModal
-        open={Boolean(pendingDeleteMemorandum)}
-        onOpenChange={(open) => {
-          if (!open && !deletingId) {
-            setPendingDeleteMemorandum(null);
-          }
-        }}
-        title="Delete memorandum?"
-        description={
-          pendingDeleteMemorandum
-            ? `This will permanently remove "${pendingDeleteMemorandum.title}".`
-            : "This will permanently remove the selected memorandum."
-        }
-        confirmText="Delete"
-        destructive
-        isLoading={Boolean(deletingId)}
-        onConfirm={confirmDeleteMemorandum}
-      />
     </div>
   );
 };
 
 export default MemorandamPage;
-
