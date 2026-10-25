@@ -1,3 +1,25 @@
+/**
+ * Loan Requests API Client
+ * 
+ * This module provides typed API functions for interacting with the Loan Requests endpoints.
+ * All endpoints follow a standardized response format with success/error handling.
+ * 
+ * API Documentation: See loan-requests-api-docs.md for detailed endpoint specifications
+ * 
+ * Base Endpoints:
+ * - GET/POST /api/loans/requests/ - List/Create loan requests
+ * - GET/PATCH/DELETE /api/loans/requests/<id>/ - Retrieve/Update/Delete specific request
+ * - GET /api/loans/requests/<id>/quotes/ - Get quotes for a request
+ * - GET /api/loans/quotes/<id>/ - Get quote details
+ * - POST /api/loans/quotes/<id>/accept/ - Accept a quote
+ * - POST /api/loans/quotes/<id>/decline/ - Decline a quote
+ * - GET /api/loans/dashboard/sponsor/ - Get sponsor dashboard data
+ * 
+ * Authentication: All endpoints require JWT Bearer token
+ * 
+ * @module loan-requests-api
+ */
+
 import api from "@/lib/apiClient";
 import type {
   LoanQuote,
@@ -6,6 +28,32 @@ import type {
 } from "../loan/_components/loan-types";
 
 // ── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Standard API Response Envelope
+ * All API responses follow this structure
+ */
+export interface ApiResponse<T = any> {
+  success: boolean;
+  statusCode: number;
+  message: string;
+  timestamp: string;
+  data: T | null;
+  errors: Record<string, string[]> | null;
+}
+
+/**
+ * Paginated API Response
+ */
+export interface PaginatedApiResponse<T = any> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  total_pages: number;
+  current_page: number;
+  page_size: number;
+  results: T[];
+}
 
 export interface SponsorLoanRequestItem {
   id: number;
@@ -95,26 +143,71 @@ export async function fetchSponsorDashboard(): Promise<SponsorDashboardData> {
 
 /**
  * Fetch All Loan Requests
- * Postman: GET /api/loans/requests/
+ * GET /api/loans/requests/
+ * 
+ * Sponsors see their own loan requests
+ * Lenders see all Active loan requests
+ * 
+ * Supports pagination via query params:
+ * - page: Page number (default: 1)
+ * - page_size: Items per page (default: 9)
  */
-export async function fetchLoanRequests(): Promise<SponsorLoanRequestItem[]> {
+export async function fetchLoanRequests(
+  page: number = 1,
+  pageSize: number = 100
+): Promise<SponsorLoanRequestItem[]> {
   let response;
   try {
-    response = await api.get("/api/loans/requests/");
-  } catch (err) {
-    console.error("Failed to fetch loan requests", err);
-    return [];
+    // Try the primary endpoint first
+    response = await api.get(`/api/loans/requests/?page=${page}&page_size=${pageSize}`);
+  } catch (primaryErr: any) {
+    console.log("Primary endpoint failed, trying fallback...");
+    
+    // Try without version prefix as fallback
+    try {
+      response = await api.get(`/api/v1/loans/requests/?page=${page}&page_size=${pageSize}`);
+    } catch (fallbackErr) {
+      console.error("All endpoints failed to fetch loan requests", primaryErr);
+      return [];
+    }
   }
 
-  const raw =
-    response?.data?.data ??
-    (Array.isArray(response?.data?.results)
-      ? response.data.results
-      : Array.isArray(response?.data)
-        ? response.data
-        : []);
+  console.log("Raw API Response:", response?.data);
 
-  if (!Array.isArray(raw)) return [];
+  // Handle standard API response format
+  const apiData = response?.data as ApiResponse<PaginatedApiResponse<any>>;
+  
+  // Extract data from standard envelope
+  const paginatedData = apiData?.data;
+  
+  console.log("Paginated Data:", paginatedData);
+  console.log("Results Array:", paginatedData?.results);
+  
+  // Try multiple possible response structures
+  let raw = paginatedData?.results ?? [];
+  
+  // Fallback: Check if data is directly an array
+  if (!Array.isArray(raw) && Array.isArray(apiData?.data)) {
+    raw = apiData.data;
+  }
+  
+  // Fallback: Check if response.data is directly an array
+  if (!Array.isArray(raw) && Array.isArray(response?.data)) {
+    raw = response.data;
+  }
+  
+  // Fallback: Check if there's a results field at top level
+  if (!Array.isArray(raw) && Array.isArray(response?.data?.results)) {
+    raw = response.data.results;
+  }
+
+  console.log("Final Raw Array:", raw);
+  console.log("Array Length:", Array.isArray(raw) ? raw.length : 0);
+
+  if (!Array.isArray(raw)) {
+    console.error("Could not find array in response. Response structure:", response?.data);
+    return [];
+  }
 
   return raw.map((item: any) => ({
     id: Number(item.id),
@@ -156,7 +249,10 @@ export async function fetchLoanRequests(): Promise<SponsorLoanRequestItem[]> {
 
 /**
  * Fetch Details of a Loan Request
- * Postman: GET /api/v1/loans/requests/{{id}}/
+ * GET /api/loans/requests/<id>/
+ * 
+ * Returns detailed information about a specific loan request
+ * Lenders can only view Active requests
  */
 export async function fetchLoanRequestDetail(
   id: number,
@@ -169,7 +265,10 @@ export async function fetchLoanRequestDetail(
     return null;
   }
 
-  const raw = response?.data?.data ?? response?.data;
+  // Handle standard API response format
+  const apiData = response?.data as ApiResponse<any>;
+  const raw = apiData?.data ?? response?.data;
+  
   if (!raw) return null;
 
   return {
@@ -212,7 +311,17 @@ export async function fetchLoanRequestDetail(
 
 /**
  * Create a new Loan Request
- * Postman: POST /api/v1/loans/requests/
+ * POST /api/loans/requests/
+ * 
+ * Sponsors only - Creates a new loan request for a property they own
+ * 
+ * Requirements:
+ * - Must own the property
+ * - Property must have a published memorandum
+ * 
+ * Possible Errors:
+ * - 400: Property not owned or no published memorandum
+ * - 403: Lender attempting to create (Sponsors only)
  */
 export async function createLoanRequest(
   payload: CreateLoanRequestPayload,
@@ -234,16 +343,28 @@ export async function createLoanRequest(
   try {
     response = await api.post("/api/loans/requests/", formattedBody);
   } catch (err: any) {
+    // Re-throw to preserve error details for UI handling
     throw err;
   }
 
-  const raw = response?.data?.data ?? response?.data;
-  return raw;
+  // Handle standard API response format
+  const apiData = response?.data as ApiResponse<SponsorLoanRequestItem>;
+  return apiData?.data ?? response?.data;
 }
 
 /**
  * Update an existing Loan Request
- * Postman: PATCH /api/v1/loans/requests/{{id}}/
+ * PATCH /api/loans/requests/<id>/
+ * 
+ * Sponsors only - Update loan request details
+ * 
+ * Restrictions:
+ * - Cannot update closed loan requests
+ * - Must be the owner of the loan request
+ * 
+ * Possible Errors:
+ * - 400: Attempting to update closed request
+ * - 403: Not the owner of the loan request
  */
 export async function updateLoanRequest(
   id: number,
@@ -273,21 +394,34 @@ export async function updateLoanRequest(
   try {
     response = await api.patch(`/api/loans/requests/${id}/`, formattedBody);
   } catch (err: any) {
+    // Re-throw to preserve error details for UI handling
     throw err;
   }
 
-  const raw = response?.data?.data ?? response?.data;
-  return raw;
+  // Handle standard API response format
+  const apiData = response?.data as ApiResponse<SponsorLoanRequestItem>;
+  return apiData?.data ?? response?.data;
 }
 
 /**
  * Delete an existing Loan Request
- * Postman: DELETE /api/v1/loans/requests/{{id}}/
+ * DELETE /api/loans/requests/<id>/
+ * 
+ * Sponsors only - Permanently delete a loan request
+ * 
+ * Possible Errors:
+ * - 403: Not the owner of the loan request
  */
 export async function deleteLoanRequest(id: number): Promise<void> {
   try {
-    await api.delete(`/api/loans/requests/${id}/`);
+    const response = await api.delete(`/api/loans/requests/${id}/`);
+    // Standard API response with success message
+    const apiData = response?.data as ApiResponse<null>;
+    if (!apiData?.success) {
+      throw new Error(apiData?.message || "Failed to delete loan request");
+    }
   } catch (err: any) {
+    // Re-throw to preserve error details for UI handling
     throw err;
   }
 }
@@ -429,4 +563,95 @@ export async function declineLoanQuote(quoteId: number): Promise<any> {
     throw err;
   }
   return response?.data;
+}
+
+
+/**
+ * Fetch quote counts for multiple loan requests
+ * Helper function to get quote counts efficiently
+ */
+export async function fetchQuoteCounts(
+  loanRequestIds: number[]
+): Promise<Record<number, number>> {
+  if (loanRequestIds.length === 0) return {};
+
+  try {
+    // Fetch all quotes and group by loan_request
+    const response = await api.get("/api/loans/quotes/");
+    const apiData = response?.data as ApiResponse<any>;
+    const quotes = apiData?.data ?? response?.data ?? [];
+
+    const counts: Record<number, number> = {};
+    loanRequestIds.forEach((id) => {
+      counts[id] = 0;
+    });
+
+    if (Array.isArray(quotes)) {
+      quotes.forEach((quote: any) => {
+        const requestId = Number(quote.loan_request);
+        if (counts[requestId] !== undefined) {
+          counts[requestId]++;
+        }
+      });
+    }
+
+    return counts;
+  } catch (error) {
+    console.error("Failed to fetch quote counts", error);
+    return {};
+  }
+}
+
+// ── Helper Functions ─────────────────────────────────────────────────────────
+
+/**
+ * Extract error messages from API error response
+ * Handles both field-specific errors and general error messages
+ */
+export function extractApiErrorMessage(error: any): string {
+  if (!error?.response?.data) {
+    return error?.message || "An unexpected error occurred";
+  }
+
+  const apiResponse = error.response.data as ApiResponse<any>;
+
+  // Check for field-specific errors
+  if (apiResponse.errors) {
+    const errorMessages = Object.entries(apiResponse.errors)
+      .map(([field, messages]) => {
+        if (Array.isArray(messages) && messages.length > 0) {
+          return `${field}: ${messages.join(", ")}`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (errorMessages.length > 0) {
+      return errorMessages.join("; ");
+    }
+  }
+
+  // Return general message
+  return apiResponse.message || "Request failed";
+}
+
+/**
+ * Check if error is a specific type
+ */
+export function isApiError(error: any, statusCode: number): boolean {
+  return error?.response?.data?.statusCode === statusCode;
+}
+
+/**
+ * Check if user lacks permission for the action
+ */
+export function isForbiddenError(error: any): boolean {
+  return isApiError(error, 403);
+}
+
+/**
+ * Check if request is invalid (validation errors)
+ */
+export function isBadRequestError(error: any): boolean {
+  return isApiError(error, 400);
 }

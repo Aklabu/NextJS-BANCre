@@ -22,6 +22,7 @@ import {
   fetchSponsorDashboard,
   fetchLoanRequests,
   deleteLoanRequest,
+  fetchQuoteCounts,
   type SponsorLoanRequestItem,
 } from "../_api/loan-requests-api";
 import SponsorLoanRequestCard from "../_components/SponsorLoanRequestCard";
@@ -81,9 +82,18 @@ const Page = () => {
   const { data: loanRequests = [], isLoading: requestsLoading } =
     useQuery<SponsorLoanRequestItem[]>({
       queryKey: ["loan-requests"],
-      queryFn: fetchLoanRequests,
+      queryFn: () => fetchLoanRequests(1, 100),
       staleTime: 60 * 1000,
     });
+
+  // Fetch quote counts for loan requests
+  const { data: quoteCounts = {} } = useQuery<Record<number, number>>({
+    queryKey: ["quote-counts", loanRequests.map((r) => r.id)],
+    queryFn: () =>
+      fetchQuoteCounts(loanRequests.map((r) => r.id)),
+    enabled: loanRequests.length > 0,
+    staleTime: 30 * 1000,
+  });
 
   // TanStack Query for Dashboard Data
   const { data: dashboardData = DEFAULT_DASHBOARD_DATA, isLoading: dashboardLoading } =
@@ -352,8 +362,11 @@ const Page = () => {
           <h2 className="text-lg font-semibold text-gray-900">
             My loan requests
           </h2>
-          {loanRequests.length > 0 && (
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+          {loanRequests.length > 3 && (
+            <button
+              onClick={() => router.push('/my-loan-requests')}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            >
               View all {loanRequests.length}
             </button>
           )}
@@ -391,6 +404,7 @@ const Page = () => {
               <SponsorLoanRequestCard
                 key={request.id}
                 request={request}
+                quotesCount={quoteCounts[request.id] || 0}
                 onEdit={(req) => setEditingLoanRequest(req)}
                 onDelete={(req) => setDeletingLoanRequest(req)}
                 onViewQuotes={(req) => {

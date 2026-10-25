@@ -16,12 +16,13 @@ import type { SponsorLoanRequestItem } from "../_api/loan-requests-api";
 
 const FALLBACK_IMAGE = "/images/SponsorDashboard.png";
 
-interface SponsorLoanRequestCardProps {
+export interface SponsorLoanRequestCardProps {
   request: SponsorLoanRequestItem;
   onEdit: (request: SponsorLoanRequestItem) => void;
   onDelete: (request: SponsorLoanRequestItem) => void;
   onViewQuotes?: (request: SponsorLoanRequestItem) => void;
   isDeleting?: boolean;
+  quotesCount?: number; // Number of quotes received for this request
 }
 
 export default function SponsorLoanRequestCard({
@@ -30,6 +31,7 @@ export default function SponsorLoanRequestCard({
   onDelete,
   onViewQuotes,
   isDeleting = false,
+  quotesCount = 0,
 }: SponsorLoanRequestCardProps) {
   const [imgError, setImgError] = useState(false);
 
@@ -155,7 +157,13 @@ export default function SponsorLoanRequestCard({
           {/* Additional Info */}
           <div className="pt-3 border-t border-gray-100">
             <p className="text-xs text-gray-600">
-              <span className="font-semibold text-gray-900">3 quotes</span> received
+              {quotesCount > 0 ? (
+                <>
+                  <span className="font-semibold text-gray-900">{quotesCount} quote{quotesCount !== 1 ? 's' : ''}</span> received
+                </>
+              ) : (
+                <span className="text-gray-500">No quotes received yet</span>
+              )}
             </p>
           </div>
         </div>

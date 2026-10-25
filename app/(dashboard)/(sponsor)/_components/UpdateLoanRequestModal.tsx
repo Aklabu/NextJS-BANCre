@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   updateLoanRequest,
+  extractApiErrorMessage,
   type SponsorLoanRequestItem,
 } from "../_api/loan-requests-api";
 import { toast } from "sonner";
@@ -89,12 +90,9 @@ export default function UpdateLoanRequestModal({
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to update loan request", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Failed to update loan request. Please check values and try again.";
-      setError(typeof msg === "string" ? msg : JSON.stringify(msg));
-      toast.error("Failed to update loan request.");
+      const errorMessage = extractApiErrorMessage(err);
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
