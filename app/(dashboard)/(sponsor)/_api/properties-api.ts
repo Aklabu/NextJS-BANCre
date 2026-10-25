@@ -50,6 +50,7 @@ export interface PropertyResponse {
   created_at: string;
   updated_at: string;
   documents: PropertyDocument[];
+  memorandum_id?: number | null; // ID of associated memorandum
 }
 
 export interface PropertyAPIError {
@@ -321,8 +322,13 @@ export async function uploadPropertyDocuments(
  * Fetch property details
  * GET /api/properties/{id}/
  * 
+ * Requirements:
+ * - User must be authenticated
+ * - User must be a Sponsor
+ * - User must be the property owner
+ * 
  * @param propertyId - Property ID
- * @returns Property details
+ * @returns Property details with documents and memorandum_id
  */
 export async function fetchProperty(
   propertyId: number
@@ -351,9 +357,22 @@ export async function fetchProperty(
       created_at: data.created_at,
       updated_at: data.updated_at,
       documents: data.documents || [],
+      memorandum_id: data.memorandum_id,
     };
   } catch (error: any) {
-    throw new Error(error?.response?.data?.message || "Failed to fetch property");
+    const errorData = error?.response?.data;
+    const statusCode = error?.response?.status || errorData?.statusCode;
+    
+    // Handle different error types
+    if (statusCode === 404) {
+      throw new Error(errorData?.message || "Property not found.");
+    } else if (statusCode === 403) {
+      throw new Error(errorData?.message || "You do not have permission to access this property.");
+    } else if (statusCode === 401) {
+      throw new Error(errorData?.message || "Authentication required. Please log in.");
+    }
+    
+    throw new Error(errorData?.message || "Failed to fetch property");
   }
 }
 

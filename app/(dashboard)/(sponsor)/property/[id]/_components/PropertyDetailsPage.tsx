@@ -10,62 +10,12 @@ import {
   IoDocumentTextOutline,
 } from "react-icons/io5";
 import {
-  LuBuilding2,
-  LuCalendar,
-  LuWrench,
-  LuParkingCircle,
   LuFileText,
   LuExternalLink,
 } from "react-icons/lu";
-import { TbRulerMeasure } from "react-icons/tb";
-import { MdOutlineOtherHouses } from "react-icons/md";
 import { toast } from "sonner";
-import api from "@/lib/apiClient";
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-interface PropertyDocument {
-  id: number;
-  file_url: string;
-  uploaded_at: string;
-  name?: string;
-  size?: number;
-}
-
-interface PropertyDetails {
-  id: number;
-  place_id?: string;
-  property_name: string;
-  property_address: string;
-  property_type: string;
-  latitude?: string;
-  longitude?: string;
-  property_image_url?: string | null;
-  property_photos_urls?: string[];
-  number_of_units?: number;
-  rentable_area?: string;
-  year_built?: number;
-  year_renovated?: number | null;
-  occupancy?: string;
-  parking_spaces?: number;
-  memorandum_id?: number | null;
-  created_at: string;
-  updated_at: string;
-  documents?: PropertyDocument[];
-}
-
-// ── API Fetcher ──────────────────────────────────────────────────────────────
-
-async function fetchPropertyDetails(propertyId: string): Promise<PropertyDetails> {
-  try {
-    const response = await api.get(`/api/properties/${propertyId}/`);
-    const data = response?.data?.data ?? response?.data;
-    return data;
-  } catch (error: any) {
-    console.error("Failed to fetch property details:", error);
-    throw new Error(error?.response?.data?.message || "Failed to load property details");
-  }
-}
+import { fetchProperty } from "../../../_api/properties-api";
+import type { PropertyResponse } from "../../../_api/properties-api";
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -83,11 +33,23 @@ const PropertyDetailsPage = () => {
     data: property,
     isLoading,
     error,
-  } = useQuery({
+  } = useQuery<PropertyResponse, Error>({
     queryKey: ["property", propertyId],
-    queryFn: () => fetchPropertyDetails(propertyId),
+    queryFn: () => fetchProperty(Number(propertyId)),
     staleTime: 60 * 1000,
-    enabled: !!propertyId,
+    enabled: !!propertyId && !isNaN(Number(propertyId)),
+    retry: (failureCount, error) => {
+      // Don't retry on 404, 403, or 401 errors
+      const message = error?.message || "";
+      if (
+        message.includes("not found") ||
+        message.includes("permission") ||
+        message.includes("Authentication")
+      ) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 
   const formatDate = (value?: string) => {
@@ -125,6 +87,19 @@ const PropertyDetailsPage = () => {
     window.open(documentUrl, "_blank");
   };
 
+  const getDocumentName = (doc: PropertyResponse["documents"][0]) => {
+    // Try to extract filename from URL if name is not provided
+    if (!doc.file_url) return `Document ${doc.id}`;
+    
+    try {
+      const urlPath = doc.file_url.split("/").pop() || "";
+      const fileName = decodeURIComponent(urlPath).split("?")[0].split("#")[0];
+      return fileName || `Document ${doc.id}`;
+    } catch {
+      return `Document ${doc.id}`;
+    }
+  };
+
   // Property type colors
   const typePillColor: Record<string, string> = {
     Multifamily: "bg-blue-100 text-blue-700 border-blue-200",
@@ -155,16 +130,34 @@ const PropertyDetailsPage = () => {
   const totalPhotos = displayImages.length;
 
   if (error) {
+    const errorMessage = error?.message || "Failed to load property details";
+    
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 text-lg mb-4">Failed to load property details</p>
-          <button
-            onClick={() => router.back()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Go Back
-          </button>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+        <div className="text-center max-w-md">
+          <div className="mb-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Property</h2>
+            <p className="text-gray-600 mb-6">{errorMessage}</p>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={() => router.back()}
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Go Back
+            </button>
+            <button
+              onClick={() => router.push("/memorandum")}
+              className="w-full px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              View All Properties
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -202,8 +195,21 @@ const PropertyDetailsPage = () => {
 
   if (!property) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Property not found</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <p className="text-gray-600 text-lg font-medium">Property not found</p>
+          <button
+            onClick={() => router.back()}
+            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -398,7 +404,7 @@ const PropertyDetailsPage = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {doc.name || `Document ${doc.id}`}
+                        {getDocumentName(doc)}
                       </p>
                       <p className="text-xs text-gray-500">
                         Uploaded {formatDate(doc.uploaded_at)}
