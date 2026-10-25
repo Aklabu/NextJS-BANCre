@@ -83,6 +83,17 @@ const PropertyDetailsPage = () => {
     }
   };
 
+  const handleGenerateMemorandum = () => {
+    // Since property already exists, we'll need to update the MakingMemorandumPage
+    // to accept propertyId from URL params and skip to step 3
+    // For now, redirect to processing page with property info
+    if (property?.id) {
+      // Store property ID in sessionStorage for the processing page to pick up
+      sessionStorage.setItem('existingPropertyId', String(property.id));
+      router.push('/processing');
+    }
+  };
+
   const handleDocumentOpen = (documentUrl: string) => {
     window.open(documentUrl, "_blank");
   };
@@ -120,14 +131,9 @@ const PropertyDetailsPage = () => {
     typePillColor[property?.property_type?.trim() || ""] ||
     "bg-gray-100 text-gray-700 border-gray-200";
 
-  // Get all images
-  const allImages = [
-    property?.property_image_url,
-    ...(property?.property_photos_urls || []),
-  ].filter(Boolean) as string[];
-
-  const displayImages = allImages.length > 0 ? allImages : [FALLBACK_IMAGE];
-  const totalPhotos = displayImages.length;
+  // Get all images - only gallery photos, not the cover image
+  const galleryImages = property?.property_photos_urls || [];
+  const totalPhotos = galleryImages.length;
 
   if (error) {
     const errorMessage = error?.message || "Failed to load property details";
@@ -240,17 +246,12 @@ const PropertyDetailsPage = () => {
               <div className="w-full lg:w-96 shrink-0">
                 <div className="relative w-full h-64 lg:h-full rounded-xl overflow-hidden bg-gray-100">
                   <Image
-                    src={displayImages[selectedImageIndex] || FALLBACK_IMAGE}
+                    src={property.property_image_url || FALLBACK_IMAGE}
                     alt={property.property_name}
                     fill
                     className="object-cover"
                     unoptimized
                   />
-                  {totalPhotos > 1 && (
-                    <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/70 backdrop-blur-sm text-white text-xs rounded-full">
-                      {selectedImageIndex + 1} / {totalPhotos}
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -275,28 +276,36 @@ const PropertyDetailsPage = () => {
                     <span className="text-base">{property.property_address}</span>
                   </div>
 
-                  {/* View Memorandum Button */}
+                  {/* View/Generate Memorandum Button */}
                   {property.memorandum_id ? (
-                    <button
-                      onClick={handleViewMemorandum}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-colors font-medium shadow-md"
-                    >
-                      <IoDocumentTextOutline className="text-xl" />
-                      View memorandum
-                      <LuExternalLink className="text-base" />
-                    </button>
+                    <>
+                      <button
+                        onClick={handleViewMemorandum}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-colors font-medium shadow-md"
+                      >
+                        <IoDocumentTextOutline className="text-xl" />
+                        View memorandum
+                        <LuExternalLink className="text-base" />
+                      </button>
+                      <p className="text-sm text-gray-500">
+                        Opens the published memorandum page
+                      </p>
+                    </>
                   ) : (
-                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-500 rounded-lg font-medium">
-                      <IoDocumentTextOutline className="text-xl" />
-                      No memorandum available
-                    </div>
+                    <>
+                      <button
+                        onClick={handleGenerateMemorandum}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md"
+                      >
+                        <IoDocumentTextOutline className="text-xl" />
+                        Generate Memorandum
+                        <LuExternalLink className="text-base" />
+                      </button>
+                      <p className="text-sm text-gray-500">
+                        Create a new memorandum for this property
+                      </p>
+                    </>
                   )}
-
-                  <p className="text-sm text-gray-500">
-                    {property.memorandum_id
-                      ? "Opens the published memorandum page"
-                      : "Create a memorandum for this property"}
-                  </p>
                 </div>
               </div>
             </div>
@@ -357,14 +366,14 @@ const PropertyDetailsPage = () => {
         </div>
 
         {/* Photo Gallery */}
-        {totalPhotos > 1 && (
+        {totalPhotos > 0 && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900">Photo gallery</h2>
-              <span className="text-sm text-gray-500">Showing {totalPhotos} photos</span>
+              <span className="text-sm text-gray-500">Showing {totalPhotos} photo{totalPhotos !== 1 ? 's' : ''}</span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {displayImages.map((image, index) => (
+              {galleryImages.map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImageIndex(index)}
@@ -428,27 +437,44 @@ const PropertyDetailsPage = () => {
           <h2 className="text-lg font-bold text-gray-900 mb-4">Location</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Map Placeholder */}
-            <div className="bg-gray-200 rounded-xl h-64 lg:h-80 flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-green-100 opacity-50" />
-              <div className="relative z-10 text-center">
-                <IoMapOutline className="text-6xl text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600 text-sm">Map preview</p>
-              </div>
-              {property.latitude && property.longitude && (
-                <div className="absolute bottom-4 left-4 right-4 flex gap-2">
-                  <button
-                    onClick={openInGoogleMaps}
-                    className="flex-1 px-4 py-2 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-colors font-medium text-sm"
-                  >
-                    Open in Google Maps
-                  </button>
-                  <button
-                    onClick={getDirections}
-                    className="flex-1 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
-                  >
-                    Get directions
-                  </button>
+            {/* Map */}
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+              {property.latitude && property.longitude ? (
+                <div className="relative w-full h-64 lg:h-80">
+                  {/* Google Maps Static API */}
+                  <iframe
+                    src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&q=${property.latitude},${property.longitude}&zoom=15`}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="w-full h-full"
+                  />
+                  
+                  {/* Overlay Buttons */}
+                  <div className="absolute bottom-4 left-4 right-4 flex gap-2">
+                    <button
+                      onClick={openInGoogleMaps}
+                      className="flex-1 px-4 py-2.5 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-colors font-medium text-sm shadow-lg backdrop-blur-sm"
+                    >
+                      Open in Google Maps
+                    </button>
+                    <button
+                      onClick={getDirections}
+                      className="flex-1 px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm shadow-lg"
+                    >
+                      Get directions
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative w-full h-64 lg:h-80 bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+                  <div className="text-center">
+                    <IoMapOutline className="text-6xl text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-600 text-sm">Location data not available</p>
+                  </div>
                 </div>
               )}
             </div>

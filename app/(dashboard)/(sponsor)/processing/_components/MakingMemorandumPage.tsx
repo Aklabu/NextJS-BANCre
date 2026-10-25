@@ -24,6 +24,19 @@ const MakingMemorandumPage = () => {
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedFileItem[]>([]);
   const [memorandumId, setMemorandumId] = useState<number | null>(null);
 
+  // Check for existing property ID from property details page
+  useEffect(() => {
+    const existingPropertyId = sessionStorage.getItem('existingPropertyId');
+    if (existingPropertyId) {
+      const propId = parseInt(existingPropertyId, 10);
+      if (!isNaN(propId)) {
+        setPropertyId(propId);
+        setCurrentStep(3); // Jump directly to Generate Memorandum step
+        sessionStorage.removeItem('existingPropertyId'); // Clean up
+      }
+    }
+  }, []);
+
   // Scroll to top whenever the step changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

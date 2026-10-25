@@ -82,6 +82,51 @@ const Processing = ({
   >(null);
   const [pollingAttempts, setPollingAttempts] = useState(0);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Fetch property data if we only have propertyId but no propertyData
+  const [fetchedPropertyData, setFetchedPropertyData] = useState<PropertyData | null>(null);
+  const [isFetchingProperty, setIsFetchingProperty] = useState(false);
+
+  useEffect(() => {
+    const fetchPropertyData = async () => {
+      // Only fetch if we have propertyId but no propertyData
+      if (propertyId && !propertyData && !isFetchingProperty && !fetchedPropertyData) {
+        setIsFetchingProperty(true);
+        try {
+          const response = await api.get(`/api/properties/${propertyId}/`);
+          const data = response?.data?.data ?? response?.data;
+          
+          // Convert API property data to PropertyData format
+          const converted: PropertyData = {
+            property_name: data.property_name,
+            property_address: data.property_address,
+            property_type: data.property_type,
+            number_of_units: data.number_of_units,
+            rentable_area: data.rentable_area,
+            year_built: data.year_built,
+            occupancy: data.occupancy,
+            year_renovated: data.year_renovated,
+            parking_spaces: data.parking_spaces,
+            latitude: parseFloat(data.latitude),
+            longitude: parseFloat(data.longitude),
+            place_id: data.place_id,
+          };
+          
+          setFetchedPropertyData(converted);
+        } catch (error) {
+          console.error("Failed to fetch property data:", error);
+          toast.error("Failed to load property details");
+        } finally {
+          setIsFetchingProperty(false);
+        }
+      }
+    };
+
+    fetchPropertyData();
+  }, [propertyId, propertyData, isFetchingProperty, fetchedPropertyData]);
+
+  // Use fetched data if available, otherwise use passed propertyData
+  const displayPropertyData = fetchedPropertyData || propertyData;
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -228,25 +273,25 @@ const Processing = ({
       </div>
 
       {/* Property Overview Card */}
-      {propertyData && (
+      {displayPropertyData && (
         <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-blue-600" />
                 <h3 className="text-base font-semibold text-[#0F172A]">
-                  {propertyData.property_name || "Property Summary"}
+                  {displayPropertyData.property_name || "Property Summary"}
                 </h3>
               </div>
               <p className="text-xs text-[#64748B] flex items-center gap-1 mt-1">
                 <MapPin className="h-3.5 w-3.5" />
-                {propertyData.property_address || "No address provided"}
+                {displayPropertyData.property_address || "No address provided"}
               </p>
             </div>
 
-            {propertyData.property_type && (
+            {displayPropertyData.property_type && (
               <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 capitalize">
-                {propertyData.property_type}
+                {displayPropertyData.property_type}
               </span>
             )}
           </div>
@@ -257,14 +302,14 @@ const Processing = ({
                 <Layers className="h-3 w-3" /> Units
               </span>
               <p className="text-sm font-semibold text-[#0F172A] mt-0.5">
-                {propertyData.number_of_units ? `${propertyData.number_of_units} Units` : "-"}
+                {displayPropertyData.number_of_units ? `${displayPropertyData.number_of_units} Units` : "-"}
               </p>
             </div>
 
             <div className="bg-white p-3 rounded-lg border border-[#E2E8F0]">
               <span className="text-[11px] text-[#64748B] uppercase font-medium">Rentable Area</span>
               <p className="text-sm font-semibold text-[#0F172A] mt-0.5">
-                {propertyData.rentable_area ? `${propertyData.rentable_area} SF` : "-"}
+                {displayPropertyData.rentable_area ? `${displayPropertyData.rentable_area} SF` : "-"}
               </p>
             </div>
 
@@ -273,7 +318,7 @@ const Processing = ({
                 <Calendar className="h-3 w-3" /> Year Built
               </span>
               <p className="text-sm font-semibold text-[#0F172A] mt-0.5">
-                {propertyData.year_built || "-"}
+                {displayPropertyData.year_built || "-"}
               </p>
             </div>
 
@@ -282,14 +327,14 @@ const Processing = ({
                 <Percent className="h-3 w-3" /> Occupancy
               </span>
               <p className="text-sm font-semibold text-[#0F172A] mt-0.5">
-                {propertyData.occupancy ? `${propertyData.occupancy}%` : "-"}
+                {displayPropertyData.occupancy ? `${displayPropertyData.occupancy}%` : "-"}
               </p>
             </div>
 
             <div className="bg-white p-3 rounded-lg border border-[#E2E8F0]">
               <span className="text-[11px] text-[#64748B] uppercase font-medium">Renovated</span>
               <p className="text-sm font-semibold text-[#0F172A] mt-0.5">
-                {propertyData.year_renovated || "-"}
+                {displayPropertyData.year_renovated || "-"}
               </p>
             </div>
 
@@ -298,11 +343,21 @@ const Processing = ({
                 <Car className="h-3 w-3" /> Parking
               </span>
               <p className="text-sm font-semibold text-[#0F172A] mt-0.5">
-                {propertyData.parking_spaces !== undefined && propertyData.parking_spaces !== null
-                  ? `${propertyData.parking_spaces} spots`
+                {displayPropertyData.parking_spaces !== undefined && displayPropertyData.parking_spaces !== null
+                  ? `${displayPropertyData.parking_spaces} spots`
                   : "-"}
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading state for property data */}
+      {isFetchingProperty && (
+        <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-sm text-[#64748B]">Loading property details...</span>
           </div>
         </div>
       )}
