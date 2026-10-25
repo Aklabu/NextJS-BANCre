@@ -9,6 +9,7 @@ import LoanCard from "./_components/LoanCard";
 import StatusCard from "@/components/StatusCard";
 import Comparison from "./_components/Comparison";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
+import LoanQuotesTable from "./_components/LoanQuotesTable";
 import api from "@/lib/apiClient";
 import { toast } from "sonner";
 import type {
@@ -293,161 +294,142 @@ const Page = () => {
   const headerStats = dashboardData?.header_stats || DEFAULT_HEADER_STATS;
 
   return (
-    <div>
-      {/* ── Header Title & CTA ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
+    <div className="min-h-screen bg-gray-50/30">
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-            Commercial Loans & Quotes
-          </h1>
-          <p className="text-sm text-[#6A7282] mt-0.5">
-            Submit loan requests for your properties and review quotes from commercial lenders.
+          <h1 className="text-2xl font-semibold text-gray-900">Loan & Quotes</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Your portfolio and lender activity at a glance.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors cursor-pointer self-start sm:self-auto"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors cursor-pointer self-start sm:self-auto"
         >
           <FaPlus className="text-xs" />
-          <span>New Loan Request</span>
+          <span>New loan request</span>
         </button>
       </div>
 
-      {/* ── Status Cards (from /api/v1/loans/dashboard/sponsor/) ── */}
-      <div className="flex flex-wrap items-center justify-center xl:justify-start gap-5 lg:gap-7 xl:gap-10 my-8">
-        <StatusCard
-          type="Properties"
-          data={{ value: headerStats.total_properties ?? properties.length }}
-        />
-        <StatusCard
-          type="quotes"
-          data={{ value: headerStats.quotes_received ?? quoteCards.length }}
-        />
-        <StatusCard
-          type="documents"
-          data={{ value: headerStats.documents_count ?? 0 }}
-        />
-        <StatusCard
-          type="value"
-          data={{ value: headerStats.portfolio_value ?? 0 }}
-        />
-      </div>
-
-      {/* ── View Selection Tabs ── */}
-      <div className="relative inline-flex rounded-full bg-[#ECECF0] p-1 mb-6">
-        <button
-          onClick={() => setView("Requests")}
-          className={`relative z-10 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-            view === "Requests" ? "bg-primary text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          My Loan Requests ({loanRequests.length})
-        </button>
-        <button
-          onClick={() => setView("Card View")}
-          className={`relative z-10 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-            view === "Card View" ? "bg-primary text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Lender Quotes ({quoteCards.length})
-        </button>
-        <button
-          onClick={() => setView("Comparison")}
-          className={`relative z-10 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-            view === "Comparison" ? "bg-primary text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Quote Comparison
-        </button>
-      </div>
-
-      {/* ── View Rendering ── */}
-      {view === "Requests" && (
-        <div>
-          {requestsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 py-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-64 rounded-2xl bg-gray-100 animate-pulse" />
-              ))}
+      {/* ── Stats Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {dashboardLoading ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-24 rounded-lg bg-white border border-gray-200 animate-pulse" />
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <p className="text-sm text-gray-600 mb-1">Total properties</p>
+              <p className="text-3xl font-semibold text-gray-900">{headerStats.total_properties ?? properties.length}</p>
             </div>
-          ) : loanRequests.length === 0 ? (
-            <div className="text-center py-16 px-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/50 my-4">
-              <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-3">
-                <LuDollarSign />
-              </div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">
-                No loan requests created yet
-              </h3>
-              <p className="text-sm text-gray-500 max-w-md mx-auto mb-4">
-                Select any of your commercial properties and request loan terms to get quotes from lenders.
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
-              >
-                <FaPlus className="text-xs" />
-                <span>Create Loan Request</span>
-              </button>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <p className="text-sm text-gray-600 mb-1">Quotes received</p>
+              <p className="text-3xl font-semibold text-gray-900">{headerStats.quotes_received ?? quoteCards.length}</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {loanRequests.map((request) => (
-                <SponsorLoanRequestCard
-                  key={request.id}
-                  request={request}
-                  onEdit={(req) => setEditingLoanRequest(req)}
-                  onDelete={(req) => setDeletingLoanRequest(req)}
-                  onViewQuotes={(req) => {
-                    setSelectedQuotesRequest(req);
-                    setSelectedQuotesRequestId(req.id);
-                  }}
-                />
-              ))}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <p className="text-sm text-gray-600 mb-1">Documents</p>
+              <p className="text-3xl font-semibold text-gray-900">{headerStats.documents_count ?? 0}</p>
             </div>
-          )}
-        </div>
-      )}
-
-      {view === "Card View" && (
-        <div>
-          {dashboardLoading ? (
-            <p className="text-sm text-[#6A7282] py-8">Loading quote cards...</p>
-          ) : quoteCards.length === 0 ? (
-            <div className="text-center py-16 px-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/50 my-4">
-              <p className="text-sm text-[#6A7282]">
-                No lender quotes received yet. When commercial lenders review your requests, their quotes will appear here.
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <p className="text-sm text-gray-600 mb-1">Portfolio value (Active requests)</p>
+              <p className="text-3xl font-semibold text-gray-900">
+                ${(headerStats.portfolio_value ?? 0).toFixed(1)}M
               </p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-5">
-              {quoteCards.map((loan: LoanQuote) => (
-                <LoanCard
-                  key={loan.id}
-                  loan={loan}
-                  isMutating={mutatingQuoteId === loan.id}
-                  onAccept={(item) => openConfirmAction("accept", item)}
-                  onDecline={(item) => openConfirmAction("decline", item)}
-                  onDelete={(item) => openConfirmAction("delete", item)}
-                  onView={handleViewQuote}
-                />
-              ))}
-            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── My loan requests ── */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            My loan requests
+          </h2>
+          {loanRequests.length > 0 && (
+            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+              View all {loanRequests.length}
+            </button>
           )}
         </div>
-      )}
 
-      {view === "Comparison" && (
-        <Comparison
-          comparison={dashboardData.quote_comparison}
+        {requestsLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-80 rounded-xl bg-white border border-gray-200 animate-pulse" />
+            ))}
+          </div>
+        ) : loanRequests.length === 0 ? (
+          <div className="text-center py-12 px-4 border border-dashed border-gray-300 rounded-xl bg-white">
+            <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-3">
+              <LuDollarSign />
+            </div>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">
+              No loan requests created yet
+            </h3>
+            <p className="text-sm text-gray-600 max-w-md mx-auto mb-4">
+              Select any of your commercial properties and request loan terms to get quotes from lenders.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+            >
+              <FaPlus className="text-xs" />
+              <span>Create Loan Request</span>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {loanRequests.slice(0, 3).map((request) => (
+              <SponsorLoanRequestCard
+                key={request.id}
+                request={request}
+                onEdit={(req) => setEditingLoanRequest(req)}
+                onDelete={(req) => setDeletingLoanRequest(req)}
+                onViewQuotes={(req) => {
+                  setSelectedQuotesRequest(req);
+                  setSelectedQuotesRequestId(req.id);
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Loan quotes table ── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Loan quotes</h2>
+            <p className="text-sm text-gray-600">
+              Best rate <span className="font-semibold text-gray-900">{dashboardData.quote_comparison.best_rate ? `${Number(dashboardData.quote_comparison.best_rate).toFixed(2)}%` : '0.00%'}</span> · Highest LTV <span className="font-semibold text-gray-900">{dashboardData.quote_comparison.highest_ltv ? `${Number(dashboardData.quote_comparison.highest_ltv).toFixed(0)}%` : '0%'}</span> · <span className="font-semibold text-gray-900">{quoteCards.length}</span> total
+            </p>
+          </div>
+          {quoteCards.length > 0 && (
+            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+              View all {quoteCards.length}
+            </button>
+          )}
+        </div>
+
+        <LoanQuotesTable
+          quotes={quoteCards}
           loading={dashboardLoading}
           mutatingQuoteId={mutatingQuoteId}
-          onAccept={(item) => openConfirmAction("accept", item)}
+          onAccept={(quote) => openConfirmAction("accept", quote)}
+          onDecline={(quote) => openConfirmAction("decline", quote)}
           onView={handleViewQuote}
+          bestRate={dashboardData.quote_comparison.best_rate}
+          highestLTV={dashboardData.quote_comparison.highest_ltv}
         />
-      )}
+      </div>
 
       {/* ── Create Loan Request Modal ── */}
       <CreateLoanRequestModal
