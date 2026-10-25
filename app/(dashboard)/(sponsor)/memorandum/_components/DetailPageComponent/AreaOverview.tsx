@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { AreaOverviewProps, AreaOverviewData } from "@/types/memorandum-detail";
 import { PiSparkle } from "react-icons/pi";
 import { FiEdit, FiCheck, FiX } from "react-icons/fi";
+import { useAuth } from "@/providers/AuthProvider";
 import SectionMarkdown from "./SectionMarkdown";
 
 //========== Area Overview Component ===========
@@ -16,6 +17,10 @@ const AreaOverview: React.FC<AreaOverviewProps> = ({
   //========== State ===========
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<AreaOverviewData>(data);
+
+  // Role-based access control
+  const { user } = useAuth();
+  const isSponsor = user?.customer_type === "Sponsor" || user?.role === "Sponsor";
 
   useEffect(() => {
     setEditedData(data);
@@ -69,7 +74,7 @@ const AreaOverview: React.FC<AreaOverviewProps> = ({
 
         {/* ====== Action Buttons ====== */}
         <div className="flex items-center gap-2">
-          {!isEditing ? (
+          {isSponsor && !isEditing ? (
             <button
               onClick={handleEdit}
               className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
@@ -77,7 +82,7 @@ const AreaOverview: React.FC<AreaOverviewProps> = ({
               <FiEdit className="w-4 h-4" />
               Edit
             </button>
-          ) : (
+          ) : isEditing ? (
             <>
               <button
                 onClick={handleSave}
@@ -94,7 +99,7 @@ const AreaOverview: React.FC<AreaOverviewProps> = ({
                 Cancel
               </button>
             </>
-          )}
+          ) : null}
         </div>
       </div>
 

@@ -776,7 +776,7 @@ const MemorandumDetailPage = () => {
         status={status}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        canPublish={activeTab === "preview" && status === "draft"}
+        canPublish={status === "draft"}
         isPublishing={isPublishing}
         onPublish={updateMemorandumStatus}
         onRegenerateAll={handleRegenerateAll}

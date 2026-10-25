@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { ExecutiveSummaryProps } from "@/types/memorandum-detail";
 import { FiEdit, FiCheck, FiX } from "react-icons/fi";
 import { PiSparkle } from "react-icons/pi";
+import { useAuth } from "@/providers/AuthProvider";
 import SectionMarkdown from "./SectionMarkdown";
 
 //========== Executive Summary Component ===========
@@ -16,6 +17,10 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   //========== State ===========
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
+
+  // Role-based access control
+  const { user } = useAuth();
+  const isSponsor = user?.customer_type === "Sponsor" || user?.role === "Sponsor";
 
   useEffect(() => {
     setEditedContent(content);
@@ -62,7 +67,7 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 
         {/* ====== Action Buttons ====== */}
         <div className="flex items-center gap-2">
-          {!isEditing ? (
+          {isSponsor && !isEditing ? (
             <button
               onClick={handleEdit}
               className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
@@ -70,7 +75,7 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
               <FiEdit className="w-4 h-4" />
               Edit
             </button>
-          ) : (
+          ) : isEditing ? (
             <>
               <button
                 onClick={handleSave}
@@ -87,7 +92,7 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 Cancel
               </button>
             </>
-          )}
+          ) : null}
         </div>
       </div>
 

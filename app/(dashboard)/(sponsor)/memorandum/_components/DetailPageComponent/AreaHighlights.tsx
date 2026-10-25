@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AreaHighlightsProps } from "@/types/memorandum-detail";
 import { PiSparkle } from "react-icons/pi";
 import { FiUpload, FiEdit, FiCheck, FiX } from "react-icons/fi";
+import { useAuth } from "@/providers/AuthProvider";
 import SectionMarkdown from "./SectionMarkdown";
 import { toast } from "sonner";
 
@@ -26,6 +27,10 @@ const AreaHighlights: React.FC<AreaHighlightsProps> = ({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasUploadedImage = galleryImages.length >= 1;
+
+  // Role-based access control
+  const { user } = useAuth();
+  const isSponsor = user?.customer_type === "Sponsor" || user?.role === "Sponsor";
 
   useEffect(() => {
     setEditedHighlights(highlights);
@@ -114,7 +119,7 @@ const AreaHighlights: React.FC<AreaHighlightsProps> = ({
 
         {/* ====== Action Buttons ====== */}
         <div className="flex items-center gap-2">
-          {!isEditing ? (
+          {isSponsor && !isEditing ? (
             <button
               onClick={handleEdit}
               className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
@@ -122,7 +127,7 @@ const AreaHighlights: React.FC<AreaHighlightsProps> = ({
               <FiEdit className="w-4 h-4" />
               Edit
             </button>
-          ) : (
+          ) : isEditing ? (
             <>
               <button
                 onClick={handleSave}
@@ -139,7 +144,7 @@ const AreaHighlights: React.FC<AreaHighlightsProps> = ({
                 Cancel
               </button>
             </>
-          )}
+          ) : null}
         </div>
       </div>
 

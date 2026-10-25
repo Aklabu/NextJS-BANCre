@@ -48,6 +48,7 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
   };
 
   const isReadOnly = status === "published";
+  const canShowPublish = status === "draft" && !isReadOnly;
 
   return (
     <div className="mb-4 w-full max-w-full min-w-0 overflow-x-hidden">
@@ -74,23 +75,8 @@ const MemorandumHeader: React.FC<MemorandumHeaderProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {activeTab === "editor" && !isReadOnly ? (
-                <button
-                  onClick={() => onTabChange("preview")}
-                  className="group relative px-7 py-3 cursor-pointer flex items-center gap-2 font-semibold text-white rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl"
-                  type="button"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 transition-all duration-300 group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-pink-600"></div>
-                  <span className="relative flex items-center gap-2">
-                    Take a Final Review
-                    <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </span>
-                </button>
-              ) : null}
-
-              {activeTab === "preview" && canPublish && onPublish && !isReadOnly ? (
+              {/* Publish button - shown in editor tab when memorandum is in draft status */}
+              {activeTab === "editor" && canShowPublish && onPublish ? (
                 <button
                   onClick={onPublish}
                   disabled={isPublishing}

@@ -5,6 +5,7 @@ import { FiCheck, FiEdit, FiX, FiFileText } from "react-icons/fi";
 import { BsFileEarmarkSpreadsheet } from "react-icons/bs";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/providers/AuthProvider";
 import SectionMarkdown from "./SectionMarkdown";
 import ExcelTableView from "./ExcelTableView";
 import YearlyComparisonTable from "./YearlyComparisonTable";
@@ -46,6 +47,10 @@ const DynamicSectionEditorCard = ({
   const [isRegeneratingSection, setIsRegeneratingSection] = useState(false);
   const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
   const [customInstruction, setCustomInstruction] = useState("");
+
+  // Role-based access control
+  const { user } = useAuth();
+  const isSponsor = user?.customer_type === "Sponsor" || user?.role === "Sponsor";
 
   const sectionTitle =
     section.label ||
@@ -217,8 +222,8 @@ const DynamicSectionEditorCard = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* AI Regenerate button */}
-            {shouldShowRegenerateButton && !isEditing && (
+            {/* AI Regenerate button - only shown for sponsors */}
+            {isSponsor && shouldShowRegenerateButton && !isEditing && (
               <button
                 onClick={() => setShowRegeneratePrompt(!showRegeneratePrompt)}
                 disabled={isRegeneratingSection || isSaving}
@@ -237,7 +242,8 @@ const DynamicSectionEditorCard = ({
               </button>
             )}
 
-            {!isEditing ? (
+            {/* Edit button - only shown for sponsors */}
+            {isSponsor && !isEditing ? (
               <button
                 onClick={() => setIsEditing(true)}
                 className="group flex items-center gap-2 text-emerald-700 hover:text-emerald-800 text-sm font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 border border-emerald-200/60 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
@@ -246,7 +252,7 @@ const DynamicSectionEditorCard = ({
                 <FiEdit className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 {hasTableCapability ? "Edit Table" : "Edit"}
               </button>
-            ) : (
+            ) : isEditing ? (
               <>
                 <button
                   onClick={handleSave}
@@ -267,7 +273,7 @@ const DynamicSectionEditorCard = ({
                   Cancel
                 </button>
               </>
-            )}
+            ) : null}
           </div>
         </div>
 
