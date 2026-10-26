@@ -212,10 +212,10 @@ const PropertyCard = ({
               e.stopPropagation();
               onDelete();
             }}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/90 backdrop-blur-md text-red-600 hover:bg-red-50 transition-all shadow-lg hover:shadow-xl"
+            className="absolute top-4 right-4 p-2 text-white hover:text-red-500 transition-all"
             title="Delete property"
           >
-            <LuTrash2 className="text-lg" />
+            <LuTrash2 className="text-xl drop-shadow-lg" />
           </button>
         )}
 

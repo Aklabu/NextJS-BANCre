@@ -1,10 +1,11 @@
 "use client";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import PropertyCard from "@/components/PropertyCard";
 import StatusCard from "@/components/StatusCard";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 import api from "@/lib/apiClient";
 import { toast } from "sonner";
 
@@ -97,8 +98,13 @@ async function fetchMemorandums(): Promise<Memorandum[]> {
 
 const MemorandamPage = () => {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 9;
+
+  // State for delete confirmation
+  const [deletingProperty, setDeletingProperty] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch properties with pagination
   const {
@@ -124,25 +130,21 @@ const MemorandamPage = () => {
 
   const memorandumStats = useMemo(() => {
     const stats = {
+      totalProperties: properties.length,
       total: memorandums.length,
-      generating: 0,
       draft: 0,
       published: 0,
-      previewMode: 0,
     };
 
     for (const item of memorandums) {
       const status = (item.status || "").toLowerCase();
-      const mode = (item.mode || "").toLowerCase();
 
-      if (status === "generating") stats.generating += 1;
       if (status === "draft" || status === "ready") stats.draft += 1;
       if (status === "published") stats.published += 1;
-      if (mode === "preview") stats.previewMode += 1;
     }
 
     return stats;
-  }, [memorandums]);
+  }, [memorandums, properties]);
 
   // Build card data from properties
   const cardData = useMemo(
@@ -180,6 +182,63 @@ const MemorandamPage = () => {
     }
   };
 
+  const handleDeleteProperty = async () => {
+    if (!deletingProperty) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await api.delete(`/api/properties/${deletingProperty.id}/`);
+      
+      // Check for success response
+      const data = response?.data;
+      if (data?.success || data?.statusCode === 200) {
+        toast.success(data?.message || "Property deleted successfully");
+      } else {
+        toast.success("Property deleted successfully");
+      }
+      
+      setDeletingProperty(null);
+      
+      // Refresh the properties and memorandums list
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["properties"] }),
+        queryClient.invalidateQueries({ queryKey: ["memorandums"] }),
+      ]);
+      
+      setCurrentPage(1); // Reset to first page after deletion
+    } catch (error: any) {
+      console.error("Failed to delete property:", error);
+      
+      const status = error?.response?.status;
+      const data = error?.response?.data;
+      
+      let errorMessage = "Failed to delete property. Please try again.";
+      
+      // Handle specific error responses
+      if (status === 404) {
+        errorMessage = "Property not found.";
+      } else if (status === 403) {
+        errorMessage = data?.message || "You do not have permission to delete this property.";
+      } else if (status === 401) {
+        if (data?.code === "token_not_valid") {
+          errorMessage = "Your session has expired. Please log in again.";
+        } else {
+          errorMessage = data?.detail || "Authentication required. Please log in.";
+        }
+      } else if (data?.message) {
+        errorMessage = data.message;
+      } else if (data?.detail) {
+        errorMessage = data.detail;
+      } else if (data?.errors) {
+        errorMessage = Object.values(data.errors).flat().join(", ");
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="">
@@ -190,9 +249,9 @@ const MemorandamPage = () => {
           Monitor your memorandums and related details below.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center md:justify-start gap-5 2xl:gap-10 my-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-8">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-28 w-44 rounded-xl bg-gray-100 animate-pulse" />
+            <div key={i} className="h-32 rounded-lg bg-gray-100 animate-pulse" />
           ))}
         </div>
 
@@ -214,43 +273,60 @@ const MemorandamPage = () => {
         Monitor your memorandums and related details below.
       </p>
 
-      <div className="flex flex-wrap items-center justify-center md:justify-start gap-5 2xl:gap-10 my-10">
-        <StatusCard
-          type="Properties"
-          titleOverride="Total Memorandums"
-          statusLabelOverride="published"
-          data={{
-            value: memorandumStats.total,
-            status: memorandumStats.published,
-          }}
-        />
-        <StatusCard
-          type="quotes"
-          titleOverride="Generating"
-          statusLabelOverride="currently running"
-          data={{
-            value: memorandumStats.generating,
-            status: memorandumStats.generating,
-          }}
-        />
-        <StatusCard
-          type="documents"
-          titleOverride="Draft"
-          statusLabelOverride="ready to review"
-          data={{ value: memorandumStats.draft, status: memorandumStats.draft }}
-        />
-        <StatusCard
-          type="value"
-          titleOverride="Published"
-          statusLabelOverride="in preview mode"
-          data={{
-            value: memorandumStats.published,
-            status: memorandumStats.previewMode,
-          }}
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-8">
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-sm text-gray-600">Total Properties</p>
+            <span className="text-gray-400">📊</span>
+          </div>
+          <p className="text-3xl font-semibold text-gray-900 mb-2">{memorandumStats.totalProperties}</p>
+          <p className="text-xs text-gray-500">active listings</p>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-sm text-gray-600">Total Memorandums</p>
+            <span className="text-gray-400">📄</span>
+          </div>
+          <p className="text-3xl font-semibold text-gray-900 mb-2">{memorandumStats.total}</p>
+          <p className="text-xs text-gray-500">All processed</p>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-sm text-gray-600">Draft</p>
+            <span className="text-gray-400">⏰</span>
+          </div>
+          <p className="text-3xl font-semibold text-gray-900 mb-2">{memorandumStats.draft}</p>
+          <p className="text-xs text-gray-500">{memorandumStats.draft} ready to review</p>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-sm text-gray-600">Published</p>
+            <span className="text-gray-400">📈</span>
+          </div>
+          <p className="text-3xl font-semibold text-gray-900 mb-2">{memorandumStats.published}</p>
+          <p className="text-xs text-gray-500">live</p>
+        </div>
       </div>
 
       <div className="mb-10">
+        {/* Section Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-1">My Properties</h2>
+            <p className="text-sm text-gray-600">Properties with AI generated memorandum</p>
+          </div>
+          <button
+            onClick={() => router.push('/processing')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors"
+          >
+            <span className="text-lg">+</span>
+            <span>Add Property</span>
+          </button>
+        </div>
+
         {cardData.length > 0 ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-5 place-items-center">
@@ -263,6 +339,7 @@ const MemorandamPage = () => {
                   <PropertyCard
                     data={property}
                     size="large"
+                    onDelete={() => setDeletingProperty(property)}
                   />
                 </div>
               ))}
@@ -297,6 +374,24 @@ const MemorandamPage = () => {
           <p className="text-center text-gray-500 py-10">No properties available.</p>
         )}
       </div>
+
+      {/* Delete Property Confirmation Modal */}
+      <ConfirmActionModal
+        open={Boolean(deletingProperty)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setDeletingProperty(null);
+        }}
+        title="Delete property?"
+        description={
+          deletingProperty
+            ? `Deleting the property means all the property info with AI generated memorandum will also be deleted. This action cannot be undone.`
+            : "This will permanently remove the selected property and its memorandum."
+        }
+        confirmText="Delete Property"
+        destructive
+        isLoading={isDeleting}
+        onConfirm={handleDeleteProperty}
+      />
     </div>
   );
 };
