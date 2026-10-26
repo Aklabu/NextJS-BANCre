@@ -20,11 +20,12 @@ import api from "@/lib/apiClient";
  * Standard API Response Envelope
  */
 export interface ApiResponse<T = any> {
-  status: "success" | "error";
-  message: string | null;
+  success: boolean;
+  statusCode: number;
+  message: string;
+  timestamp: string;
   data: T | null;
-  errors: Record<string, string[]> | null;
-  status_code: number;
+  errors: Record<string, string[]> | string | null;
 }
 
 /**
@@ -68,38 +69,41 @@ export interface LoanRequestDetail {
 
 /**
  * Quote Detail
+ * 
+ * Status values: "Submitted", "Under Review", "Accepted", "Declined", "Expired"
+ * DSCR: Automatically computed as (loan_amount × min_as_is_dy / 100) / (loan_amount × interest_rate / 100)
  */
 export interface QuoteDetail {
   id: number;
   loan_request: number;
   lender: number;
   lender_name: string;
-  guarantor?: string;
+  guarantor: string;
   status: string;
-  expires_at?: string | null;
-  submitted_at?: string;
-  updated_at?: string;
+  expires_at: string | null;
+  submitted_at: string;
+  updated_at: string;
   loan_amount: string;
-  initial_funding?: string;
-  future_funding?: string;
-  sponsor_equity?: string;
-  max_as_is_ltv?: string;
-  max_ltc?: string;
-  max_as_stabilized_ltv?: string;
-  min_as_is_dy?: string;
-  min_stabilized_dy?: string;
+  initial_funding: string;
+  future_funding: string;
+  sponsor_equity: string;
+  max_as_is_ltv: string;
+  max_ltc: string;
+  max_as_stabilized_ltv: string;
+  min_as_is_dy: string;
+  min_stabilized_dy: string;
   term: number;
   interest_rate: string;
-  amortization?: string;
-  prepayment?: string;
+  amortization: string;
+  prepayment: string;
   origination_fee: string;
-  capex_reserve?: string;
-  ff_and_e_reserve?: string;
-  interest_carry_reserve?: string;
-  extension_conditions?: string;
-  collateral?: string;
-  recourse?: string;
-  dscr?: number;
+  capex_reserve: string;
+  ff_and_e_reserve: string;
+  interest_carry_reserve: string;
+  extension_conditions: string;
+  collateral: string;
+  recourse: string;
+  dscr: number;
 }
 
 // ── API Methods ──────────────────────────────────────────────────────────────
@@ -185,12 +189,23 @@ export async function fetchQuotesForLoanRequest(
 
 /**
  * Fetch Quote Detail
- * GET /api/loans/quotes/<id>/
+ * GET /api/loans/quotes/<quote_id>/
  * 
- * Retrieves detailed information about a specific quote
+ * Retrieves detailed information about a specific loan quote.
+ * Accessible by both the lender who submitted the quote and the sponsor who owns the loan request.
+ * 
+ * Authentication: Required (Bearer Token)
+ * Access Control: Only the lender who created the quote or the sponsor who owns the loan request
  * 
  * @param quoteId - Quote ID
  * @returns QuoteDetail object
+ * @throws Error with message from API on failure
+ * 
+ * Possible HTTP Status Codes:
+ * - 200: Success
+ * - 401: Unauthorized (missing or invalid token)
+ * - 403: Forbidden (user doesn't have permission to view this quote)
+ * - 404: Quote not found
  */
 export async function fetchQuoteDetail(quoteId: number): Promise<QuoteDetail> {
   try {
@@ -199,7 +214,7 @@ export async function fetchQuoteDetail(quoteId: number): Promise<QuoteDetail> {
     
     console.log("Quote Detail Response:", apiData);
     
-    if (!apiData.data) {
+    if (!apiData.success || !apiData.data) {
       throw new Error(apiData.message || "Failed to fetch quote details");
     }
     
@@ -288,7 +303,7 @@ export async function declineQuote(quoteId: number): Promise<QuoteDetail> {
 
 /**
  * Extract error messages from API error response
- * Handles the custom response format with status, message, and errors
+ * Handles the custom response format with success, statusCode, message, and errors
  */
 export function extractApiErrorMessage(error: any): string {
   if (!error?.response?.data) {
@@ -302,19 +317,32 @@ export function extractApiErrorMessage(error: any): string {
     return apiResponse.message;
   }
 
-  // Check for field-specific errors
+  // Check for errors object/string
   if (apiResponse.errors) {
-    const errorMessages = Object.entries(apiResponse.errors)
-      .map(([field, messages]) => {
-        if (Array.isArray(messages) && messages.length > 0) {
-          return `${field}: ${messages.join(", ")}`;
-        }
-        return null;
-      })
-      .filter(Boolean);
+    // If errors is a string
+    if (typeof apiResponse.errors === 'string') {
+      return apiResponse.errors;
+    }
+    
+    // If errors is an object with detail field
+    if (typeof apiResponse.errors === 'object' && 'detail' in apiResponse.errors) {
+      return (apiResponse.errors as any).detail;
+    }
+    
+    // If errors is an object with field-specific errors
+    if (typeof apiResponse.errors === 'object') {
+      const errorMessages = Object.entries(apiResponse.errors)
+        .map(([field, messages]) => {
+          if (Array.isArray(messages) && messages.length > 0) {
+            return `${field}: ${messages.join(", ")}`;
+          }
+          return null;
+        })
+        .filter(Boolean);
 
-    if (errorMessages.length > 0) {
-      return errorMessages.join("; ");
+      if (errorMessages.length > 0) {
+        return errorMessages.join("; ");
+      }
     }
   }
 
@@ -332,7 +360,7 @@ export function extractApiErrorMessage(error: any): string {
  */
 export function isApiError(error: any, statusCode: number): boolean {
   return error?.response?.status === statusCode || 
-         error?.response?.data?.status_code === statusCode;
+         error?.response?.data?.statusCode === statusCode;
 }
 
 /**

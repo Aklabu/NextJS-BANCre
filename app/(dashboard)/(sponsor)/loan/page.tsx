@@ -423,15 +423,18 @@ const Page = () => {
               Best rate <span className="font-semibold text-gray-900">{dashboardData.quote_comparison.best_rate ? `${Number(dashboardData.quote_comparison.best_rate).toFixed(2)}%` : '0.00%'}</span> · Highest LTV <span className="font-semibold text-gray-900">{dashboardData.quote_comparison.highest_ltv ? `${Number(dashboardData.quote_comparison.highest_ltv).toFixed(0)}%` : '0%'}</span> · <span className="font-semibold text-gray-900">{quoteCards.length}</span> total
             </p>
           </div>
-          {quoteCards.length > 0 && (
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+          {quoteCards.length > 9 && (
+            <button 
+              onClick={() => router.push('/quotes')}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            >
               View all {quoteCards.length}
             </button>
           )}
         </div>
 
         <LoanQuotesTable
-          quotes={quoteCards}
+          quotes={quoteCards.slice(0, 9)}
           loading={dashboardLoading}
           mutatingQuoteId={mutatingQuoteId}
           onAccept={(quote) => openConfirmAction("accept", quote)}

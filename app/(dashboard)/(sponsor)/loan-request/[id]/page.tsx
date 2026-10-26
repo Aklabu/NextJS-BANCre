@@ -416,8 +416,12 @@ export default function LoanRequestDetailPage() {
                   const isMutating = mutatingQuoteId === quote.id;
 
                   return (
-                    <tr key={quote.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
+                    <tr 
+                      key={quote.id} 
+                      onClick={() => router.push(`/loan/${quote.id}`)}
+                      className="hover:bg-gray-50 cursor-pointer"
+                    >
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selectedQuotes.includes(quote.id)}
@@ -487,7 +491,7 @@ export default function LoanRequestDetailPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           {isActive ? (
                             <>
                               <button
@@ -506,7 +510,10 @@ export default function LoanRequestDetailPage() {
                               </button>
                             </>
                           ) : (
-                            <button className="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50">
+                            <button 
+                              onClick={() => router.push(`/loan/${quote.id}`)}
+                              className="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50"
+                            >
                               View
                             </button>
                           )}

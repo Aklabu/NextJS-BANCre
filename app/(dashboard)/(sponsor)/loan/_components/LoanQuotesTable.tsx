@@ -114,7 +114,7 @@ const LoanQuotesTable: React.FC<LoanQuotesTableProps> = ({
                 Lender
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Request
+                Property
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Loan amount
@@ -155,7 +155,11 @@ const LoanQuotesTable: React.FC<LoanQuotesTableProps> = ({
               const isMutating = mutatingQuoteId === quote.id;
 
               return (
-                <tr key={quote.id} className="hover:bg-gray-50 transition-colors">
+                <tr 
+                  key={quote.id} 
+                  onClick={() => onView(quote)}
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                >
                   {/* Lender */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -166,17 +170,20 @@ const LoanQuotesTable: React.FC<LoanQuotesTableProps> = ({
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {quote.lender_name}
                         </p>
-                        <p className="text-xs text-gray-500">[Lender name]</p>
                       </div>
                     </div>
                   </td>
 
-                  {/* Request */}
+                  {/* Property */}
                   <td className="px-4 py-3">
-                    <p className="text-sm text-gray-900">[Request]</p>
-                    <p className="text-xs text-gray-500">
-                      #{quote.loan_request || "N/A"}
+                    <p className="text-sm text-gray-900">
+                      {quote.property_name || "N/A"}
                     </p>
+                    {quote.loan_request && (
+                      <p className="text-xs text-gray-500">
+                        #{quote.loan_request}
+                      </p>
+                    )}
                   </td>
 
                   {/* Loan Amount */}
@@ -201,7 +208,6 @@ const LoanQuotesTable: React.FC<LoanQuotesTableProps> = ({
                   {/* Term */}
                   <td className="px-4 py-3">
                     <p className="text-sm text-gray-900">{term.months} mo</p>
-                    <p className="text-xs text-gray-500">{term.years} yrs</p>
                   </td>
 
                   {/* Fee */}
@@ -227,12 +233,11 @@ const LoanQuotesTable: React.FC<LoanQuotesTableProps> = ({
                     >
                       {expiry.label}
                     </p>
-                    <p className="text-xs text-gray-500">[Date]</p>
                   </td>
 
                   {/* Actions */}
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       {!finalized ? (
                         <>
                           <button

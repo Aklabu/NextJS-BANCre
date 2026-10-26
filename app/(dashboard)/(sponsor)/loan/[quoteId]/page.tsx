@@ -409,6 +409,34 @@ const Page = () => {
             <p className="font-medium">{quote.loan_request ?? "-"}</p>
           </div>
           <div>
+            <p className="text-[#6A7282]">Initial Funding</p>
+            <p className="font-medium">{formatCurrency(quote.initial_funding)}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Future Funding</p>
+            <p className="font-medium">{formatCurrency(quote.future_funding)}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Sponsor Equity</p>
+            <p className="font-medium">{formatCurrency(quote.sponsor_equity)}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Max LTC</p>
+            <p className="font-medium">{formatPercent(quote.max_ltc)}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Max As-Stabilized LTV</p>
+            <p className="font-medium">{formatPercent(quote.max_as_stabilized_ltv)}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Min As-Is DY</p>
+            <p className="font-medium">{formatPercent(quote.min_as_is_dy)}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Min Stabilized DY</p>
+            <p className="font-medium">{formatPercent(quote.min_stabilized_dy)}</p>
+          </div>
+          <div>
             <p className="text-[#6A7282]">Amortization</p>
             <p className="font-medium">{quote.amortization || "-"}</p>
           </div>
@@ -417,10 +445,41 @@ const Page = () => {
             <p className="font-medium">{quote.prepayment || "-"}</p>
           </div>
           <div>
+            <p className="text-[#6A7282]">CapEx Reserve</p>
+            <p className="font-medium">{formatCurrency(quote.capex_reserve)}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">FF&E Reserve</p>
+            <p className="font-medium">{formatCurrency(quote.ff_and_e_reserve)}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Interest Carry Reserve</p>
+            <p className="font-medium">{formatCurrency(quote.interest_carry_reserve)}</p>
+          </div>
+          <div>
             <p className="text-[#6A7282]">Collateral</p>
             <p className="font-medium">{quote.collateral || "-"}</p>
           </div>
+          <div>
+            <p className="text-[#6A7282]">Recourse</p>
+            <p className="font-medium">{quote.recourse || "-"}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Submitted At</p>
+            <p className="font-medium">{quote.submitted_at ? new Date(quote.submitted_at).toLocaleDateString() : "-"}</p>
+          </div>
+          <div>
+            <p className="text-[#6A7282]">Expires At</p>
+            <p className="font-medium">{quote.expires_at ? new Date(quote.expires_at).toLocaleDateString() : "-"}</p>
+          </div>
         </div>
+        
+        {quote.extension_conditions && (
+          <div className="mt-5 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-semibold text-[#6A7282] mb-2">Extension Conditions</h3>
+            <p className="text-sm">{quote.extension_conditions}</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-5">
