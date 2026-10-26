@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FaPlus } from "react-icons/fa6";
 import { LuFileText, LuDollarSign, LuArrowUpRight } from "react-icons/lu";
@@ -17,9 +18,17 @@ import {
   fetchSponsorDashboard,
   fetchLoanRequests,
   deleteLoanRequest,
+  fetchAllSponsorQuotes,
   type SponsorLoanRequestItem,
   type SponsorDashboardData,
 } from "../_api/loan-requests-api";
+import {
+  acceptQuote,
+  declineQuote,
+  fetchQuoteDetail,
+} from "../_api/loan-request-detail-api";
+import type { LoanQuote } from "../loan/_components/loan-types";
+import LoanQuotesTable from "../loan/_components/LoanQuotesTable";
 import CreateLoanRequestModal from "../_components/CreateLoanRequestModal";
 import UpdateLoanRequestModal from "../_components/UpdateLoanRequestModal";
 import SponsorLoanRequestCard from "../_components/SponsorLoanRequestCard";
@@ -129,6 +138,7 @@ const PropertySkeleton = () => (
 // ── Page Component ───────────────────────────────────────────────────────────
 
 const Page = () => {
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   // 1. Fetch Sponsor Dashboard Data (Postman: GET /api/v1/loans/dashboard/sponsor/)
@@ -147,11 +157,17 @@ const Page = () => {
       staleTime: 60 * 1000,
     });
 
-  // 3. State for Properties, Markers & Modals
+  // 3. Fetch all sponsor quotes with property names
+  const { data: allSponsorQuotes = [], isLoading: quotesLoading } = useQuery<LoanQuote[]>({
+    queryKey: ["sponsor-quotes"],
+    queryFn: () => fetchAllSponsorQuotes(1, 100),
+    staleTime: 60 * 1000,
+  });
+
+  // 4. State for Properties, Markers & Modals
   const [properties, setProperties] = useState<PropertyCardData[]>([]);
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
-  const [visiblePropertyCount, setVisiblePropertyCount] = useState(6);
 
   // Loan Request Modals state
   const [isCreateLoanModalOpen, setIsCreateLoanModalOpen] = useState(false);
@@ -166,6 +182,13 @@ const Page = () => {
     useState<SponsorLoanRequestItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletingProperty, setDeletingProperty] = useState<PropertyCardData | null>(null);
+
+  // Quote action states
+  const [mutatingQuoteId, setMutatingQuoteId] = useState<number | null>(null);
+  const [pendingQuoteAction, setPendingQuoteAction] = useState<{
+    type: "accept" | "decline";
+    quote: LoanQuote;
+  } | null>(null);
 
   // Fetch properties + map markers + memorandums
   const fetchProperties = useCallback(async () => {
@@ -315,6 +338,101 @@ const Page = () => {
     }
   };
 
+  // Quote action handlers
+  const executeAcceptQuote = async (quote: LoanQuote) => {
+    try {
+      setMutatingQuoteId(quote.id);
+      await acceptQuote(quote.id);
+      toast.success("Quote accepted successfully.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["sponsor-quotes"] }),
+        queryClient.invalidateQueries({ queryKey: ["loan-requests"] }),
+      ]);
+    } catch (error: any) {
+      console.error("Failed to accept quote", error);
+      toast.error(error.message || "Failed to accept quote.");
+    } finally {
+      setMutatingQuoteId(null);
+    }
+  };
+
+  const executeDeclineQuote = async (quote: LoanQuote) => {
+    try {
+      setMutatingQuoteId(quote.id);
+      await declineQuote(quote.id);
+      toast.success("Quote declined successfully.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["sponsor-quotes"] }),
+      ]);
+    } catch (error: any) {
+      console.error("Failed to decline quote", error);
+      toast.error(error.message || "Failed to decline quote.");
+    } finally {
+      setMutatingQuoteId(null);
+    }
+  };
+
+  const handleViewQuote = (quote: LoanQuote) => {
+    router.push(`/loan/${quote.id}`);
+  };
+
+  const openConfirmQuoteAction = (
+    type: "accept" | "decline",
+    quote: LoanQuote,
+  ) => {
+    setPendingQuoteAction({ type, quote });
+  };
+
+  const closeConfirmQuoteAction = () => {
+    if (mutatingQuoteId !== null) return;
+    setPendingQuoteAction(null);
+  };
+
+  const handleConfirmQuoteAction = async () => {
+    if (!pendingQuoteAction) return;
+
+    if (pendingQuoteAction.type === "accept") {
+      await executeAcceptQuote(pendingQuoteAction.quote);
+    }
+
+    if (pendingQuoteAction.type === "decline") {
+      await executeDeclineQuote(pendingQuoteAction.quote);
+    }
+
+    setPendingQuoteAction(null);
+  };
+
+  const quoteModalConfig = useMemo(() => {
+    if (!pendingQuoteAction) {
+      return {
+        title: "",
+        description: "",
+        confirmText: "Confirm",
+        destructive: false,
+      };
+    }
+
+    const lenderName = pendingQuoteAction.quote.lender_name;
+
+    if (pendingQuoteAction.type === "accept") {
+      return {
+        title: "Accept quote?",
+        description: `This will accept the quote from ${lenderName} and close the related request.`,
+        confirmText: "Accept Quote",
+        destructive: false,
+      };
+    }
+
+    return {
+      title: "Decline quote?",
+      description: `This will decline the quote from ${lenderName}. You cannot undo this action.`,
+      confirmText: "Decline Quote",
+      destructive: true,
+    };
+  }, [pendingQuoteAction]);
+
   // Execute property deletion (DELETE /api/properties/{id}/)
   const confirmDeleteProperty = async () => {
     if (!deletingProperty) return;
@@ -325,12 +443,6 @@ const Page = () => {
 
       // Refresh properties list
       await fetchProperties();
-
-      // Reset visible count if we deleted a property and visible count is now more than total
-      setVisiblePropertyCount((prev) => {
-        const newTotal = properties.length - 1;
-        return prev > newTotal ? newTotal : prev;
-      });
 
       // Invalidate dashboard queries
       await queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] });
@@ -349,19 +461,23 @@ const Page = () => {
     }
   };
 
-  const visibleProperties = properties.slice(0, visiblePropertyCount);
-  const hasMoreProperties = properties.length > visiblePropertyCount;
-
-  const handleShowMore = () => {
-    setVisiblePropertyCount(prev => Math.min(prev + 6, properties.length));
-  };
-
   const headerStats = dashboardData || {
     total_properties: properties.length,
     total_loan_requests: 0,
     quotes_received: 0,
     accepted_quotes: 0,
   };
+
+  // Calculate best rate and highest LTV from all quotes
+  const bestRate = useMemo(() => {
+    if (allSponsorQuotes.length === 0) return 0;
+    return Math.min(...allSponsorQuotes.map(q => Number(q.interest_rate)));
+  }, [allSponsorQuotes]);
+
+  const highestLTV = useMemo(() => {
+    if (allSponsorQuotes.length === 0) return 0;
+    return Math.max(...allSponsorQuotes.map(q => Number(q.max_as_is_ltv)));
+  }, [allSponsorQuotes]);
 
   const propertyOptions = useMemo(
     () =>
@@ -444,14 +560,14 @@ const Page = () => {
             <div>
               <div className="flex items-center gap-2.5">
                 <h2 className="text-lg font-bold text-gray-900">
-                  Active Loan Requests
+                  Loan quotes
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                  {loanRequests.length}
+                  {allSponsorQuotes.length}
                 </span>
               </div>
               <p className="text-sm text-gray-500 mt-0.5">
-                Commercial loan requests submitted to lenders for quotes
+                Best rate <span className="font-semibold text-gray-900">{bestRate > 0 ? `${bestRate.toFixed(2)}%` : '15.00%'}</span> · Highest LTV <span className="font-semibold text-gray-900">{highestLTV > 0 ? `${highestLTV.toFixed(0)}%` : '52%'}</span> · <span className="font-semibold text-gray-900">{allSponsorQuotes.length}</span> total
               </p>
             </div>
 
@@ -468,83 +584,66 @@ const Page = () => {
             </button>
           </div>
 
-          {requestsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 py-4">
-              {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-64 rounded-2xl bg-gray-100 animate-pulse"
-                />
-              ))}
-            </div>
-          ) : loanRequests.length === 0 ? (
-            <div className="text-center py-12 px-4 border border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
-              <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-3">
-                <LuDollarSign />
-              </div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">
-                No active loan requests yet
-              </h3>
-              <p className="text-sm text-gray-500 max-w-md mx-auto mb-4">
-                Submit terms for any of your properties to receive competitive loan quotes from our lender network.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedPropertyForLoan(null);
-                  setIsCreateLoanModalOpen(true);
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
-              >
-                <FaPlus className="text-xs" />
-                <span>Create Loan Request</span>
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5">
-              {loanRequests.map((req) => (
-                <SponsorLoanRequestCard
-                  key={req.id}
-                  request={req}
-                  onEdit={(item) => setEditingLoanRequest(item)}
-                  onDelete={(item) => setDeletingLoanRequest(item)}
-                  onViewQuotes={(item) => setSelectedQuotesRequest(item)}
-                />
-              ))}
-            </div>
-          )}
+          <LoanQuotesTable
+            quotes={allSponsorQuotes}
+            loading={quotesLoading}
+            mutatingQuoteId={mutatingQuoteId}
+            onAccept={(quote) => openConfirmQuoteAction("accept", quote)}
+            onDecline={(quote) => openConfirmQuoteAction("decline", quote)}
+            onView={handleViewQuote}
+            bestRate={bestRate}
+            highestLTV={highestLTV}
+          />
         </div>
       </div>
 
       {/* ── Google Map ── */}
-      <div className="my-6">
-        <GMAP markersList={markers} />
+      <div className="mb-10">
+        <div className="rounded-xl bg-white p-4 lg:p-6 border border-gray-200 shadow-xs">
+          <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-100">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">
+                Your Properties on Map
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Currently you added <span className="font-semibold text-gray-900">{properties.length}</span> {properties.length === 1 ? 'property' : 'properties'} on BANCre.
+              </p>
+            </div>
+          </div>
+          <GMAP markersList={markers} />
+        </div>
       </div>
 
-      {/* ── Property Portfolio ── */}
+      {/* ── My Properties ── */}
       <div className="mb-10">
-        <div className="rounded-xl bg-white p-4 lg:p-6 border border-[#0000001A]">
+        <div className="rounded-xl bg-white p-4 lg:p-6 border border-gray-200">
           <div className="flex items-center justify-between pb-4 border-b border-gray-100">
             <div>
               <h2 className="text-lg font-bold text-gray-900">
-                Property Portfolio
+                My Properties
               </h2>
-              <p className="text-sm text-[#6A7282]">
-                Manage, view documents, and request loans for your properties
+              <p className="text-sm text-gray-500">
+                Properties with AI generated memorandum
               </p>
             </div>
             <Link
-              href="/processing"
-              className="flex gap-2 button-primary rounded-full py-2 px-3 min-w-24 cursor-pointer justify-center items-center"
+              href="/memorandum"
+              className="flex gap-2 items-center px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              <FaPlus className="hidden md:flex text-xs" />
-              <p className="text-xs sm:text-sm font-medium">Add Property</p>
+              <span>View All</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </Link>
           </div>
 
           <div className="my-6">
             {propertiesLoading ? (
-              <PropertySkeleton />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-5">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-96 rounded-xl bg-gray-100 animate-pulse" />
+                ))}
+              </div>
             ) : properties.length === 0 ? (
               <div className="col-span-full text-center py-16 text-[#6A7282]">
                 <p className="text-lg mb-2">No properties yet</p>
@@ -553,33 +652,16 @@ const Page = () => {
                 </p>
               </div>
             ) : (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {visibleProperties.map((property) => (
-                    <PropertyCard
-                      key={property.id}
-                      data={property}
-                      onRequestLoan={() => {
-                        setSelectedPropertyForLoan(property.id);
-                        setIsCreateLoanModalOpen(true);
-                      }}
-                      onDelete={() => setDeletingProperty(property)}
-                    />
-                  ))}
-                </div>
-
-                {hasMoreProperties && (
-                  <div className="flex justify-center pt-6">
-                    <button
-                      type="button"
-                      onClick={handleShowMore}
-                      className="button-outline rounded-full px-6 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
-                    >
-                      Show More Properties ({properties.length - visiblePropertyCount} remaining)
-                    </button>
-                  </div>
-                )}
-              </>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-5">
+                {properties.slice(0, 3).map((property) => (
+                  <PropertyCard
+                    key={property.id}
+                    data={property}
+                    size="large"
+                    onDelete={() => setDeletingProperty(property)}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -655,6 +737,18 @@ const Page = () => {
         onOpenChange={setIsCreateLoanModalOpen}
         properties={propertyOptions}
         preselectedPropertyId={selectedPropertyForLoan}
+      />
+
+      {/* ── Confirm Quote Action Modal ── */}
+      <ConfirmActionModal
+        open={Boolean(pendingQuoteAction)}
+        onOpenChange={closeConfirmQuoteAction}
+        title={quoteModalConfig.title}
+        description={quoteModalConfig.description}
+        confirmText={quoteModalConfig.confirmText}
+        destructive={quoteModalConfig.destructive}
+        isLoading={mutatingQuoteId !== null}
+        onConfirm={handleConfirmQuoteAction}
       />
 
       {/* ── Update Loan Request Modal ── */}

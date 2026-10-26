@@ -252,25 +252,27 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
     }
 
     return (
-        <div>
-            <div className="my-5 w-full max-w-md">
-                <Autocomplete
-                    onLoad={(auto) => {
-                        auto.setFields(["place_id", "name", "formatted_address", "geometry", "types", "rating", "photos"]);
-                        autocompleteRef.current = auto;
-                    }}
-                    onPlaceChanged={onPlaceChanged}
-                >
-                    <input
-                        type="text"
-                        placeholder="Search for property address..."
-                        className="w-full h-12 px-4 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black shadow-sm"
-                    />
-                </Autocomplete>
-            </div>
-
+        <div className="my-5">
             <div className="relative w-full">
-                <div className="absolute right-3 top-3 z-10 flex overflow-hidden rounded-lg border border-white/70 bg-white shadow-sm">
+                {/* Search box overlay - positioned at top left */}
+                <div className="absolute left-3 top-3 z-10 w-full max-w-xs">
+                    <Autocomplete
+                        onLoad={(auto) => {
+                            auto.setFields(["place_id", "name", "formatted_address", "geometry", "types", "rating", "photos"]);
+                            autocompleteRef.current = auto;
+                        }}
+                        onPlaceChanged={onPlaceChanged}
+                    >
+                        <input
+                            type="text"
+                            placeholder="Search for property address..."
+                            className="w-full h-9 px-3 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black shadow-lg"
+                        />
+                    </Autocomplete>
+                </div>
+
+                {/* Map view mode toggle - positioned at top right */}
+                <div className="absolute right-3 top-3 z-10 flex overflow-hidden rounded-md border border-white/70 bg-white shadow-sm">
                     {[
                         { label: "2D Map", value: "roadmap" as const },
                         { label: "Satellite", value: "satellite" as const },
@@ -280,7 +282,7 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
                             key={option.value}
                             type="button"
                             onClick={() => setMapViewMode(option.value)}
-                            className={`px-3 py-2 text-xs font-semibold transition-colors ${
+                            className={`px-2 py-1.5 text-[11px] font-semibold transition-colors ${
                                 mapViewMode === option.value
                                     ? "bg-primary text-white"
                                     : "bg-white text-gray-700 hover:bg-gray-50"
