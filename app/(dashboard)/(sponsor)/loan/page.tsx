@@ -39,9 +39,11 @@ import LoanRequestQuotesModal from "../_components/LoanRequestQuotesModal";
 
 const DEFAULT_DASHBOARD_DATA: SponsorLoanDashboardData = {
   total_properties: 0,
-  total_loan_requests: 0,
+  published_memorandums: 0,
+  my_loan_requests: 0,
   quotes_received: 0,
   accepted_quotes: 0,
+  rejected_quotes: 0,
 };
 
 const Page = () => {
@@ -306,9 +308,11 @@ const Page = () => {
 
   const headerStats = dashboardData || {
     total_properties: properties.length,
-    total_loan_requests: loanRequests.length,
+    published_memorandums: 0,
+    my_loan_requests: loanRequests.length,
     quotes_received: quoteCards.length,
     accepted_quotes: 0,
+    rejected_quotes: 0,
   };
 
   // Calculate best rate and highest LTV from all quotes
@@ -359,7 +363,7 @@ const Page = () => {
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm text-gray-600 mb-1">My loan request</p>
-              <p className="text-3xl font-semibold text-gray-900">{headerStats.total_loan_requests ?? loanRequests.length}</p>
+              <p className="text-3xl font-semibold text-gray-900">{headerStats.my_loan_requests ?? loanRequests.length}</p>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm text-gray-600 mb-1">Quotes received</p>

@@ -91,16 +91,20 @@ export interface UpdateLoanRequestPayload {
 
 export interface SponsorDashboardHeaderStats {
   total_properties: number;
-  total_loan_requests: number;
+  published_memorandums: number;
+  my_loan_requests: number;
   quotes_received: number;
   accepted_quotes: number;
+  rejected_quotes: number;
 }
 
 export interface SponsorLoanDashboardData {
   total_properties: number;
-  total_loan_requests: number;
+  published_memorandums: number;
+  my_loan_requests: number;
   quotes_received: number;
   accepted_quotes: number;
+  rejected_quotes: number;
 }
 
 // ── API Methods ──────────────────────────────────────────────────────────────
@@ -111,9 +115,11 @@ export interface SponsorLoanDashboardData {
  * 
  * Returns sponsor dashboard statistics including:
  * - total_properties: Total number of properties owned by the sponsor
- * - total_loan_requests: Total number of loan requests created
+ * - published_memorandums: Number of properties with published memorandums
+ * - my_loan_requests: Total number of loan requests created
  * - quotes_received: Total number of loan quotes received
  * - accepted_quotes: Number of quotes that have been accepted
+ * - rejected_quotes: Number of quotes that have been rejected
  * 
  * Authentication: Required (Bearer Token)
  * Permission: Sponsor Only
@@ -128,9 +134,11 @@ export async function fetchSponsorDashboard(): Promise<SponsorLoanDashboardData>
 
     return {
       total_properties: Number(raw.total_properties) || 0,
-      total_loan_requests: Number(raw.total_loan_requests) || 0,
+      published_memorandums: Number(raw.published_memorandums) || 0,
+      my_loan_requests: Number(raw.my_loan_requests) || 0,
       quotes_received: Number(raw.quotes_received) || 0,
       accepted_quotes: Number(raw.accepted_quotes) || 0,
+      rejected_quotes: Number(raw.rejected_quotes) || 0,
     };
   } catch (err: any) {
     console.error("Failed to fetch sponsor dashboard", err);
@@ -138,9 +146,11 @@ export async function fetchSponsorDashboard(): Promise<SponsorLoanDashboardData>
     // Return default values on error
     return {
       total_properties: 0,
-      total_loan_requests: 0,
+      published_memorandums: 0,
+      my_loan_requests: 0,
       quotes_received: 0,
       accepted_quotes: 0,
+      rejected_quotes: 0,
     };
   }
 }

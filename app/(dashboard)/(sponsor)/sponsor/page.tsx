@@ -463,9 +463,11 @@ const Page = () => {
 
   const headerStats = dashboardData || {
     total_properties: properties.length,
-    total_loan_requests: 0,
+    published_memorandums: 0,
+    my_loan_requests: 0,
     quotes_received: 0,
     accepted_quotes: 0,
+    rejected_quotes: 0,
   };
 
   // Calculate best rate and highest LTV from all quotes
@@ -528,28 +530,90 @@ const Page = () => {
 
       {/* ── Status Cards (from /api/v1/loans/dashboard/sponsor/) ── */}
       {statsLoading ? (
-        <StatsSkeleton />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 my-8">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-28 rounded-xl bg-gray-100 animate-pulse" />
+          ))}
+        </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-center xl:justify-start gap-5 lg:gap-7 xl:gap-10 my-8">
-          <StatusCard
-            type="Properties"
-            data={{ value: headerStats.total_properties ?? properties.length }}
-          />
-          <StatusCard
-            type="quotes"
-            titleOverride="My Loan Requests"
-            data={{ value: headerStats.total_loan_requests ?? 0 }}
-          />
-          <StatusCard
-            type="documents"
-            titleOverride="Quotes Received"
-            data={{ value: headerStats.quotes_received ?? 0 }}
-          />
-          <StatusCard
-            type="value"
-            titleOverride="Accepted Quotes"
-            data={{ value: headerStats.accepted_quotes ?? 0 }}
-          />
+        <div className="space-y-4 my-8">
+          {/* First Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+            {/* Total Properties */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-600">Total Properties</p>
+                <span className="text-2xl">🏢</span>
+              </div>
+              <p className="text-3xl lg:text-4xl font-bold text-gray-900 mb-1">
+                {headerStats.total_properties ?? properties.length}
+              </p>
+              <p className="text-xs text-gray-500">Active listings</p>
+            </div>
+
+            {/* Published Memorandums */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-600">Published Memorandums</p>
+                <span className="text-2xl">📄</span>
+              </div>
+              <p className="text-3xl lg:text-4xl font-bold text-gray-900 mb-1">
+                {headerStats.published_memorandums ?? 0}
+              </p>
+              <p className="text-xs text-gray-500">Live documents</p>
+            </div>
+
+            {/* My Loan Requests */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-600">My Loan Requests</p>
+                <span className="text-2xl">💰</span>
+              </div>
+              <p className="text-3xl lg:text-4xl font-bold text-gray-900 mb-1">
+                {headerStats.my_loan_requests ?? 0}
+              </p>
+              <p className="text-xs text-gray-500">Submitted to lenders</p>
+            </div>
+          </div>
+          
+          {/* Second Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+            {/* Quotes Received */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-600">Quotes Received</p>
+                <span className="text-2xl">📊</span>
+              </div>
+              <p className="text-3xl lg:text-4xl font-bold text-gray-900 mb-1">
+                {headerStats.quotes_received ?? 0}
+              </p>
+              <p className="text-xs text-gray-500">From lenders</p>
+            </div>
+
+            {/* Accepted Quotes */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-600">Accepted Quotes</p>
+                <span className="text-2xl">✅</span>
+              </div>
+              <p className="text-3xl lg:text-4xl font-bold text-gray-900 mb-1">
+                {headerStats.accepted_quotes ?? 0}
+              </p>
+              <p className="text-xs text-gray-500 font-medium">Successfully closed</p>
+            </div>
+
+            {/* Rejected Quotes */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-600">Rejected Quotes</p>
+                <span className="text-2xl">❌</span>
+              </div>
+              <p className="text-3xl lg:text-4xl font-bold text-gray-900 mb-1">
+                {headerStats.rejected_quotes ?? 0}
+              </p>
+              <p className="text-xs text-gray-500 font-medium">Declined offers</p>
+            </div>
+          </div>
         </div>
       )}
 

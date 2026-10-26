@@ -1,8 +1,10 @@
 export interface SponsorLoanHeaderStats {
   total_properties: number;
-  total_loan_requests: number;
+  published_memorandums: number;
+  my_loan_requests: number;
   quotes_received: number;
   accepted_quotes: number;
+  rejected_quotes: number;
 }
 
 export interface LoanQuote {
@@ -29,9 +31,11 @@ export interface LoanComparisonSummary {
 
 export interface SponsorLoanDashboardData {
   total_properties: number;
-  total_loan_requests: number;
+  published_memorandums: number;
+  my_loan_requests: number;
   quotes_received: number;
   accepted_quotes: number;
+  rejected_quotes: number;
 }
 
 export interface LoanMemorandumLink {
