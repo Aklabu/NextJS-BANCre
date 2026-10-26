@@ -602,6 +602,72 @@ export async function fetchQuoteCounts(
   }
 }
 
+/**
+ * Fetch All Sponsor Quotes
+ * GET /api/loans/sponsor/quotes/
+ * 
+ * Returns all quotes for the authenticated sponsor across all their properties.
+ * Includes property names and full quote details.
+ * 
+ * Authentication: Required (Bearer Token)
+ * Permission: Sponsor Only
+ * 
+ * Query Parameters:
+ * - page: Page number (default: 1)
+ * - page_size: Items per page (default: 10)
+ * 
+ * @param page - Page number for pagination
+ * @param pageSize - Number of items per page
+ * @returns Array of LoanQuote objects with property names
+ */
+export async function fetchAllSponsorQuotes(
+  page: number = 1,
+  pageSize: number = 100
+): Promise<LoanQuote[]> {
+  try {
+    const response = await api.get(
+      `/api/loans/sponsor/quotes/?page=${page}&page_size=${pageSize}`
+    );
+    
+    console.log("Sponsor Quotes API Response:", response?.data);
+    
+    const apiData = response?.data as ApiResponse<PaginatedApiResponse<any>>;
+    
+    // Extract results from paginated response
+    const quotes = apiData?.data?.results ?? [];
+    
+    if (!Array.isArray(quotes)) {
+      console.error("Expected quotes array, got:", quotes);
+      return [];
+    }
+    
+    // Map API response to LoanQuote interface
+    return quotes.map((item: any) => ({
+      id: Number(item.id),
+      lender_name: item.lender_name || "Unknown Lender",
+      property_name: item.property_name || "N/A",
+      loan_amount: String(item.loan_amount || "0"),
+      max_as_is_ltv: item.max_as_is_ltv || "0",
+      interest_rate: item.interest_rate || "0",
+      term: item.term || 0,
+      origination_fee: item.origination_fee || "0",
+      dscr: item.dscr || 0,
+      expires_at: item.expires_at,
+      status: item.status || "Submitted",
+      loan_request: Number(item.loan_request),
+    }));
+  } catch (error: any) {
+    console.error("Failed to fetch sponsor quotes", error);
+    
+    // If 403, user doesn't have permission
+    if (error?.response?.status === 403) {
+      throw new Error("You do not have permission to view these quotes");
+    }
+    
+    return [];
+  }
+}
+
 // ── Helper Functions ─────────────────────────────────────────────────────────
 
 /**

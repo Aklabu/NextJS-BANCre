@@ -179,11 +179,6 @@ const LoanQuotesTable: React.FC<LoanQuotesTableProps> = ({
                     <p className="text-sm text-gray-900">
                       {quote.property_name || "N/A"}
                     </p>
-                    {quote.loan_request && (
-                      <p className="text-xs text-gray-500">
-                        #{quote.loan_request}
-                      </p>
-                    )}
                   </td>
 
                   {/* Loan Amount */}

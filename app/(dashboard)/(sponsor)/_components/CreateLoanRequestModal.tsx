@@ -161,17 +161,26 @@ export default function CreateLoanRequestModal({
               </option>
               {properties.map((prop) => (
                 <option key={prop.id} value={prop.id}>
-                  {prop.property_name}{" "}
-                  {prop.property_address ? `— ${prop.property_address}` : ""}
+                  {prop.property_name}
                 </option>
               ))}
             </select>
             {selectedProperty && (
               <p className="mt-1 text-xs text-gray-500">
-                Property ID #{selectedProperty.id} • Type:{" "}
-                <span className="capitalize font-medium text-gray-700">
-                  {selectedProperty.property_type || "Commercial"}
-                </span>
+                {selectedProperty.property_address && (
+                  <>
+                    {selectedProperty.property_address}
+                    {selectedProperty.property_type && " • "}
+                  </>
+                )}
+                {selectedProperty.property_type && (
+                  <>
+                    Type:{" "}
+                    <span className="capitalize font-medium text-gray-700">
+                      {selectedProperty.property_type}
+                    </span>
+                  </>
+                )}
               </p>
             )}
           </div>

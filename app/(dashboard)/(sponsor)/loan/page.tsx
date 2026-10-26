@@ -24,6 +24,7 @@ import {
   fetchLoanRequests,
   deleteLoanRequest,
   fetchQuoteCounts,
+  fetchAllSponsorQuotes,
   type SponsorLoanRequestItem,
 } from "../_api/loan-requests-api";
 import {
@@ -112,6 +113,14 @@ const Page = () => {
       enabled: !!user, // Only fetch when user exists
     });
 
+  // Fetch all sponsor quotes with property names
+  const { data: allSponsorQuotes = [], isLoading: quotesLoading } = useQuery<LoanQuote[]>({
+    queryKey: ["sponsor-quotes"],
+    queryFn: () => fetchAllSponsorQuotes(1, 100),
+    staleTime: 60 * 1000,
+    enabled: !!user,
+  });
+
   // Fetch properties for property selection in modal - only enabled when user is authenticated
   const { data: properties = [] } = useQuery<any[]>({
     queryKey: ["properties"],
@@ -145,7 +154,10 @@ const Page = () => {
       setMutatingQuoteId(quote.id);
       await acceptQuote(quote.id);
       toast.success("Quote accepted successfully.");
-      await queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["sponsor-quotes"] }),
+      ]);
     } catch (error: any) {
       console.error("Failed to accept quote", error);
       toast.error(error.message || "Failed to accept quote.");
@@ -159,7 +171,10 @@ const Page = () => {
       setMutatingQuoteId(quote.id);
       await declineQuote(quote.id);
       toast.success("Quote declined successfully.");
-      await queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["sponsor-quotes"] }),
+      ]);
     } catch (error: any) {
       console.error("Failed to decline quote", error);
       toast.error(error.message || "Failed to decline quote.");
@@ -193,6 +208,7 @@ const Page = () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["loan-requests"] }),
         queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["sponsor-quotes"] }),
       ]);
     } catch (error) {
       console.error("Failed to delete loan request", error);
@@ -210,6 +226,7 @@ const Page = () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["loan-requests"] }),
         queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["sponsor-quotes"] }),
       ]);
       toast.success("Loan request deleted successfully.");
       setDeletingLoanRequest(null);
@@ -294,11 +311,22 @@ const Page = () => {
   }, [pendingAction]);
 
   const quoteCards = useMemo(
-    () => dashboardData.quote_card_view || [],
-    [dashboardData],
+    () => allSponsorQuotes || [],
+    [allSponsorQuotes],
   );
 
   const headerStats = dashboardData?.header_stats || DEFAULT_HEADER_STATS;
+
+  // Calculate best rate and highest LTV from all quotes
+  const bestRate = useMemo(() => {
+    if (quoteCards.length === 0) return 0;
+    return Math.min(...quoteCards.map(q => Number(q.interest_rate)));
+  }, [quoteCards]);
+
+  const highestLTV = useMemo(() => {
+    if (quoteCards.length === 0) return 0;
+    return Math.max(...quoteCards.map(q => Number(q.max_as_is_ltv)));
+  }, [quoteCards]);
 
   return (
     <div className="min-h-screen bg-gray-50/30">
@@ -420,7 +448,7 @@ const Page = () => {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Loan quotes</h2>
             <p className="text-sm text-gray-600">
-              Best rate <span className="font-semibold text-gray-900">{dashboardData.quote_comparison.best_rate ? `${Number(dashboardData.quote_comparison.best_rate).toFixed(2)}%` : '0.00%'}</span> · Highest LTV <span className="font-semibold text-gray-900">{dashboardData.quote_comparison.highest_ltv ? `${Number(dashboardData.quote_comparison.highest_ltv).toFixed(0)}%` : '0%'}</span> · <span className="font-semibold text-gray-900">{quoteCards.length}</span> total
+              Best rate <span className="font-semibold text-gray-900">{bestRate > 0 ? `${bestRate.toFixed(2)}%` : '0.00%'}</span> · Highest LTV <span className="font-semibold text-gray-900">{highestLTV > 0 ? `${highestLTV.toFixed(0)}%` : '0%'}</span> · <span className="font-semibold text-gray-900">{quoteCards.length}</span> total
             </p>
           </div>
           {quoteCards.length > 9 && (
@@ -435,13 +463,13 @@ const Page = () => {
 
         <LoanQuotesTable
           quotes={quoteCards.slice(0, 9)}
-          loading={dashboardLoading}
+          loading={quotesLoading}
           mutatingQuoteId={mutatingQuoteId}
           onAccept={(quote) => openConfirmAction("accept", quote)}
           onDecline={(quote) => openConfirmAction("decline", quote)}
           onView={handleViewQuote}
-          bestRate={dashboardData.quote_comparison.best_rate}
-          highestLTV={dashboardData.quote_comparison.highest_ltv}
+          bestRate={bestRate}
+          highestLTV={highestLTV}
         />
       </div>
 
