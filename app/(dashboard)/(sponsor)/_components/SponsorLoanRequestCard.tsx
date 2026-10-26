@@ -209,22 +209,12 @@ export default function SponsorLoanRequestCard({
             )}
           </div>
           
-          {onViewQuotes ? (
-            <button
-              type="button"
-              onClick={() => onViewQuotes(request)}
-              className="px-4 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
-            >
-              View request
-            </button>
-          ) : (
-            <Link
-              href={`/loan?requestId=${request.id}`}
-              className="px-4 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors inline-block"
-            >
-              View request
-            </Link>
-          )}
+          <Link
+            href={`/loan-request/${request.id}`}
+            className="px-4 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors inline-block"
+          >
+            View request
+          </Link>
         </div>
       </div>
     </div>

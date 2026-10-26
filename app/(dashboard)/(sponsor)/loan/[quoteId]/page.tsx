@@ -20,6 +20,13 @@ import type {
   LoanQuoteDetail,
   LoanRequestDetail,
 } from "../_components/loan-types";
+import {
+  fetchQuoteDetail,
+  fetchLoanRequestDetail,
+  acceptQuote,
+  declineQuote,
+} from "../../_api/loan-request-detail-api";
+import { deleteLoanRequest } from "../../_api/loan-requests-api";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -97,35 +104,19 @@ const Page = () => {
 
     setLoading(true);
     try {
-      let quoteResponse;
-      try {
-        quoteResponse = await api.get(`/api/v1/loans/quotes/${quoteId}/`);
-      } catch {
-        quoteResponse = await api.get(`/api/loans/quotes/${quoteId}/`);
-      }
-      const quoteData: LoanQuoteDetail | null =
-        quoteResponse.data?.data ?? null;
-      setQuote(quoteData);
+      const quoteData = await fetchQuoteDetail(Number(quoteId));
+      setQuote(quoteData as LoanQuoteDetail);
 
       const loanRequestId = Number(quoteData?.loan_request);
       if (Number.isFinite(loanRequestId) && loanRequestId > 0) {
-        let requestResponse;
-        try {
-          requestResponse = await api.get(
-            `/api/v1/loans/requests/${loanRequestId}/`,
-          );
-        } catch {
-          requestResponse = await api.get(
-            `/api/loans/requests/${loanRequestId}/`,
-          );
-        }
-        setRequestDetail(requestResponse.data?.data ?? null);
+        const requestData = await fetchLoanRequestDetail(loanRequestId);
+        setRequestDetail(requestData as LoanRequestDetail);
       } else {
         setRequestDetail(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load quote details", error);
-      toast.error("Unable to load quote details.");
+      toast.error(error.message || "Unable to load quote details.");
       setQuote(null);
       setRequestDetail(null);
     } finally {
@@ -201,16 +192,12 @@ const Page = () => {
     if (!quote) return;
     try {
       setActionLoading("accept");
-      try {
-        await api.post(`/api/v1/loans/quotes/${quote.id}/accept/`);
-      } catch {
-        await api.post(`/api/loans/quotes/${quote.id}/accept/`);
-      }
+      await acceptQuote(quote.id);
       toast.success("Quote accepted successfully.");
       await fetchDetails();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to accept quote", error);
-      toast.error("Failed to accept quote.");
+      toast.error(error.message || "Failed to accept quote.");
     } finally {
       setActionLoading(null);
     }
@@ -220,16 +207,12 @@ const Page = () => {
     if (!quote) return;
     try {
       setActionLoading("decline");
-      try {
-        await api.post(`/api/v1/loans/quotes/${quote.id}/decline/`);
-      } catch {
-        await api.post(`/api/loans/quotes/${quote.id}/decline/`);
-      }
+      await declineQuote(quote.id);
       toast.success("Quote declined successfully.");
       await fetchDetails();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to decline quote", error);
-      toast.error("Failed to decline quote.");
+      toast.error(error.message || "Failed to decline quote.");
     } finally {
       setActionLoading(null);
     }
@@ -244,16 +227,12 @@ const Page = () => {
 
     try {
       setActionLoading("delete");
-      try {
-        await api.delete(`/api/v1/loans/requests/${loanRequestId}/`);
-      } catch {
-        await api.delete(`/api/loans/requests/${loanRequestId}/`);
-      }
+      await deleteLoanRequest(loanRequestId);
       toast.success("Loan request deleted successfully.");
       router.push("/loan");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete loan request", error);
-      toast.error("Failed to delete loan request.");
+      toast.error(error.message || "Failed to delete loan request.");
     } finally {
       setActionLoading(null);
     }

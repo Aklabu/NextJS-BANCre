@@ -6,7 +6,8 @@ This directory contains all API integration code for the Sponsor dashboard loan 
 
 ```
 _api/
-├── loan-requests-api.ts           # Main API client with all functions
+├── loan-requests-api.ts           # Loan requests CRUD operations
+├── loan-request-detail-api.ts     # Quote detail and accept/decline operations
 ├── loan-requests-api-docs.md      # Complete API endpoint documentation
 ├── INTEGRATION_SUMMARY.md         # Integration details and changes
 └── README.md                      # This file
@@ -17,22 +18,17 @@ _api/
 ### Import the API functions
 
 ```typescript
+// From loan-requests-api.ts
 import {
-  // Core CRUD operations
+  // Loan Requests CRUD
   fetchLoanRequests,
-  fetchLoanRequestDetail,
   createLoanRequest,
   updateLoanRequest,
   deleteLoanRequest,
   
-  // Quote operations
-  fetchQuotesForLoanRequest,
-  fetchLoanQuoteDetail,
-  acceptLoanQuote,
-  declineLoanQuote,
-  
   // Dashboard
   fetchSponsorDashboard,
+  fetchQuoteCounts,
   
   // Error helpers
   extractApiErrorMessage,
@@ -44,6 +40,22 @@ import {
   type CreateLoanRequestPayload,
   type UpdateLoanRequestPayload,
 } from '../_api/loan-requests-api';
+
+// From loan-request-detail-api.ts
+import {
+  // Request & Quote Details
+  fetchLoanRequestDetail,
+  fetchQuotesForLoanRequest,
+  fetchQuoteDetail,
+  
+  // Quote Actions
+  acceptQuote,
+  declineQuote,
+  
+  // Types
+  type LoanRequestDetail,
+  type QuoteDetail,
+} from '../_api/loan-request-detail-api';
 ```
 
 ### Example: Fetch all loan requests
@@ -144,11 +156,11 @@ async function handleDelete(requestId: number) {
 ### Example: Accept a quote
 
 ```typescript
-import { acceptLoanQuote } from '../_api/loan-requests-api';
+import { acceptQuote } from '../_api/loan-request-detail-api';
 
 async function handleAcceptQuote(quoteId: number) {
   try {
-    await acceptLoanQuote(quoteId);
+    await acceptQuote(quoteId);
     toast.success('Quote accepted successfully!');
     
     // Refresh data
@@ -157,6 +169,25 @@ async function handleAcceptQuote(quoteId: number) {
     
   } catch (error) {
     toast.error(extractApiErrorMessage(error));
+  }
+}
+```
+
+### Example: Fetch loan request details with quotes
+
+```typescript
+import { fetchLoanRequestDetail, fetchQuotesForLoanRequest } from '../_api/loan-request-detail-api';
+
+async function loadRequestDetails(requestId: number) {
+  try {
+    const request = await fetchLoanRequestDetail(requestId);
+    const quotes = await fetchQuotesForLoanRequest(requestId);
+    
+    console.log('Request:', request.property_name);
+    console.log('Quotes received:', quotes.length);
+    
+  } catch (error) {
+    console.error('Failed to load details:', error);
   }
 }
 ```

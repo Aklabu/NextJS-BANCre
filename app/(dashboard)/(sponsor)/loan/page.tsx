@@ -25,6 +25,11 @@ import {
   fetchQuoteCounts,
   type SponsorLoanRequestItem,
 } from "../_api/loan-requests-api";
+import {
+  acceptQuote,
+  declineQuote,
+  fetchQuoteDetail,
+} from "../_api/loan-request-detail-api";
 import SponsorLoanRequestCard from "../_components/SponsorLoanRequestCard";
 import CreateLoanRequestModal from "../_components/CreateLoanRequestModal";
 import UpdateLoanRequestModal from "../_components/UpdateLoanRequestModal";
@@ -133,16 +138,12 @@ const Page = () => {
   const executeAcceptQuote = async (quote: LoanQuote) => {
     try {
       setMutatingQuoteId(quote.id);
-      try {
-        await api.post(`/api/v1/loans/quotes/${quote.id}/accept/`);
-      } catch {
-        await api.post(`/api/loans/quotes/${quote.id}/accept/`);
-      }
+      await acceptQuote(quote.id);
       toast.success("Quote accepted successfully.");
       await queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to accept quote", error);
-      toast.error("Failed to accept quote.");
+      toast.error(error.message || "Failed to accept quote.");
     } finally {
       setMutatingQuoteId(null);
     }
@@ -151,16 +152,12 @@ const Page = () => {
   const executeDeclineQuote = async (quote: LoanQuote) => {
     try {
       setMutatingQuoteId(quote.id);
-      try {
-        await api.post(`/api/v1/loans/quotes/${quote.id}/decline/`);
-      } catch {
-        await api.post(`/api/loans/quotes/${quote.id}/decline/`);
-      }
+      await declineQuote(quote.id);
       toast.success("Quote declined successfully.");
       await queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to decline quote", error);
-      toast.error("Failed to decline quote.");
+      toast.error(error.message || "Failed to decline quote.");
     } finally {
       setMutatingQuoteId(null);
     }
@@ -171,13 +168,8 @@ const Page = () => {
       return quote.loan_request;
     }
 
-    let detailResponse;
-    try {
-      detailResponse = await api.get(`/api/v1/loans/quotes/${quote.id}/`);
-    } catch {
-      detailResponse = await api.get(`/api/loans/quotes/${quote.id}/`);
-    }
-    const derivedRequestId = Number(detailResponse.data?.data?.loan_request);
+    const quoteDetail = await fetchQuoteDetail(quote.id);
+    const derivedRequestId = Number(quoteDetail.loan_request);
     return Number.isFinite(derivedRequestId) ? derivedRequestId : null;
   };
 
