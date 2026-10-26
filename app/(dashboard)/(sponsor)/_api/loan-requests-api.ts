@@ -430,125 +430,157 @@ export async function deleteLoanRequest(id: number): Promise<void> {
  * Fetch all quotes for a specific Loan Request ID
  * Postman: GET /api/loans/requests/{{id}}/quotes/
  */
+/**
+ * Fetch all quotes for a specific Loan Request ID
+ * GET /api/loans/requests/{id}/quotes/
+ * 
+ * Returns all quotes submitted for a specific loan request.
+ * Uses the standard API response format with pagination support.
+ */
 export async function fetchQuotesForLoanRequest(
   loanRequestId: number,
 ): Promise<LoanQuoteDetail[]> {
-  let response;
   try {
-    response = await api.get(`/api/loans/requests/${loanRequestId}/quotes/`);
+    const response = await api.get(`/api/loans/requests/${loanRequestId}/quotes/`);
+    
+    console.log("Quotes for Request API Response:", response?.data);
+    
+    // Handle standard API response format
+    const apiData = response?.data as ApiResponse<PaginatedApiResponse<any>>;
+    
+    // Try to extract from paginated response
+    let raw = apiData?.data?.results;
+    
+    // Fallback: Try direct data array (if data is an array itself)
+    if (!Array.isArray(raw) && Array.isArray(apiData?.data)) {
+      raw = apiData?.data;
+    }
+    
+    // Fallback: Try response.data.results
+    if (!Array.isArray(raw) && Array.isArray(response?.data?.results)) {
+      raw = response.data.results;
+    }
+    
+    // Fallback: Try response.data directly
+    if (!Array.isArray(raw) && Array.isArray(response?.data)) {
+      raw = response.data;
+    }
+    
+    if (!Array.isArray(raw)) {
+      console.error("Expected quotes array, got:", raw);
+      return [];
+    }
+
+    return raw.map((item: any) => ({
+      id: Number(item.id),
+      loan_request: Number(item.loan_request ?? loanRequestId),
+      lender: Number(item.lender),
+      lender_name: item.lender_name || "Commercial Lender",
+      guarantor: item.guarantor || "",
+      status: item.status || "Pending",
+      expires_at: item.expires_at || null,
+      submitted_at: item.submitted_at || item.created_at || "",
+      updated_at: item.updated_at || "",
+      loan_amount: String(item.loan_amount || "0"),
+      initial_funding: String(item.initial_funding || "0"),
+      future_funding: String(item.future_funding || "0"),
+      sponsor_equity: String(item.sponsor_equity || "0"),
+      max_as_is_ltv: String(item.max_as_is_ltv || "0"),
+      max_ltc: String(item.max_ltc || "0"),
+      max_as_stabilized_ltv: String(item.max_as_stabilized_ltv || "0"),
+      min_as_is_dy: String(item.min_as_is_dy || "0"),
+      min_stabilized_dy: String(item.min_stabilized_dy || "0"),
+      term: item.term || 0,
+      interest_rate: String(item.interest_rate || "0"),
+      amortization: item.amortization || "",
+      prepayment: item.prepayment || "",
+      origination_fee: String(item.origination_fee || "0"),
+      capex_reserve: String(item.capex_reserve || "0"),
+      ff_and_e_reserve: String(item.ff_and_e_reserve || "0"),
+      interest_carry_reserve: String(item.interest_carry_reserve || "0"),
+      extension_conditions: item.extension_conditions || "",
+      collateral: item.collateral || "",
+      recourse: item.recourse || "",
+      dscr: Number(item.dscr) || 0,
+    }));
   } catch (err) {
     console.error(`Failed to fetch quotes for loan request #${loanRequestId}`, err);
     return [];
   }
-
-  const raw =
-    response?.data?.data ??
-    (Array.isArray(response?.data?.results)
-      ? response.data.results
-      : Array.isArray(response?.data)
-        ? response.data
-        : response?.data
-          ? [response.data]
-          : []);
-
-  if (!Array.isArray(raw)) return [];
-
-  return raw.map((item: any) => ({
-    id: Number(item.id),
-    loan_request: Number(item.loan_request ?? loanRequestId),
-    lender_name: item.lender_name || "Commercial Lender",
-    guarantor: item.guarantor,
-    status: item.status || "Pending",
-    expires_at: item.expires_at,
-    submitted_at: item.submitted_at || item.created_at,
-    updated_at: item.updated_at,
-    loan_amount: String(item.loan_amount || "0"),
-    initial_funding: item.initial_funding ? String(item.initial_funding) : undefined,
-    future_funding: item.future_funding ? String(item.future_funding) : undefined,
-    sponsor_equity: item.sponsor_equity ? String(item.sponsor_equity) : undefined,
-    max_as_is_ltv: item.max_as_is_ltv,
-    max_ltc: item.max_ltc,
-    max_as_stabilized_ltv: item.max_as_stabilized_ltv,
-    min_as_is_dy: item.min_as_is_dy,
-    min_stabilized_dy: item.min_stabilized_dy,
-    term: item.term,
-    interest_rate: item.interest_rate,
-    amortization: item.amortization,
-    prepayment: item.prepayment,
-    origination_fee: item.origination_fee,
-    capex_reserve: item.capex_reserve ? String(item.capex_reserve) : undefined,
-    ff_and_e_reserve: item.ff_and_e_reserve ? String(item.ff_and_e_reserve) : undefined,
-    interest_carry_reserve: item.interest_carry_reserve ? String(item.interest_carry_reserve) : undefined,
-    extension_conditions: item.extension_conditions,
-    collateral: item.collateral,
-    recourse: item.recourse,
-    dscr: item.dscr,
-  }));
 }
 
 /**
  * Fetch Details of a Single Loan Quote
- * Postman: GET /api/v1/loans/quotes/{{id}}/
+ * GET /api/loans/quotes/{id}/
+ * 
+ * Returns detailed information about a specific quote.
  */
 export async function fetchLoanQuoteDetail(
   quoteId: number,
 ): Promise<LoanQuoteDetail | null> {
-  let response;
   try {
-    response = await api.get(`/api/loans/quotes/${quoteId}/`);
+    const response = await api.get(`/api/loans/quotes/${quoteId}/`);
+    
+    console.log("Loan Quote Detail API Response:", response?.data);
+    
+    // Handle standard API response format
+    const apiData = response?.data as ApiResponse<any>;
+    const raw = apiData?.data ?? response?.data;
+    
+    if (!raw) return null;
+
+    return {
+      id: Number(raw.id),
+      loan_request: Number(raw.loan_request),
+      lender: Number(raw.lender),
+      lender_name: raw.lender_name || "Commercial Lender",
+      guarantor: raw.guarantor || "",
+      status: raw.status || "Pending",
+      expires_at: raw.expires_at || null,
+      submitted_at: raw.submitted_at || raw.created_at || "",
+      updated_at: raw.updated_at || "",
+      loan_amount: String(raw.loan_amount || "0"),
+      initial_funding: String(raw.initial_funding || "0"),
+      future_funding: String(raw.future_funding || "0"),
+      sponsor_equity: String(raw.sponsor_equity || "0"),
+      max_as_is_ltv: String(raw.max_as_is_ltv || "0"),
+      max_ltc: String(raw.max_ltc || "0"),
+      max_as_stabilized_ltv: String(raw.max_as_stabilized_ltv || "0"),
+      min_as_is_dy: String(raw.min_as_is_dy || "0"),
+      min_stabilized_dy: String(raw.min_stabilized_dy || "0"),
+      term: raw.term || 0,
+      interest_rate: String(raw.interest_rate || "0"),
+      amortization: raw.amortization || "",
+      prepayment: raw.prepayment || "",
+      origination_fee: String(raw.origination_fee || "0"),
+      capex_reserve: String(raw.capex_reserve || "0"),
+      ff_and_e_reserve: String(raw.ff_and_e_reserve || "0"),
+      interest_carry_reserve: String(raw.interest_carry_reserve || "0"),
+      extension_conditions: raw.extension_conditions || "",
+      collateral: raw.collateral || "",
+      recourse: raw.recourse || "",
+      dscr: Number(raw.dscr) || 0,
+    };
   } catch (err) {
     console.error(`Failed to fetch loan quote #${quoteId}`, err);
     return null;
   }
-
-  const raw = response?.data?.data ?? response?.data;
-  if (!raw) return null;
-
-  return {
-    id: Number(raw.id),
-    loan_request: Number(raw.loan_request),
-    lender_name: raw.lender_name || "Commercial Lender",
-    guarantor: raw.guarantor,
-    status: raw.status || "Pending",
-    expires_at: raw.expires_at,
-    submitted_at: raw.submitted_at || raw.created_at,
-    updated_at: raw.updated_at,
-    loan_amount: String(raw.loan_amount || "0"),
-    initial_funding: raw.initial_funding ? String(raw.initial_funding) : undefined,
-    future_funding: raw.future_funding ? String(raw.future_funding) : undefined,
-    sponsor_equity: raw.sponsor_equity ? String(raw.sponsor_equity) : undefined,
-    max_as_is_ltv: raw.max_as_is_ltv,
-    max_ltc: raw.max_ltc,
-    max_as_stabilized_ltv: raw.max_as_stabilized_ltv,
-    min_as_is_dy: raw.min_as_is_dy,
-    min_stabilized_dy: raw.min_stabilized_dy,
-    term: raw.term,
-    interest_rate: raw.interest_rate,
-    amortization: raw.amortization,
-    prepayment: raw.prepayment,
-    origination_fee: raw.origination_fee,
-    capex_reserve: raw.capex_reserve ? String(raw.capex_reserve) : undefined,
-    ff_and_e_reserve: raw.ff_and_e_reserve ? String(raw.ff_and_e_reserve) : undefined,
-    interest_carry_reserve: raw.interest_carry_reserve ? String(raw.interest_carry_reserve) : undefined,
-    extension_conditions: raw.extension_conditions,
-    collateral: raw.collateral,
-    recourse: raw.recourse,
-    dscr: raw.dscr,
-  };
 }
 
 /**
  * Accept a Loan Quote
- * Postman: POST /api/v1/loans/quotes/{{id}}/accept/
+ * POST /api/loans/quotes/{id}/accept/
+ * 
+ * Accepts a specific loan quote and declines all other quotes for the same loan request.
  */
 export async function acceptLoanQuote(quoteId: number): Promise<any> {
-  let response;
   try {
-    response = await api.post(`/api/loans/quotes/${quoteId}/accept/`);
+    const response = await api.post(`/api/loans/quotes/${quoteId}/accept/`);
+    return response?.data;
   } catch (err: any) {
+    console.error(`Failed to accept loan quote #${quoteId}`, err);
     throw err;
   }
-  return response?.data;
 }
 
 /**

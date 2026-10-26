@@ -8,15 +8,20 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   fetchLoanRequestDetail,
+  extractApiErrorMessage,
+  type SponsorLoanRequestItem,
+} from "../../_api/loan-requests-api";
+import {
   fetchQuotesForLoanRequest,
   acceptQuote,
   declineQuote,
-  extractApiErrorMessage,
-  type LoanRequestDetail,
   type QuoteDetail,
 } from "../../_api/loan-request-detail-api";
 
 const FALLBACK_IMAGE = "/images/SponsorDashboard.png";
+
+// Type alias for compatibility
+type LoanRequestDetail = SponsorLoanRequestItem;
 
 export default function LoanRequestDetailPage() {
   const params = useParams();
