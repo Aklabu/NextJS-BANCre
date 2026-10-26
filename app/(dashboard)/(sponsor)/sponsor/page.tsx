@@ -356,11 +356,11 @@ const Page = () => {
     setVisiblePropertyCount(prev => Math.min(prev + 6, properties.length));
   };
 
-  const headerStats = dashboardData?.header_stats || {
+  const headerStats = dashboardData || {
     total_properties: properties.length,
+    total_loan_requests: 0,
     quotes_received: 0,
-    documents_count: 0,
-    portfolio_value: 0,
+    accepted_quotes: 0,
   };
 
   const propertyOptions = useMemo(
@@ -421,15 +421,18 @@ const Page = () => {
           />
           <StatusCard
             type="quotes"
-            data={{ value: headerStats.quotes_received ?? 0 }}
+            titleOverride="My Loan Requests"
+            data={{ value: headerStats.total_loan_requests ?? 0 }}
           />
           <StatusCard
             type="documents"
-            data={{ value: headerStats.documents_count ?? 0 }}
+            titleOverride="Quotes Received"
+            data={{ value: headerStats.quotes_received ?? 0 }}
           />
           <StatusCard
             type="value"
-            data={{ value: headerStats.portfolio_value ?? 0 }}
+            titleOverride="Accepted Quotes"
+            data={{ value: headerStats.accepted_quotes ?? 0 }}
           />
         </div>
       )}

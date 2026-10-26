@@ -91,54 +91,58 @@ export interface UpdateLoanRequestPayload {
 
 export interface SponsorDashboardHeaderStats {
   total_properties: number;
+  total_loan_requests: number;
   quotes_received: number;
-  documents_count: number;
-  portfolio_value: number;
+  accepted_quotes: number;
 }
 
-export interface SponsorDashboardData {
-  header_stats: SponsorDashboardHeaderStats;
-  quote_card_view: LoanQuote[];
-  quote_comparison: LoanComparisonSummary;
+export interface SponsorLoanDashboardData {
+  total_properties: number;
+  total_loan_requests: number;
+  quotes_received: number;
+  accepted_quotes: number;
 }
 
 // ── API Methods ──────────────────────────────────────────────────────────────
 
 /**
  * Fetch Sponsor Dashboard data
- * Postman: GET /api/loans/dashboard/sponsor/
+ * GET /api/loans/dashboard/sponsor/
+ * 
+ * Returns sponsor dashboard statistics including:
+ * - total_properties: Total number of properties owned by the sponsor
+ * - total_loan_requests: Total number of loan requests created
+ * - quotes_received: Total number of loan quotes received
+ * - accepted_quotes: Number of quotes that have been accepted
+ * 
+ * Authentication: Required (Bearer Token)
+ * Permission: Sponsor Only
  */
-export async function fetchSponsorDashboard(): Promise<SponsorDashboardData> {
-  let response;
+export async function fetchSponsorDashboard(): Promise<SponsorLoanDashboardData> {
   try {
-    response = await api.get("/api/loans/dashboard/sponsor/");
-  } catch {
-    try {
-      response = await api.get("/api/dashboard/sponsor/");
-    } catch (err) {
-      console.error("Failed to fetch sponsor dashboard", err);
-      throw err;
-    }
+    const response = await api.get("/api/loans/dashboard/sponsor/");
+    
+    // Handle standard API response format
+    const apiData = response?.data as ApiResponse<any>;
+    const raw = apiData?.data ?? response?.data ?? {};
+
+    return {
+      total_properties: Number(raw.total_properties) || 0,
+      total_loan_requests: Number(raw.total_loan_requests) || 0,
+      quotes_received: Number(raw.quotes_received) || 0,
+      accepted_quotes: Number(raw.accepted_quotes) || 0,
+    };
+  } catch (err: any) {
+    console.error("Failed to fetch sponsor dashboard", err);
+    
+    // Return default values on error
+    return {
+      total_properties: 0,
+      total_loan_requests: 0,
+      quotes_received: 0,
+      accepted_quotes: 0,
+    };
   }
-
-  const raw = response?.data?.data ?? response?.data ?? {};
-  const headerStats = raw.header_stats || raw;
-
-  return {
-    header_stats: {
-      total_properties: Number(headerStats.total_properties) || 0,
-      quotes_received: Number(headerStats.quotes_received) || 0,
-      documents_count: Number(headerStats.documents_count) || 0,
-      portfolio_value: Number(headerStats.portfolio_value) || 0,
-    },
-    quote_card_view: Array.isArray(raw.quote_card_view) ? raw.quote_card_view : [],
-    quote_comparison: raw.quote_comparison || {
-      total_quotes: 0,
-      best_rate: 0,
-      highest_ltv: 0,
-      quotes: [],
-    },
-  };
 }
 
 /**

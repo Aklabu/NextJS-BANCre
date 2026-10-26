@@ -37,22 +37,11 @@ import CreateLoanRequestModal from "../_components/CreateLoanRequestModal";
 import UpdateLoanRequestModal from "../_components/UpdateLoanRequestModal";
 import LoanRequestQuotesModal from "../_components/LoanRequestQuotesModal";
 
-const DEFAULT_HEADER_STATS: SponsorLoanHeaderStats = {
-  total_properties: 0,
-  quotes_received: 0,
-  documents_count: 0,
-  portfolio_value: 0,
-};
-
 const DEFAULT_DASHBOARD_DATA: SponsorLoanDashboardData = {
-  header_stats: DEFAULT_HEADER_STATS,
-  quote_card_view: [],
-  quote_comparison: {
-    total_quotes: 0,
-    best_rate: 0,
-    highest_ltv: 0,
-    quotes: [],
-  },
+  total_properties: 0,
+  total_loan_requests: 0,
+  quotes_received: 0,
+  accepted_quotes: 0,
 };
 
 const Page = () => {
@@ -315,7 +304,12 @@ const Page = () => {
     [allSponsorQuotes],
   );
 
-  const headerStats = dashboardData?.header_stats || DEFAULT_HEADER_STATS;
+  const headerStats = dashboardData || {
+    total_properties: properties.length,
+    total_loan_requests: loanRequests.length,
+    quotes_received: quoteCards.length,
+    accepted_quotes: 0,
+  };
 
   // Calculate best rate and highest LTV from all quotes
   const bestRate = useMemo(() => {
@@ -364,18 +358,16 @@ const Page = () => {
               <p className="text-3xl font-semibold text-gray-900">{headerStats.total_properties ?? properties.length}</p>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <p className="text-sm text-gray-600 mb-1">My loan request</p>
+              <p className="text-3xl font-semibold text-gray-900">{headerStats.total_loan_requests ?? loanRequests.length}</p>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm text-gray-600 mb-1">Quotes received</p>
               <p className="text-3xl font-semibold text-gray-900">{headerStats.quotes_received ?? quoteCards.length}</p>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <p className="text-sm text-gray-600 mb-1">Documents</p>
-              <p className="text-3xl font-semibold text-gray-900">{headerStats.documents_count ?? 0}</p>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <p className="text-sm text-gray-600 mb-1">Portfolio value (Active requests)</p>
-              <p className="text-3xl font-semibold text-gray-900">
-                ${(headerStats.portfolio_value ?? 0).toFixed(1)}M
-              </p>
+              <p className="text-sm text-gray-600 mb-1">Accepted quotes</p>
+              <p className="text-3xl font-semibold text-gray-900">{headerStats.accepted_quotes ?? 0}</p>
             </div>
           </>
         )}

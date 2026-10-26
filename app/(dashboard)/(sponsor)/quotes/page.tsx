@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { IoArrowBack } from "react-icons/io5";
@@ -19,21 +19,13 @@ import {
   acceptQuote,
   declineQuote,
 } from "../_api/loan-request-detail-api";
+import { fetchAllSponsorQuotes } from "../_api/sponsor-quotes-api";
 
 const DEFAULT_DASHBOARD_DATA: SponsorLoanDashboardData = {
-  header_stats: {
-    total_properties: 0,
-    quotes_received: 0,
-    documents_count: 0,
-    portfolio_value: 0,
-  },
-  quote_card_view: [],
-  quote_comparison: {
-    total_quotes: 0,
-    best_rate: 0,
-    highest_ltv: 0,
-    quotes: [],
-  },
+  total_properties: 0,
+  total_loan_requests: 0,
+  quotes_received: 0,
+  accepted_quotes: 0,
 };
 
 const QuotesPage = () => {
@@ -44,7 +36,7 @@ const QuotesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(24); // Show 24 quotes per page
 
-  // TanStack Query for Dashboard Data
+  // TanStack Query for Dashboard Stats
   const { data: dashboardData = DEFAULT_DASHBOARD_DATA, isLoading: dashboardLoading } =
     useQuery({
       queryKey: ["sponsor-dashboard"],
@@ -52,6 +44,16 @@ const QuotesPage = () => {
       staleTime: 60 * 1000,
       enabled: !!user,
     });
+
+  // TanStack Query for All Sponsor Quotes
+  const { data: allQuotes = [], isLoading: quotesLoading } = useQuery({
+    queryKey: ["sponsor-all-quotes"],
+    queryFn: () => fetchAllSponsorQuotes(100),
+    staleTime: 60 * 1000,
+    enabled: !!user,
+  });
+
+  const isLoading = dashboardLoading || quotesLoading;
 
   const [mutatingQuoteId, setMutatingQuoteId] = useState<number | null>(null);
   const [pendingAction, setPendingAction] = useState<{
@@ -65,6 +67,7 @@ const QuotesPage = () => {
       await acceptQuote(quote.id);
       toast.success("Quote accepted successfully.");
       await queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["sponsor-all-quotes"] });
     } catch (error: any) {
       console.error("Failed to accept quote", error);
       toast.error(error.message || "Failed to accept quote.");
@@ -79,6 +82,7 @@ const QuotesPage = () => {
       await declineQuote(quote.id);
       toast.success("Quote declined successfully.");
       await queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["sponsor-all-quotes"] });
     } catch (error: any) {
       console.error("Failed to decline quote", error);
       toast.error(error.message || "Failed to decline quote.");
@@ -146,14 +150,37 @@ const QuotesPage = () => {
     };
   })();
 
-  const allQuotes = dashboardData.quote_card_view || [];
+  // Convert sponsor quotes to LoanQuote format and calculate best rate/highest LTV
+  const convertedQuotes: LoanQuote[] = allQuotes.map((quote) => ({
+    id: quote.id,
+    lender_name: quote.lender_name,
+    property_name: quote.property_name,
+    loan_amount: quote.loan_amount,
+    max_as_is_ltv: quote.max_as_is_ltv,
+    interest_rate: quote.interest_rate,
+    term: quote.term,
+    origination_fee: quote.origination_fee,
+    dscr: quote.dscr,
+    expires_at: quote.expires_at,
+    status: quote.status,
+    loan_request: quote.loan_request,
+  }));
+
+  // Calculate best rate and highest LTV from quotes
+  const bestRate = convertedQuotes.length > 0
+    ? Math.min(...convertedQuotes.map(q => parseFloat(q.interest_rate)))
+    : 0;
+  
+  const highestLTV = convertedQuotes.length > 0
+    ? Math.max(...convertedQuotes.map(q => parseFloat(q.max_as_is_ltv)))
+    : 0;
 
   // Pagination logic
-  const totalQuotes = allQuotes.length;
+  const totalQuotes = convertedQuotes.length;
   const totalPages = Math.ceil(totalQuotes / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentQuotes = allQuotes.slice(startIndex, endIndex);
+  const currentQuotes = convertedQuotes.slice(startIndex, endIndex);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -175,19 +202,22 @@ const QuotesPage = () => {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">All Loan Quotes</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Best rate{" "}
+            Total Properties{" "}
             <span className="font-semibold text-gray-900">
-              {dashboardData.quote_comparison.best_rate
-                ? `${Number(dashboardData.quote_comparison.best_rate).toFixed(2)}%`
-                : "0.00%"}
+              {dashboardData.total_properties}
             </span>{" "}
-            · Highest LTV{" "}
+            · My Loan Requests{" "}
             <span className="font-semibold text-gray-900">
-              {dashboardData.quote_comparison.highest_ltv
-                ? `${Number(dashboardData.quote_comparison.highest_ltv).toFixed(0)}%`
-                : "0%"}
+              {dashboardData.total_loan_requests}
             </span>{" "}
-            · <span className="font-semibold text-gray-900">{totalQuotes}</span> total
+            · Quotes Received{" "}
+            <span className="font-semibold text-gray-900">
+              {dashboardData.quotes_received}
+            </span>{" "}
+            · Accepted Quotes{" "}
+            <span className="font-semibold text-gray-900">
+              {dashboardData.accepted_quotes}
+            </span>
           </p>
         </div>
       </div>
@@ -195,13 +225,13 @@ const QuotesPage = () => {
       {/* Quotes Table */}
       <LoanQuotesTable
         quotes={currentQuotes}
-        loading={dashboardLoading}
+        loading={isLoading}
         mutatingQuoteId={mutatingQuoteId}
         onAccept={(quote) => openConfirmAction("accept", quote)}
         onDecline={(quote) => openConfirmAction("decline", quote)}
         onView={handleViewQuote}
-        bestRate={dashboardData.quote_comparison.best_rate}
-        highestLTV={dashboardData.quote_comparison.highest_ltv}
+        bestRate={bestRate}
+        highestLTV={highestLTV}
       />
 
       {/* Pagination */}
