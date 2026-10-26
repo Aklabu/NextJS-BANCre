@@ -14,7 +14,7 @@ import {
   NotificationPreferences,
 } from "./notificationApi";
 import { toast } from "sonner";
-import { LuMail, LuSparkles, LuLoader } from "react-icons/lu";
+import { LuMail, LuLoader } from "react-icons/lu";
 import { IoCheckmark } from "react-icons/io5";
 
 interface NotificationPreferencesModalProps {
@@ -28,7 +28,7 @@ export default function NotificationPreferencesModal({
 }: NotificationPreferencesModalProps) {
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     quote_emails_enabled: true,
-    marketing_emails_enabled: true,
+    updated_at: new Date().toISOString(),
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -53,11 +53,12 @@ export default function NotificationPreferencesModal({
   }, [open, fetchPreferences]);
 
   const handleToggle = async (key: keyof NotificationPreferences) => {
+    if (key === 'updated_at') return; // Skip if trying to toggle updated_at
+    
     const updated = {
-      ...preferences,
-      [key]: !preferences[key],
+      quote_emails_enabled: !preferences.quote_emails_enabled,
     };
-    setPreferences(updated);
+    setPreferences({ ...updated, updated_at: preferences.updated_at });
     setSaving(true);
     try {
       const result = await updateNotificationPreferences(updated);
@@ -132,44 +133,6 @@ export default function NotificationPreferencesModal({
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                         preferences.quote_emails_enabled ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Marketing Emails Setting */}
-              <div
-                onClick={() => !saving && handleToggle("marketing_emails_enabled")}
-                className="flex items-start justify-between gap-4 p-3.5 rounded-xl border border-[#E2E8F0] hover:border-blue-300 hover:bg-[#F8FAFC] transition-all cursor-pointer select-none"
-              >
-                <div className="flex gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center shrink-0 text-purple-600 mt-0.5">
-                    <LuSparkles className="text-lg" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-[#0F172A]">
-                      Marketing & Announcements
-                    </h4>
-                    <p className="text-xs text-[#64748B] mt-0.5 leading-relaxed">
-                      Stay informed about new platform features, industry news, and product newsletters.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={preferences.marketing_emails_enabled}
-                    disabled={saving}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      preferences.marketing_emails_enabled ? "bg-blue-600" : "bg-gray-200"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        preferences.marketing_emails_enabled ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>

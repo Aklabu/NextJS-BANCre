@@ -4,7 +4,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CiBellOn } from "react-icons/ci";
 import NotificationCard from "./NotificationCard";
@@ -34,23 +34,53 @@ export default function Notifications() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [pendingAction, setPendingAction] =
     useState<PendingNotificationAction | null>(null);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (page: number = 1, append: boolean = false) => {
     try {
-      setLoading(true);
-      const items = await getNotifications();
-      setNotifications(items);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      const response = await getNotifications(page, 9);
+      
+      if (append) {
+        setNotifications((prev) => [...prev, ...response.results]);
+      } else {
+        setNotifications(response.results);
+      }
+      
+      setHasMore(response.next !== null);
+      setCurrentPage(page);
     } catch (err: any) {
       console.warn("Failed to fetch notifications:", err?.message || err);
-      setNotifications([]);
+      if (!append) {
+        setNotifications([]);
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current || loadingMore || !hasMore) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    
+    // Load more when user scrolls to bottom (with 50px threshold)
+    if (scrollHeight - scrollTop - clientHeight < 50) {
+      fetchNotifications(currentPage + 1, true);
+    }
+  }, [currentPage, hasMore, loadingMore, fetchNotifications]);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -63,9 +93,9 @@ export default function Notifications() {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications(1, false);
     fetchUnreadCount();
-  }, [fetchNotifications, fetchUnreadCount]);
+  }, [fetchUnreadCount]);
 
   const executeMarkAllRead = async (): Promise<boolean> => {
     try {
@@ -86,6 +116,8 @@ export default function Notifications() {
       await clearAllNotifications();
       setNotifications([]);
       setUnreadCount(0);
+      setCurrentPage(1);
+      setHasMore(true);
       toast.success("All notifications cleared");
       return true;
     } catch (err) {
@@ -97,7 +129,8 @@ export default function Notifications() {
 
   const executeMarkOneRead = async (id: string | number): Promise<boolean> => {
     try {
-      await markNotificationAsRead(id);
+      const numId = typeof id === 'number' ? id : Number(id);
+      await markNotificationAsRead(numId);
       setNotifications((prev) =>
         prev.map((n) => (String(n.id) === String(id) ? { ...n, is_read: true } : n)),
       );
@@ -120,32 +153,11 @@ export default function Notifications() {
   };
 
   const isMemorandumGenerated = (notification: NotificationItem) => {
-    const normalizedType = (notification.notification_type || notification.type || "")
-      .toLowerCase()
-      .replace(/[_-]/g, " ");
-
-    return (
-      normalizedType.includes("memorandum") &&
-      normalizedType.includes("generated")
-    );
+    return notification.notification_type === "MEMORANDUM_GENERATED";
   };
 
   const getMemorandumId = (notification: NotificationItem): number | null => {
-    const directId =
-      toNumberOrNull(notification.memorandum_id) ||
-      toNumberOrNull(notification.related_id) ||
-      toNumberOrNull(notification.target_id) ||
-      toNumberOrNull(notification.data?.memorandum_id) ||
-      toNumberOrNull(notification.data?.related_id) ||
-      toNumberOrNull(notification.data?.target_id);
-
-    if (directId) return directId;
-
-    const maybeUrl = notification.action_url || "";
-    const match = maybeUrl.match(/\/memorandum\/(\d+)/i);
-    if (match?.[1]) return Number(match[1]);
-
-    return null;
+    return toNumberOrNull(notification.memorandum_id);
   };
 
   const handleNotificationClick = async (notification: NotificationItem) => {
@@ -181,7 +193,8 @@ export default function Notifications() {
   const executeDeleteOne = async (id: string | number): Promise<boolean> => {
     try {
       const notif = notifications.find((n) => String(n.id) === String(id));
-      await deleteNotification(id);
+      const numId = typeof id === 'number' ? id : Number(id);
+      await deleteNotification(numId);
       setNotifications((prev) => prev.filter((n) => String(n.id) !== String(id)));
       if (notif && !notif.is_read) {
         setUnreadCount((prev) => Math.max(0, prev - 1));
@@ -319,7 +332,11 @@ export default function Notifications() {
           </div>
 
           {/* List Content */}
-          <div className="flex-1 overflow-y-auto min-h-[160px] max-h-[380px] divide-y divide-[#F1F5F9]">
+          <div 
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto min-h-[160px] max-h-[380px] divide-y divide-[#F1F5F9]"
+          >
             {loading ? (
               <div className="flex flex-col items-center justify-center py-12 text-[#6A7282] text-sm">
                 <p>Loading notifications...</p>
@@ -329,24 +346,31 @@ export default function Notifications() {
                 <p>No notifications</p>
               </div>
             ) : (
-              notifications.map((item) => (
-                <NotificationCard
-                  key={String(item.id)}
-                  id={item.id}
-                  title={item.title || "Notification"}
-                  from={item.from || "System"}
-                  description={item.description || item.message || ""}
-                  is_read={item.is_read}
-                  created_at={item.created_at}
-                  onRequestMarkRead={(id) =>
-                    setPendingAction({ type: "mark-one-read", id })
-                  }
-                  onRequestDelete={(id) =>
-                    setPendingAction({ type: "delete-one", id })
-                  }
-                  onClickNotification={() => handleNotificationClick(item)}
-                />
-              ))
+              <>
+                {notifications.map((item) => (
+                  <NotificationCard
+                    key={String(item.id)}
+                    id={item.id}
+                    title={item.title || "Notification"}
+                    from="System"
+                    description={item.message || ""}
+                    is_read={item.is_read}
+                    created_at={item.created_at}
+                    onRequestMarkRead={(id) =>
+                      setPendingAction({ type: "mark-one-read", id })
+                    }
+                    onRequestDelete={(id) =>
+                      setPendingAction({ type: "delete-one", id })
+                    }
+                    onClickNotification={() => handleNotificationClick(item)}
+                  />
+                ))}
+                {loadingMore && (
+                  <div className="flex items-center justify-center py-4 text-[#6A7282] text-xs">
+                    <p>Loading more...</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
