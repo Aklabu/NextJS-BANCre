@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FaPlus } from "react-icons/fa6";
 import { LuDollarSign } from "react-icons/lu";
+import { useAuth } from "@/providers/AuthProvider";
 
 import LoanCard from "./_components/LoanCard";
 import StatusCard from "@/components/StatusCard";
@@ -57,6 +58,7 @@ const Page = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const queryRequestId = useMemo(() => {
     const raw =
@@ -83,32 +85,34 @@ const Page = () => {
     "Requests",
   );
 
-  // TanStack Query for Loan Requests
+  // TanStack Query for Loan Requests - only enabled when user is authenticated
   const { data: loanRequests = [], isLoading: requestsLoading } =
     useQuery<SponsorLoanRequestItem[]>({
       queryKey: ["loan-requests"],
       queryFn: () => fetchLoanRequests(1, 100),
       staleTime: 60 * 1000,
+      enabled: !!user, // Only fetch when user exists
     });
 
-  // Fetch quote counts for loan requests
+  // Fetch quote counts for loan requests - only enabled when we have loan requests
   const { data: quoteCounts = {} } = useQuery<Record<number, number>>({
     queryKey: ["quote-counts", loanRequests.map((r) => r.id)],
     queryFn: () =>
       fetchQuoteCounts(loanRequests.map((r) => r.id)),
-    enabled: loanRequests.length > 0,
+    enabled: !!user && loanRequests.length > 0,
     staleTime: 30 * 1000,
   });
 
-  // TanStack Query for Dashboard Data
+  // TanStack Query for Dashboard Data - only enabled when user is authenticated
   const { data: dashboardData = DEFAULT_DASHBOARD_DATA, isLoading: dashboardLoading } =
     useQuery({
       queryKey: ["sponsor-dashboard"],
       queryFn: fetchSponsorDashboard,
       staleTime: 60 * 1000,
+      enabled: !!user, // Only fetch when user exists
     });
 
-  // Fetch properties for property selection in modal
+  // Fetch properties for property selection in modal - only enabled when user is authenticated
   const { data: properties = [] } = useQuery<any[]>({
     queryKey: ["properties"],
     queryFn: async () => {
@@ -119,6 +123,7 @@ const Page = () => {
       return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: !!user, // Only fetch when user exists
   });
 
   const [mutatingQuoteId, setMutatingQuoteId] = useState<number | null>(null);
@@ -370,7 +375,7 @@ const Page = () => {
               <div key={i} className="h-80 rounded-xl bg-white border border-gray-200 animate-pulse" />
             ))}
           </div>
-        ) : loanRequests.length === 0 ? (
+        ) : !requestsLoading && loanRequests.length === 0 ? (
           <div className="text-center py-12 px-4 border border-dashed border-gray-300 rounded-xl bg-white">
             <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-3">
               <LuDollarSign />
