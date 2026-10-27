@@ -7,7 +7,7 @@ import { MdClose } from "react-icons/md";
 import { usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CiGrid42, CiSearch } from "react-icons/ci";
-import { FiFileText, FiLogOut, FiUpload } from "react-icons/fi";
+import { FiFileText, FiLogOut, FiUpload, FiMessageCircle } from "react-icons/fi";
 import { FaRegChartBar } from "react-icons/fa";
 import { IoBagHandleOutline } from "react-icons/io5";
 import Notifications from "../(sponsor)/notifications/page";
@@ -61,6 +61,11 @@ const sponsor: LinkProps = [
     text: "Loan Quotes",
     href: "/loan",
     icon: <FaRegChartBar className="text-lg" />,
+  },
+  {
+    text: "Property AI Chat",
+    href: "/property-ai-chat",
+    icon: <FiMessageCircle className="text-lg" />,
   },
   // {
   //   text: "Message",
