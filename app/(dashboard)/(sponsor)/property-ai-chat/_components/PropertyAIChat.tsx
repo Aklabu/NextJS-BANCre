@@ -1,20 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, Trash2 } from "lucide-react";
+import { 
+  getProperties, 
+  PropertyItem, 
+  createChatSession, 
+  sendPropertyMessage,
+  getSessionMessages,
+  ChatSession 
+} from "../propertyChatApi";
+import { toast } from "sonner";
+import PreviousSessionsModal from "./PreviousSessionsModal";
 
-type Property = {
-  id: string;
-  name: string;
-  address: string;
-  type: "Commercial" | "Residential";
-};
+type Property = PropertyItem;
 
-type Chat = {
-  id: string;
-  title: string;
-  date: string;
-};
+type Chat = ChatSession;
 
 type Message = {
   id: string;
@@ -30,117 +31,190 @@ export default function PropertyAIChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+  const [isPreviousSessionsModalOpen, setIsPreviousSessionsModalOpen] = useState(false);
+  const propertyListRef = useRef<HTMLDivElement>(null);
 
-  // Mock data
-  const properties: Property[] = [
-    {
-      id: "1",
-      name: "Downtown Office Complex",
-      address: "123 Main Street, New York",
-      type: "Commercial",
-    },
-    {
-      id: "2",
-      name: "Riverside Apartments",
-      address: "456 River Road, Brooklyn",
-      type: "Residential",
-    },
-    {
-      id: "3",
-      name: "[Property name]",
-      address: "[Address]",
-      type: "Residential",
-    },
-  ];
+  // Fetch properties from API
+  const fetchProperties = useCallback(async (page: number, append: boolean = false) => {
+    try {
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      
+      console.log(`Fetching properties - Page: ${page}, Append: ${append}`);
+      const response = await getProperties(page, 10); // Fetch 10 properties per page
+      console.log("Received response:", response);
+      
+      if (append) {
+        setProperties((prev) => [...prev, ...response.results]);
+      } else {
+        setProperties(response.results);
+      }
+      
+      setTotalCount(response.count);
+      setHasMore(response.next !== null);
+      setCurrentPage(page);
+      
+      console.log(`Loaded ${response.results.length} properties. Total: ${response.count}, Has more: ${response.next !== null}`);
+    } catch (error: any) {
+      console.error("Failed to fetch properties:", error);
+      console.error("Error details:", error?.response?.data);
+      if (!append) {
+        toast.error(error?.response?.data?.message || "Failed to load properties");
+        setProperties([]);
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
 
-  const [chats, setChats] = useState<Chat[]>([
-    {
-      id: "1",
-      title: "What is the occupancy rate?",
-      date: "",
-    },
-    {
-      id: "2",
-      title: "Property Analysis Discussion",
-      date: "",
-    },
-    {
-      id: "3",
-      title: "New Chat",
-      date: "",
-    },
-  ]);
+  // Initial fetch
+  useEffect(() => {
+    fetchProperties(1, false);
+  }, [fetchProperties]);
+
+  // Handle scroll for infinite loading
+  const handleScroll = useCallback(() => {
+    if (!propertyListRef.current || loadingMore || !hasMore || loading) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = propertyListRef.current;
+    
+    // Load more when user scrolls to bottom (with 50px threshold)
+    if (scrollHeight - scrollTop - clientHeight < 50) {
+      fetchProperties(currentPage + 1, true);
+    }
+  }, [currentPage, hasMore, loadingMore, loading, fetchProperties]);
+
+  // Mock data for chats (will be replaced with API later)
+
+  const [chats, setChats] = useState<Chat[]>([]);
 
   const handlePropertySelect = (property: Property) => {
     setSelectedProperty(property);
-    // Initialize with mock messages
-    setMessages([
-      {
-        id: "1",
-        sender: "user",
-        content: "What is the occupancy rate?",
-      },
-      {
-        id: "2",
-        sender: "assistant",
-        content:
-          "The occupancy rate for this property is 85.5%, which is above the market average. [AI reply continues here]",
-      },
-      {
-        id: "3",
-        sender: "user",
-        content: "What about parking spaces?",
-      },
-      {
-        id: "4",
-        sender: "assistant",
-        content:
-          "The property has 100 parking spaces available. [AI reply continues here]",
-      },
-    ]);
+    // Reset chat when switching properties
+    setMessages([]);
+    setCurrentSessionId(null);
   };
 
-  const handleNewChat = () => {
-    setMessages([]);
-    const newChat: Chat = {
-      id: Date.now().toString(),
-      title: "New Chat",
-      date: "",
-    };
-    setChats([newChat, ...chats]);
+  const handleNewChat = async () => {
+    if (!selectedProperty) {
+      toast.error("Please select a property first");
+      return;
+    }
+
+    try {
+      // Create a new chat session for the selected property
+      const session = await createChatSession(selectedProperty.id, "New Chat");
+      setCurrentSessionId(session.id);
+      setMessages([]);
+      toast.success("New chat session created");
+      
+      console.log("New chat session created:", session);
+    } catch (error: any) {
+      console.error("Failed to create new chat:", error);
+      toast.error(error?.response?.data?.message || "Failed to create new chat");
+    }
   };
 
   const handleDeleteChat = (chatId: string) => {
     setChats(chats.filter((chat) => chat.id !== chatId));
   };
 
-  const handleSendMessage = () => {
+  const handleSelectSession = async (session: ChatSession) => {
+    setCurrentSessionId(session.id);
+    setMessages([]);
+    
+    if (!selectedProperty) return;
+
+    try {
+      // Load message history for this session
+      const sessionMessages = await getSessionMessages(
+        selectedProperty.id,
+        session.id
+      );
+
+      // Convert API messages to component message format
+      const formattedMessages: Message[] = sessionMessages.map((msg) => ({
+        id: msg.id.toString(),
+        sender: msg.role,
+        content: msg.content,
+      }));
+
+      setMessages(formattedMessages);
+      toast.success(`Loaded session: ${session.title}`);
+      console.log("Loaded messages:", formattedMessages);
+    } catch (error: any) {
+      console.error("Failed to load session messages:", error);
+      toast.error(error?.response?.data?.message || "Failed to load session messages");
+    }
+  };
+
+  const handleOpenPreviousSessions = () => {
+    if (!selectedProperty) {
+      toast.error("Please select a property first");
+      return;
+    }
+    setIsPreviousSessionsModalOpen(true);
+  };
+
+  const handleSendMessage = async () => {
     if (!inputMessage.trim() || !selectedProperty) return;
 
-    const newMessage: Message = {
+    const userMessage: Message = {
       id: Date.now().toString(),
       sender: "user",
       content: inputMessage,
     };
 
-    setMessages([...messages, newMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Send message to API
+      const response = await sendPropertyMessage(
+        selectedProperty.id,
+        inputMessage,
+        currentSessionId || undefined
+      );
+
+      // Update session ID if this was the first message
+      if (!currentSessionId) {
+        setCurrentSessionId(response.session_id);
+      }
+
+      // Add AI response to messages
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         sender: "assistant",
-        content: "Assistant is typing...",
+        content: response.reply,
       };
+
       setMessages((prev) => [...prev, aiMessage]);
+      console.log("Message sent successfully:", response);
+    } catch (error: any) {
+      console.error("Failed to send message:", error);
+      toast.error(error?.response?.data?.message || "Failed to send message");
+      
+      // Remove the user message if sending failed
+      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
-  const filteredProperties = properties.filter((property) =>
-    property.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProperties = (properties || []).filter((property) =>
+    property.property_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const suggestedQuestions = [
@@ -157,7 +231,7 @@ export default function PropertyAIChat() {
           <h2 className="text-lg font-semibold text-gray-900 mb-0.5">
             Your properties
           </h2>
-          <p className="text-sm text-gray-500">25 total</p>
+          <p className="text-sm text-gray-500">{totalCount} total</p>
         </div>
 
         {/* Search */}
@@ -172,29 +246,50 @@ export default function PropertyAIChat() {
         </div>
 
         {/* Properties List */}
-        <div className="flex-1 overflow-y-auto">
-          {filteredProperties.map((property) => (
-            <div
-              key={property.id}
-              className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
-                selectedProperty?.id === property.id
-                  ? "bg-blue-50 border-l-4 border-l-blue-600"
-                  : ""
-              }`}
-              onClick={() => handlePropertySelect(property)}
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm text-gray-900 truncate">
-                    {property.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 truncate">
-                    {property.address}
-                  </p>
-                </div>
-              </div>
+        <div 
+          ref={propertyListRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto"
+        >
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-sm text-gray-500">Loading properties...</p>
             </div>
-          ))}
+          ) : filteredProperties.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-sm text-gray-500">No properties found</p>
+            </div>
+          ) : (
+            <>
+              {filteredProperties.map((property) => (
+                <div
+                  key={property.id}
+                  className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
+                    selectedProperty?.id === property.id
+                      ? "bg-blue-50 border-l-4 border-l-blue-600"
+                      : ""
+                  }`}
+                  onClick={() => handlePropertySelect(property)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm text-gray-900 truncate">
+                        {property.property_name}
+                      </h3>
+                      <p className="text-xs text-gray-500 truncate">
+                        {property.property_address}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {loadingMore && (
+                <div className="flex items-center justify-center py-4">
+                  <p className="text-xs text-gray-500">Loading more properties...</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Chat History */}
@@ -223,7 +318,10 @@ export default function PropertyAIChat() {
 
         {/* Previous Chat Sessions Button */}
         <div className="p-4 border-t border-gray-200">
-          <button className="w-full py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+          <button 
+            onClick={handleOpenPreviousSessions}
+            className="w-full py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          >
             Previous chat sessions
           </button>
         </div>
@@ -246,10 +344,10 @@ export default function PropertyAIChat() {
             {/* Property Header */}
             <div className="p-6 border-b border-gray-200">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                {selectedProperty.name}
+                {selectedProperty.property_name}
               </h1>
               <p className="text-sm text-gray-600 mb-4">
-                {selectedProperty.address} · {selectedProperty.type}
+                {selectedProperty.property_address} · {selectedProperty.property_type}
               </p>
 
               {/* Info Banner */}
@@ -314,7 +412,7 @@ export default function PropertyAIChat() {
               <div className="flex gap-3">
                 <input
                   type="text"
-                  placeholder={`Ask anything about ${selectedProperty.name}...`}
+                  placeholder={`Ask anything about ${selectedProperty.property_name}...`}
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={(e) => {
@@ -346,6 +444,17 @@ export default function PropertyAIChat() {
           </div>
         )}
       </div>
+
+      {/* Previous Sessions Modal */}
+      {selectedProperty && (
+        <PreviousSessionsModal
+          isOpen={isPreviousSessionsModalOpen}
+          onClose={() => setIsPreviousSessionsModalOpen(false)}
+          propertyId={selectedProperty.id}
+          propertyName={selectedProperty.property_name}
+          onSelectSession={handleSelectSession}
+        />
+      )}
     </div>
   );
 }
