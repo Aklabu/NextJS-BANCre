@@ -293,6 +293,21 @@ export async function sendPropertyMessage(
     );
     
     console.log("Send message response:", response.data);
+    
+    // Check if response.data.data exists and has the expected structure
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
+    
+    // If response.data directly contains session_id and reply
+    if (response.data && 'session_id' in response.data && 'reply' in response.data) {
+      return {
+        session_id: response.data.session_id as number,
+        reply: response.data.reply as string
+      };
+    }
+    
+    console.warn("Unexpected response structure:", response.data);
     return response.data.data;
   } catch (error: any) {
     console.error("Failed to send message:", error);

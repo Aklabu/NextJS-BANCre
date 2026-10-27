@@ -188,9 +188,19 @@ export default function PropertyAIChat() {
         currentSessionId || undefined
       );
 
+      console.log("Full API response:", response);
+
       // Update session ID if this was the first message
       if (!currentSessionId) {
         setCurrentSessionId(response.session_id);
+      }
+
+      // Check if reply exists and is not empty
+      if (!response.reply || response.reply.trim() === "") {
+        console.warn("Received empty reply from API");
+        toast.warning("No response received from AI. Please try again.");
+        setIsTyping(false);
+        return;
       }
 
       // Add AI response to messages
