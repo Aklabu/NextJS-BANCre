@@ -91,20 +91,16 @@ export interface UpdateLoanRequestPayload {
 
 export interface SponsorDashboardHeaderStats {
   total_properties: number;
-  published_memorandums: number;
-  my_loan_requests: number;
+  total_loan_requests: number;
   quotes_received: number;
   accepted_quotes: number;
-  rejected_quotes: number;
 }
 
 export interface SponsorLoanDashboardData {
   total_properties: number;
-  published_memorandums: number;
-  my_loan_requests: number;
+  total_loan_requests: number;
   quotes_received: number;
   accepted_quotes: number;
-  rejected_quotes: number;
 }
 
 // ── API Methods ──────────────────────────────────────────────────────────────
@@ -115,11 +111,9 @@ export interface SponsorLoanDashboardData {
  * 
  * Returns sponsor dashboard statistics including:
  * - total_properties: Total number of properties owned by the sponsor
- * - published_memorandums: Number of properties with published memorandums
- * - my_loan_requests: Total number of loan requests created
+ * - total_loan_requests: Total number of loan requests created
  * - quotes_received: Total number of loan quotes received
  * - accepted_quotes: Number of quotes that have been accepted
- * - rejected_quotes: Number of quotes that have been rejected
  * 
  * Authentication: Required (Bearer Token)
  * Permission: Sponsor Only
@@ -134,11 +128,9 @@ export async function fetchSponsorDashboard(): Promise<SponsorLoanDashboardData>
 
     return {
       total_properties: Number(raw.total_properties) || 0,
-      published_memorandums: Number(raw.published_memorandums) || 0,
-      my_loan_requests: Number(raw.my_loan_requests) || 0,
+      total_loan_requests: Number(raw.total_loan_requests) || 0,
       quotes_received: Number(raw.quotes_received) || 0,
       accepted_quotes: Number(raw.accepted_quotes) || 0,
-      rejected_quotes: Number(raw.rejected_quotes) || 0,
     };
   } catch (err: any) {
     console.error("Failed to fetch sponsor dashboard", err);
@@ -146,11 +138,9 @@ export async function fetchSponsorDashboard(): Promise<SponsorLoanDashboardData>
     // Return default values on error
     return {
       total_properties: 0,
-      published_memorandums: 0,
-      my_loan_requests: 0,
+      total_loan_requests: 0,
       quotes_received: 0,
       accepted_quotes: 0,
-      rejected_quotes: 0,
     };
   }
 }
@@ -172,18 +162,10 @@ export async function fetchLoanRequests(
 ): Promise<SponsorLoanRequestItem[]> {
   let response;
   try {
-    // Try the primary endpoint first
     response = await api.get(`/api/loans/requests/?page=${page}&page_size=${pageSize}`);
-  } catch (primaryErr: any) {
-    console.log("Primary endpoint failed, trying fallback...");
-    
-    // Try without version prefix as fallback
-    try {
-      response = await api.get(`/api/v1/loans/requests/?page=${page}&page_size=${pageSize}`);
-    } catch (fallbackErr) {
-      console.error("All endpoints failed to fetch loan requests", primaryErr);
-      return [];
-    }
+  } catch (err: any) {
+    console.error("Failed to fetch loan requests", err);
+    return [];
   }
 
   console.log("Raw API Response:", response?.data);
@@ -612,41 +594,7 @@ export async function declineLoanQuote(quoteId: number): Promise<any> {
 }
 
 
-/**
- * Fetch quote counts for multiple loan requests
- * Helper function to get quote counts efficiently
- */
-export async function fetchQuoteCounts(
-  loanRequestIds: number[]
-): Promise<Record<number, number>> {
-  if (loanRequestIds.length === 0) return {};
 
-  try {
-    // Fetch all quotes and group by loan_request
-    const response = await api.get("/api/loans/quotes/");
-    const apiData = response?.data as ApiResponse<any>;
-    const quotes = apiData?.data ?? response?.data ?? [];
-
-    const counts: Record<number, number> = {};
-    loanRequestIds.forEach((id) => {
-      counts[id] = 0;
-    });
-
-    if (Array.isArray(quotes)) {
-      quotes.forEach((quote: any) => {
-        const requestId = Number(quote.loan_request);
-        if (counts[requestId] !== undefined) {
-          counts[requestId]++;
-        }
-      });
-    }
-
-    return counts;
-  } catch (error) {
-    console.error("Failed to fetch quote counts", error);
-    return {};
-  }
-}
 
 /**
  * Fetch All Sponsor Quotes

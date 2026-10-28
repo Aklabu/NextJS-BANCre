@@ -15,17 +15,15 @@ import api from "@/lib/apiClient";
 import { toast } from "sonner";
 import type {
   LoanQuote,
-  SponsorLoanDashboardData,
-  SponsorLoanHeaderStats,
 } from "./_components/loan-types";
 
 import {
   fetchSponsorDashboard,
   fetchLoanRequests,
   deleteLoanRequest,
-  fetchQuoteCounts,
   fetchAllSponsorQuotes,
   type SponsorLoanRequestItem,
+  type SponsorLoanDashboardData,
 } from "../_api/loan-requests-api";
 import {
   acceptQuote,
@@ -39,11 +37,9 @@ import LoanRequestQuotesModal from "../_components/LoanRequestQuotesModal";
 
 const DEFAULT_DASHBOARD_DATA: SponsorLoanDashboardData = {
   total_properties: 0,
-  published_memorandums: 0,
-  my_loan_requests: 0,
+  total_loan_requests: 0,
   quotes_received: 0,
   accepted_quotes: 0,
-  rejected_quotes: 0,
 };
 
 const Page = () => {
@@ -86,14 +82,25 @@ const Page = () => {
       enabled: !!user, // Only fetch when user exists
     });
 
-  // Fetch quote counts for loan requests - only enabled when we have loan requests
-  const { data: quoteCounts = {} } = useQuery<Record<number, number>>({
-    queryKey: ["quote-counts", loanRequests.map((r) => r.id)],
-    queryFn: () =>
-      fetchQuoteCounts(loanRequests.map((r) => r.id)),
-    enabled: !!user && loanRequests.length > 0,
-    staleTime: 30 * 1000,
+  // Fetch all sponsor quotes with property names
+  const { data: allSponsorQuotes = [], isLoading: quotesLoading } = useQuery<LoanQuote[]>({
+    queryKey: ["sponsor-quotes"],
+    queryFn: () => fetchAllSponsorQuotes(1, 100),
+    staleTime: 60 * 1000,
+    enabled: !!user,
   });
+
+  // Calculate quote counts locally from allSponsorQuotes
+  const quoteCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    allSponsorQuotes.forEach((quote) => {
+      const requestId = quote.loan_request;
+      if (requestId) {
+        counts[requestId] = (counts[requestId] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [allSponsorQuotes]);
 
   // TanStack Query for Dashboard Data - only enabled when user is authenticated
   const { data: dashboardData = DEFAULT_DASHBOARD_DATA, isLoading: dashboardLoading } =
@@ -103,14 +110,6 @@ const Page = () => {
       staleTime: 60 * 1000,
       enabled: !!user, // Only fetch when user exists
     });
-
-  // Fetch all sponsor quotes with property names
-  const { data: allSponsorQuotes = [], isLoading: quotesLoading } = useQuery<LoanQuote[]>({
-    queryKey: ["sponsor-quotes"],
-    queryFn: () => fetchAllSponsorQuotes(1, 100),
-    staleTime: 60 * 1000,
-    enabled: !!user,
-  });
 
   // Fetch properties for property selection in modal - only enabled when user is authenticated
   const { data: properties = [] } = useQuery<any[]>({
@@ -306,15 +305,6 @@ const Page = () => {
     [allSponsorQuotes],
   );
 
-  const headerStats = dashboardData || {
-    total_properties: properties.length,
-    published_memorandums: 0,
-    my_loan_requests: loanRequests.length,
-    quotes_received: quoteCards.length,
-    accepted_quotes: 0,
-    rejected_quotes: 0,
-  };
-
   // Calculate best rate and highest LTV from all quotes
   const bestRate = useMemo(() => {
     if (quoteCards.length === 0) return 0;
@@ -359,19 +349,19 @@ const Page = () => {
           <>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm text-gray-600 mb-1">Total properties</p>
-              <p className="text-3xl font-semibold text-gray-900">{headerStats.total_properties ?? properties.length}</p>
+              <p className="text-3xl font-semibold text-gray-900">{dashboardData.total_properties}</p>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm text-gray-600 mb-1">My loan request</p>
-              <p className="text-3xl font-semibold text-gray-900">{headerStats.my_loan_requests ?? loanRequests.length}</p>
+              <p className="text-3xl font-semibold text-gray-900">{dashboardData.total_loan_requests}</p>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm text-gray-600 mb-1">Quotes received</p>
-              <p className="text-3xl font-semibold text-gray-900">{headerStats.quotes_received ?? quoteCards.length}</p>
+              <p className="text-3xl font-semibold text-gray-900">{dashboardData.quotes_received}</p>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm text-gray-600 mb-1">Accepted quotes</p>
-              <p className="text-3xl font-semibold text-gray-900">{headerStats.accepted_quotes ?? 0}</p>
+              <p className="text-3xl font-semibold text-gray-900">{dashboardData.accepted_quotes}</p>
             </div>
           </>
         )}
