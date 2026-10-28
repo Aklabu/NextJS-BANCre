@@ -38,7 +38,7 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
 
     // State to show a "temporary" pin when the user clicks
     const [tempMarker, setTempMarker] = useState<google.maps.LatLngLiteral | null>(null);
-    const [mapViewMode, setMapViewMode] = useState<MapViewMode>("satellite");
+    const [mapViewMode, setMapViewMode] = useState<MapViewMode>("roadmap");
     const [streetViewAvailable, setStreetViewAvailable] = useState<boolean>(true);
 
     const [center, setCenter] = useState<google.maps.LatLngLiteral>({
@@ -184,53 +184,107 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
 
     // Initialize Street View when needed
     useEffect(() => {
-        if (mapViewMode === 'streetview' && streetViewRef.current && isLoaded && window.google) {
-            const position = tempMarker || center;
-            
-            // Small delay to ensure DOM is ready
-            const timer = setTimeout(() => {
-                if (!streetViewRef.current) return;
+        if (mapViewMode === 'streetview' && isLoaded && window.google) {
+            // Wait for the ref to be ready
+            const initStreetView = () => {
+                if (!streetViewRef.current) {
+                    console.error('Street View container ref not ready');
+                    return;
+                }
+
+                const position = tempMarker || center;
+                console.log('Initializing Street View at position:', position);
                 
                 // Check if Street View is available at this location
                 const streetViewService = new window.google.maps.StreetViewService();
+                
                 streetViewService.getPanorama(
-                    { location: position, radius: 100 },
+                    { 
+                        location: position, 
+                        radius: 100,
+                        source: window.google.maps.StreetViewSource.OUTDOOR
+                    },
                     (data, status) => {
+                        console.log('Street View status:', status, data);
+                        
                         if (status === window.google.maps.StreetViewStatus.OK && data?.location?.latLng) {
                             setStreetViewAvailable(true);
                             
-                            // Always create a new panorama instance
+                            // Create panorama instance
                             if (streetViewRef.current) {
-                                const panorama = new window.google.maps.StreetViewPanorama(
-                                    streetViewRef.current,
-                                    {
-                                        position: data.location.latLng,
-                                        pov: { heading: 0, pitch: 0 },
-                                        zoom: 1,
-                                        addressControl: true,
-                                        linksControl: true,
-                                        panControl: true,
-                                        enableCloseButton: false,
-                                        fullscreenControl: true,
-                                        motionTracking: true,
-                                        motionTrackingControl: true,
-                                    }
-                                );
-                                panoramaRef.current = panorama;
+                                try {
+                                    const panorama = new window.google.maps.StreetViewPanorama(
+                                        streetViewRef.current,
+                                        {
+                                            position: data.location.latLng,
+                                            pov: { 
+                                                heading: 0, 
+                                                pitch: 0 
+                                            },
+                                            zoom: 1,
+                                            addressControl: true,
+                                            linksControl: true,
+                                            panControl: true,
+                                            enableCloseButton: false,
+                                            fullscreenControl: true,
+                                            motionTracking: true,
+                                            motionTrackingControl: true,
+                                            showRoadLabels: true,
+                                            visible: true,
+                                        }
+                                    );
+                                    
+                                    panoramaRef.current = panorama;
+                                    console.log('Street View panorama created successfully');
+                                    
+                                    // Add error listener
+                                    panorama.addListener('status_changed', () => {
+                                        const currentStatus = panorama.getStatus();
+                                        console.log('Panorama status changed:', currentStatus);
+                                        if (currentStatus !== window.google.maps.StreetViewStatus.OK) {
+                                            setStreetViewAvailable(false);
+                                        }
+                                    });
+                                    
+                                    // Force a position change to trigger rendering
+                                    setTimeout(() => {
+                                        if (panoramaRef.current) {
+                                            panoramaRef.current.setPosition(data.location.latLng);
+                                        }
+                                    }, 100);
+                                    
+                                } catch (error) {
+                                    console.error('Error creating Street View panorama:', error);
+                                    setStreetViewAvailable(false);
+                                }
                             }
                         } else {
+                            console.warn('Street View not available at this location:', status);
                             setStreetViewAvailable(false);
                         }
                     }
                 );
-            }, 100);
+            };
+
+            // Small delay to ensure DOM is ready
+            const timer = setTimeout(initStreetView, 50);
             
-            return () => clearTimeout(timer);
+            return () => {
+                clearTimeout(timer);
+                // Cleanup panorama instance
+                if (panoramaRef.current) {
+                    console.log('Cleaning up Street View panorama');
+                    panoramaRef.current = null;
+                }
+            };
         }
         
-        // Cleanup when switching away from street view
-        if (mapViewMode !== 'streetview' && panoramaRef.current) {
-            panoramaRef.current = null;
+        // Reset availability when switching away from street view
+        if (mapViewMode !== 'streetview') {
+            setStreetViewAvailable(true);
+            if (panoramaRef.current) {
+                panoramaRef.current = null;
+            }
         }
     }, [mapViewMode, tempMarker, center, isLoaded]);
 
@@ -295,17 +349,21 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
 
                 {/* Street View Container */}
                 {mapViewMode === 'streetview' && (
-                    <div className="relative">
+                    <div className="relative h-[400px] xl:h-[600px] rounded-xl overflow-hidden shadow-inner">
                         <div 
                             ref={streetViewRef}
-                            className="h-[400px] xl:h-[600px] rounded-xl shadow-inner bg-gray-900"
-                            style={{ width: '100%', overflow: 'hidden' }}
+                            className="w-full h-full bg-gray-900"
+                            style={{ 
+                                minHeight: '400px',
+                                position: 'relative',
+                                zIndex: 0
+                            }}
                         />
                         {!streetViewAvailable && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-xl z-10">
-                                <div className="text-center p-6">
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                                <div className="text-center p-6 max-w-md">
                                     <svg 
-                                        className="mx-auto h-12 w-12 text-gray-400 mb-3"
+                                        className="mx-auto h-16 w-16 text-gray-400 mb-4"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -313,15 +371,22 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
                                         <path 
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            strokeWidth={1.5}
+                                            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                         />
                                     </svg>
-                                    <p className="text-gray-600 font-medium">Street View not available</p>
-                                    <p className="text-gray-500 text-sm mt-1">Try selecting a different location on the map</p>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                        Street View Not Available
+                                    </h3>
+                                    <p className="text-gray-600 text-sm mb-1">
+                                        360° imagery is not available for this location.
+                                    </p>
+                                    <p className="text-gray-500 text-xs mb-4">
+                                        Try selecting a different location or switch to map view.
+                                    </p>
                                     <button
-                                        onClick={() => setMapViewMode('satellite')}
-                                        className="mt-4 px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors"
+                                        onClick={() => setMapViewMode('roadmap')}
+                                        className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
                                     >
                                         Return to Map View
                                     </button>

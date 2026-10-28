@@ -139,23 +139,40 @@ const Page = () => {
   const fetchProperties = useCallback(async () => {
     setPropertiesLoading(true);
     try {
-      const [propertyRes, mapRes] = await Promise.all([
-        api.get("/api/properties/"),
-        api.get("/api/properties/map/"),
-      ]);
+      // Fetch only properties - will use this data for both property cards and map markers
+      const propertyRes = await api.get("/api/properties/?page=1&page_size=100");
+
+      console.log("Properties API Response:", propertyRes?.data);
 
       // Handle standard API response format with pagination
       const apiData = propertyRes?.data;
-      const paginatedData = apiData?.data;
-      const propertyData: Property[] = Array.isArray(paginatedData?.results)
-        ? paginatedData.results
-        : Array.isArray(apiData?.results)
-          ? apiData.results
-          : Array.isArray(apiData)
-            ? apiData
-            : [];
+      
+      // Try multiple possible response structures
+      let propertyData: Property[] = [];
+      
+      // Structure 1: data.data.results (standard envelope + pagination)
+      if (apiData?.data?.results && Array.isArray(apiData.data.results)) {
+        propertyData = apiData.data.results;
+        console.log("Using structure: data.data.results");
+      }
+      // Structure 2: data.results (direct pagination)
+      else if (apiData?.results && Array.isArray(apiData.results)) {
+        propertyData = apiData.results;
+        console.log("Using structure: data.results");
+      }
+      // Structure 3: data.data (standard envelope, direct array)
+      else if (apiData?.data && Array.isArray(apiData.data)) {
+        propertyData = apiData.data;
+        console.log("Using structure: data.data (array)");
+      }
+      // Structure 4: direct array in data
+      else if (Array.isArray(apiData)) {
+        propertyData = apiData;
+        console.log("Using structure: data (direct array)");
+      }
 
       console.log(`Fetched ${propertyData.length} properties`);
+      console.log("First property:", propertyData[0]);
 
       const enrichedProperties: PropertyCardData[] = propertyData.map(
         (property) => {
@@ -186,47 +203,28 @@ const Page = () => {
         },
       );
 
+      console.log(`Enriched ${enrichedProperties.length} properties for display`);
       setProperties(enrichedProperties);
 
-      // Build markers from map API response
-      // Handle new response format: data is directly an array
-      const mapApiData = mapRes?.data;
-      const mapItems = mapApiData?.data ?? mapApiData ?? [];
+      // Build markers from properties data (no separate map API call)
+      const markers: Marker[] = enrichedProperties
+        .filter((p) => p.latitude && p.longitude)
+        .map((p) => ({
+          id: p.id,
+          position: {
+            lat: parseFloat(p.latitude),
+            lng: parseFloat(p.longitude),
+          },
+          title: p.property_name,
+          icon: MARKER_ICON,
+          color: "red",
+        }));
       
-      console.log(`Fetched ${mapItems.length} map markers`);
-      
-      if (Array.isArray(mapItems) && mapItems.length > 0) {
-        const derivedMapMarkers: Marker[] = mapItems
-          .filter((p: any) => p.latitude && p.longitude)
-          .map((p: any) => ({
-            id: p.id,
-            position: {
-              lat: parseFloat(p.latitude),
-              lng: parseFloat(p.longitude),
-            },
-            title: p.property_name,
-            icon: MARKER_ICON,
-            color: "red",
-          }));
-        setMarkers(derivedMapMarkers);
-      } else {
-        // Fallback: use enriched properties for markers
-        const derived: Marker[] = enrichedProperties
-          .filter((p) => p.latitude && p.longitude)
-          .map((p) => ({
-            id: p.id,
-            position: {
-              lat: parseFloat(p.latitude),
-              lng: parseFloat(p.longitude),
-            },
-            title: p.property_name,
-            icon: MARKER_ICON,
-            color: "red",
-          }));
-        setMarkers(derived);
-      }
+      console.log(`Created ${markers.length} map markers from properties`);
+      setMarkers(markers);
     } catch (err) {
       console.error("Failed to fetch properties", err);
+      console.error("Error details:", err);
     } finally {
       setPropertiesLoading(false);
     }
