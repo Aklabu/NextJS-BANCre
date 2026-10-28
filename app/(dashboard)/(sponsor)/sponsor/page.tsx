@@ -16,10 +16,7 @@ import { toast } from "sonner";
 
 import {
   fetchSponsorDashboard,
-  fetchLoanRequests,
-  deleteLoanRequest,
   fetchAllSponsorQuotes,
-  type SponsorLoanRequestItem,
   type SponsorDashboardData,
 } from "../_api/loan-requests-api";
 import {
@@ -30,14 +27,12 @@ import {
 import type { LoanQuote } from "../loan/_components/loan-types";
 import LoanQuotesTable from "../loan/_components/LoanQuotesTable";
 import CreateLoanRequestModal from "../_components/CreateLoanRequestModal";
-import UpdateLoanRequestModal from "../_components/UpdateLoanRequestModal";
-import SponsorLoanRequestCard from "../_components/SponsorLoanRequestCard";
-import LoanRequestQuotesModal from "../_components/LoanRequestQuotesModal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface Property {
   id: number;
+  place_id?: string;
   property_name: string;
   property_address: string;
   property_type: string;
@@ -46,9 +41,10 @@ interface Property {
   property_image_url?: string | null;
   thumbnail_url?: string | null;
   property_images?: string[];
+  memorandum_id?: number | null;
   created_at: string;
   updated_at: string;
-  // Explicitly define extra fields so we can control them
+  // Legacy fields (optional)
   number_of_units?: number;
   rentable_area?: string;
   year_built?: number;
@@ -56,14 +52,6 @@ interface Property {
   occupancy?: string;
   parking_spaces?: number;
   documents?: any[];
-}
-
-interface MemorandumSummary {
-  id: number;
-  property: number;
-  status?: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 interface PropertyCardData extends Property {
@@ -86,36 +74,6 @@ interface Marker {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const MARKER_ICON = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
-
-const getTimestamp = (value?: string) => {
-  if (!value) return 0;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
-const isPublished = (status?: string) =>
-  (status || "").trim().toLowerCase() === "published";
-
-const pickPreferredMemorandum = (
-  current: MemorandumSummary | undefined,
-  candidate: MemorandumSummary,
-) => {
-  if (!current) return candidate;
-
-  const currentPublished = isPublished(current.status);
-  const candidatePublished = isPublished(candidate.status);
-
-  if (candidatePublished !== currentPublished) {
-    return candidatePublished ? candidate : current;
-  }
-
-  const currentStamp = getTimestamp(current.updated_at || current.created_at);
-  const candidateStamp = getTimestamp(
-    candidate.updated_at || candidate.created_at,
-  );
-
-  return candidateStamp > currentStamp ? candidate : current;
-};
 
 // ── Skeletons ────────────────────────────────────────────────────────────────
 
@@ -141,7 +99,7 @@ const Page = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // 1. Fetch Sponsor Dashboard Data (Postman: GET /api/v1/loans/dashboard/sponsor/)
+  // 1. Fetch Sponsor Dashboard Data (GET /api/dashboard/sponsor/)
   const { data: dashboardData, isLoading: statsLoading } =
     useQuery<SponsorDashboardData>({
       queryKey: ["sponsor-dashboard"],
@@ -149,37 +107,24 @@ const Page = () => {
       staleTime: 60 * 1000,
     });
 
-  // 2. Fetch All Loan Requests (Postman: GET /api/v1/loans/requests/)
-  const { data: loanRequests = [], isLoading: requestsLoading } =
-    useQuery<SponsorLoanRequestItem[]>({
-      queryKey: ["loan-requests"],
-      queryFn: fetchLoanRequests,
-      staleTime: 60 * 1000,
-    });
-
-  // 3. Fetch all sponsor quotes with property names
+  // 2. Fetch all sponsor quotes with property names
   const { data: allSponsorQuotes = [], isLoading: quotesLoading } = useQuery<LoanQuote[]>({
     queryKey: ["sponsor-quotes"],
     queryFn: () => fetchAllSponsorQuotes(1, 100),
     staleTime: 60 * 1000,
   });
 
-  // 4. State for Properties, Markers & Modals
+  // 3. State for Properties, Markers & Modals
   const [properties, setProperties] = useState<PropertyCardData[]>([]);
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
 
-  // Loan Request Modals state
+  // Create Loan Request Modal state
   const [isCreateLoanModalOpen, setIsCreateLoanModalOpen] = useState(false);
   const [selectedPropertyForLoan, setSelectedPropertyForLoan] = useState<
     number | null
   >(null);
-  const [editingLoanRequest, setEditingLoanRequest] =
-    useState<SponsorLoanRequestItem | null>(null);
-  const [deletingLoanRequest, setDeletingLoanRequest] =
-    useState<SponsorLoanRequestItem | null>(null);
-  const [selectedQuotesRequest, setSelectedQuotesRequest] =
-    useState<SponsorLoanRequestItem | null>(null);
+  
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletingProperty, setDeletingProperty] = useState<PropertyCardData | null>(null);
 
@@ -194,86 +139,62 @@ const Page = () => {
   const fetchProperties = useCallback(async () => {
     setPropertiesLoading(true);
     try {
-      const [propertyRes, mapRes, memorandumRes] = await Promise.all([
-        api
-          .get("/api/properties/")
-          .catch(() => api.get("/api/properties/")),
-        api
-          .get("/api/v1/properties/map/")
-          .catch(() => api.get("/api/properties/map/"))
-          .catch(() => null),
-        api
-          .get("/api/memorandums/")
-          .catch(() => api.get("/api/memorandums/"))
-          .catch(() => null),
+      const [propertyRes, mapRes] = await Promise.all([
+        api.get("/api/properties/"),
+        api.get("/api/properties/map/"),
       ]);
 
-      const propRaw = propertyRes?.data?.data ?? propertyRes?.data;
-      const propertyData: Property[] = Array.isArray(propRaw)
-        ? propRaw
-        : Array.isArray(propRaw?.results)
-          ? propRaw.results
-          : [];
+      // Handle standard API response format with pagination
+      const apiData = propertyRes?.data;
+      const paginatedData = apiData?.data;
+      const propertyData: Property[] = Array.isArray(paginatedData?.results)
+        ? paginatedData.results
+        : Array.isArray(apiData?.results)
+          ? apiData.results
+          : Array.isArray(apiData)
+            ? apiData
+            : [];
 
-      const rawMemorandums =
-        memorandumRes?.data?.data ??
-        memorandumRes?.data?.results ??
-        memorandumRes?.data ??
-        [];
-      const memorandumData: MemorandumSummary[] = Array.isArray(rawMemorandums)
-        ? rawMemorandums
-        : Array.isArray((rawMemorandums as any)?.results)
-          ? (rawMemorandums as any).results
-          : [];
-
-      const memorandumByProperty = new Map<number, MemorandumSummary>();
-      for (const memorandum of memorandumData) {
-        const propertyId = Number(memorandum.property);
-        if (!Number.isFinite(propertyId) || propertyId <= 0) continue;
-
-        const current = memorandumByProperty.get(propertyId);
-        const preferred = pickPreferredMemorandum(current, memorandum);
-        memorandumByProperty.set(propertyId, preferred);
-      }
+      console.log(`Fetched ${propertyData.length} properties`);
 
       const enrichedProperties: PropertyCardData[] = propertyData.map(
         (property) => {
-          const matchedMemorandum = memorandumByProperty.get(property.id);
+          // Use memorandum_id from the property response
+          const memorandumId = property.memorandum_id;
 
-          // Create a clean object with ONLY the fields we want (matching memorandum cards)
-          // Using explicit property selection to ensure no extra fields leak through
+          // Create a clean object with ONLY the fields we want
           return {
             id: property.id,
             property: String(property.id),
             title: property.property_name,
+            property_name: property.property_name,
             property_address: property.property_address,
             location: property.property_address,
             property_type: property.property_type,
             status: property.property_type,
             latitude: property.latitude,
             longitude: property.longitude,
-            thumbnail_url: property.thumbnail_url || null,
-            property_image_url:
-              property.thumbnail_url ||
-              (Array.isArray(property.property_images)
-                ? property.property_images[0]
-                : null) ||
-              property.property_image_url ||
-              null,
+            place_id: property.place_id,
+            thumbnail_url: property.property_image_url || null,
+            property_image_url: property.property_image_url || null,
             property_images: property.property_images || [],
             created_at: property.created_at,
             updated_at: property.updated_at,
-            link: matchedMemorandum
-              ? `/memorandum/${matchedMemorandum.id}`
-              : undefined,
+            // Use memorandum_id directly from API response
+            link: memorandumId ? `/memorandum/${memorandumId}` : undefined,
           } as PropertyCardData;
         },
       );
 
       setProperties(enrichedProperties);
 
-      // Build markers
-      const mapItems = mapRes?.data?.data ?? mapRes?.data ?? [];
+      // Build markers from map API response
+      // Handle new response format: data is directly an array
+      const mapApiData = mapRes?.data;
+      const mapItems = mapApiData?.data ?? mapApiData ?? [];
+      
+      console.log(`Fetched ${mapItems.length} map markers`);
+      
       if (Array.isArray(mapItems) && mapItems.length > 0) {
         const derivedMapMarkers: Marker[] = mapItems
           .filter((p: any) => p.latitude && p.longitude)
@@ -289,6 +210,7 @@ const Page = () => {
           }));
         setMarkers(derivedMapMarkers);
       } else {
+        // Fallback: use enriched properties for markers
         const derived: Marker[] = enrichedProperties
           .filter((p) => p.latitude && p.longitude)
           .map((p) => ({
@@ -314,30 +236,6 @@ const Page = () => {
     fetchProperties();
   }, [fetchProperties]);
 
-  // Execute loan request deletion (Postman: DELETE /api/v1/loans/requests/{{id}}/)
-  const confirmDeleteLoanRequest = async () => {
-    if (!deletingLoanRequest) return;
-
-    try {
-      setIsDeleting(true);
-      await deleteLoanRequest(deletingLoanRequest.id);
-
-      // Invalidate queries to refresh dashboard and requests
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["loan-requests"] }),
-        queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] }),
-      ]);
-
-      toast.success("Loan request deleted successfully.");
-      setDeletingLoanRequest(null);
-    } catch (error) {
-      console.error("Failed to delete loan request", error);
-      toast.error("Failed to delete loan request. Please try again.");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   // Quote action handlers
   const executeAcceptQuote = async (quote: LoanQuote) => {
     try {
@@ -347,7 +245,6 @@ const Page = () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["sponsor-dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["sponsor-quotes"] }),
-        queryClient.invalidateQueries({ queryKey: ["loan-requests"] }),
       ]);
     } catch (error: any) {
       console.error("Failed to accept quote", error);
@@ -731,70 +628,6 @@ const Page = () => {
         </div>
       </div>
 
-      {/* ── Recent Quotes Received (from /api/v1/loans/dashboard/sponsor/ quote_card_view) ── */}
-      {dashboardData?.quote_card_view &&
-        dashboardData.quote_card_view.length > 0 && (
-          <div className="mb-10">
-            <div className="rounded-xl bg-white p-4 lg:p-6 border border-gray-200">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Recent Lender Quotes Received
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    Review and accept quotes from competitive commercial lenders
-                  </p>
-                </div>
-                <Link
-                  href="/loan"
-                  className="flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  <span>View All Quotes ({dashboardData.quote_card_view.length})</span>
-                  <LuArrowUpRight className="text-base" />
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dashboardData.quote_card_view.slice(0, 3).map((quote: any) => (
-                  <div
-                    key={quote.id}
-                    className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-bold text-gray-900 text-sm">
-                          {quote.lender_name || "Commercial Lender"}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700">
-                          {quote.status || "Active Quote"}
-                        </span>
-                      </div>
-                      <div className="text-lg font-extrabold text-blue-600 mb-1">
-                        ${Number(quote.loan_amount || 0).toLocaleString()}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-gray-600">
-                        <span>Rate: <b>{quote.interest_rate}%</b></span>
-                        <span>Term: <b>{quote.term} mo</b></span>
-                        <span>LTV: <b>{quote.max_as_is_ltv}%</b></span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-                      <Link
-                        href={`/loan/${quote.id}`}
-                        className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
-                      >
-                        <span>Inspect Quote</span>
-                        <LuArrowUpRight className="text-xs" />
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
       {/* ── Create Loan Request Modal ── */}
       <CreateLoanRequestModal
         open={isCreateLoanModalOpen}
@@ -815,35 +648,6 @@ const Page = () => {
         onConfirm={handleConfirmQuoteAction}
       />
 
-      {/* ── Update Loan Request Modal ── */}
-      <UpdateLoanRequestModal
-        open={Boolean(editingLoanRequest)}
-        onOpenChange={(open) => {
-          if (!open) setEditingLoanRequest(null);
-        }}
-        loanRequest={editingLoanRequest}
-      />
-
-      {/* ── Delete Confirmation Modal ── */}
-      <ConfirmActionModal
-        open={Boolean(deletingLoanRequest)}
-        onOpenChange={(open) => {
-          if (!open && !isDeleting) setDeletingLoanRequest(null);
-        }}
-        title="Delete loan request?"
-        description={
-          deletingLoanRequest
-            ? `This will permanently delete the loan request of $${Number(
-                deletingLoanRequest.requested_amount || 0,
-              ).toLocaleString()} for "${deletingLoanRequest.property_name}".`
-            : "This will permanently remove the selected loan request."
-        }
-        confirmText="Delete Request"
-        destructive
-        isLoading={isDeleting}
-        onConfirm={confirmDeleteLoanRequest}
-      />
-
       {/* ── Delete Property Confirmation Modal ── */}
       <ConfirmActionModal
         open={Boolean(deletingProperty)}
@@ -860,16 +664,6 @@ const Page = () => {
         destructive
         isLoading={isDeleting}
         onConfirm={confirmDeleteProperty}
-      />
-
-      {/* ── Loan Request Quotes Modal ── */}
-      <LoanRequestQuotesModal
-        open={Boolean(selectedQuotesRequest)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedQuotesRequest(null);
-        }}
-        loanRequestId={selectedQuotesRequest?.id ?? null}
-        loanRequest={selectedQuotesRequest}
       />
     </div>
   );

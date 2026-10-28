@@ -91,36 +91,42 @@ export interface UpdateLoanRequestPayload {
 
 export interface SponsorDashboardHeaderStats {
   total_properties: number;
-  total_loan_requests: number;
+  published_memorandums: number;
+  my_loan_requests: number;
   quotes_received: number;
   accepted_quotes: number;
+  rejected_quotes: number;
 }
 
 export interface SponsorLoanDashboardData {
   total_properties: number;
-  total_loan_requests: number;
+  published_memorandums: number;
+  my_loan_requests: number;
   quotes_received: number;
   accepted_quotes: number;
+  rejected_quotes: number;
 }
 
 // ── API Methods ──────────────────────────────────────────────────────────────
 
 /**
  * Fetch Sponsor Dashboard data
- * GET /api/loans/dashboard/sponsor/
+ * GET /api/dashboard/sponsor/
  * 
  * Returns sponsor dashboard statistics including:
  * - total_properties: Total number of properties owned by the sponsor
- * - total_loan_requests: Total number of loan requests created
+ * - published_memorandums: Number of published memorandums
+ * - my_loan_requests: Total number of loan requests created
  * - quotes_received: Total number of loan quotes received
  * - accepted_quotes: Number of quotes that have been accepted
+ * - rejected_quotes: Number of quotes that have been rejected
  * 
  * Authentication: Required (Bearer Token)
  * Permission: Sponsor Only
  */
 export async function fetchSponsorDashboard(): Promise<SponsorLoanDashboardData> {
   try {
-    const response = await api.get("/api/loans/dashboard/sponsor/");
+    const response = await api.get("/api/dashboard/sponsor/");
     
     // Handle standard API response format
     const apiData = response?.data as ApiResponse<any>;
@@ -128,9 +134,11 @@ export async function fetchSponsorDashboard(): Promise<SponsorLoanDashboardData>
 
     return {
       total_properties: Number(raw.total_properties) || 0,
-      total_loan_requests: Number(raw.total_loan_requests) || 0,
+      published_memorandums: Number(raw.published_memorandums) || 0,
+      my_loan_requests: Number(raw.my_loan_requests) || 0,
       quotes_received: Number(raw.quotes_received) || 0,
       accepted_quotes: Number(raw.accepted_quotes) || 0,
+      rejected_quotes: Number(raw.rejected_quotes) || 0,
     };
   } catch (err: any) {
     console.error("Failed to fetch sponsor dashboard", err);
@@ -138,9 +146,11 @@ export async function fetchSponsorDashboard(): Promise<SponsorLoanDashboardData>
     // Return default values on error
     return {
       total_properties: 0,
-      total_loan_requests: 0,
+      published_memorandums: 0,
+      my_loan_requests: 0,
       quotes_received: 0,
       accepted_quotes: 0,
+      rejected_quotes: 0,
     };
   }
 }
@@ -601,7 +611,7 @@ export async function declineLoanQuote(quoteId: number): Promise<any> {
  * GET /api/loans/sponsor/quotes/
  * 
  * Returns all quotes for the authenticated sponsor across all their properties.
- * Includes property names and full quote details.
+ * Includes property ID, property name, and full quote details.
  * 
  * Authentication: Required (Bearer Token)
  * Permission: Sponsor Only
@@ -609,6 +619,9 @@ export async function declineLoanQuote(quoteId: number): Promise<any> {
  * Query Parameters:
  * - page: Page number (default: 1)
  * - page_size: Items per page (default: 10)
+ * 
+ * Response includes paginated data with count, next, previous, and results array.
+ * Each quote includes comprehensive loan details including property information.
  * 
  * @param page - Page number for pagination
  * @param pageSize - Number of items per page
@@ -625,30 +638,54 @@ export async function fetchAllSponsorQuotes(
     
     console.log("Sponsor Quotes API Response:", response?.data);
     
+    // Handle standard API response format
     const apiData = response?.data as ApiResponse<PaginatedApiResponse<any>>;
     
-    // Extract results from paginated response
-    const quotes = apiData?.data?.results ?? [];
+    // Extract results from paginated response within data envelope
+    const paginatedData = apiData?.data;
+    const quotes = paginatedData?.results ?? [];
     
     if (!Array.isArray(quotes)) {
       console.error("Expected quotes array, got:", quotes);
       return [];
     }
     
+    console.log(`Fetched ${quotes.length} sponsor quotes from page ${page}`);
+    
     // Map API response to LoanQuote interface
     return quotes.map((item: any) => ({
       id: Number(item.id),
-      lender_name: item.lender_name || "Unknown Lender",
-      property_name: item.property_name || "N/A",
-      loan_amount: String(item.loan_amount || "0"),
-      max_as_is_ltv: item.max_as_is_ltv || "0",
-      interest_rate: item.interest_rate || "0",
-      term: item.term || 0,
-      origination_fee: item.origination_fee || "0",
-      dscr: item.dscr || 0,
-      expires_at: item.expires_at,
-      status: item.status || "Submitted",
       loan_request: Number(item.loan_request),
+      lender: Number(item.lender),
+      lender_name: item.lender_name || "Unknown Lender",
+      property_id: Number(item.property_id),
+      property_name: item.property_name || "N/A",
+      guarantor: item.guarantor || "",
+      status: item.status || "Submitted",
+      expires_at: item.expires_at || null,
+      submitted_at: item.submitted_at || "",
+      updated_at: item.updated_at || "",
+      loan_amount: String(item.loan_amount || "0"),
+      initial_funding: String(item.initial_funding || "0"),
+      future_funding: String(item.future_funding || "0"),
+      sponsor_equity: String(item.sponsor_equity || "0"),
+      max_as_is_ltv: String(item.max_as_is_ltv || "0"),
+      max_ltc: String(item.max_ltc || "0"),
+      max_as_stabilized_ltv: String(item.max_as_stabilized_ltv || "0"),
+      min_as_is_dy: String(item.min_as_is_dy || "0"),
+      min_stabilized_dy: String(item.min_stabilized_dy || "0"),
+      term: Number(item.term || 0),
+      interest_rate: String(item.interest_rate || "0"),
+      amortization: item.amortization || "",
+      prepayment: item.prepayment || "",
+      origination_fee: String(item.origination_fee || "0"),
+      capex_reserve: String(item.capex_reserve || "0"),
+      ff_and_e_reserve: String(item.ff_and_e_reserve || "0"),
+      interest_carry_reserve: String(item.interest_carry_reserve || "0"),
+      extension_conditions: item.extension_conditions || "",
+      collateral: item.collateral || "",
+      recourse: item.recourse || "",
+      dscr: Number(item.dscr) || 0,
     }));
   } catch (error: any) {
     console.error("Failed to fetch sponsor quotes", error);

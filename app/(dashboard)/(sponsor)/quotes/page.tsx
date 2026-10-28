@@ -23,9 +23,11 @@ import { fetchAllSponsorQuotes } from "../_api/sponsor-quotes-api";
 
 const DEFAULT_DASHBOARD_DATA: SponsorLoanDashboardData = {
   total_properties: 0,
-  total_loan_requests: 0,
+  published_memorandums: 0,
+  my_loan_requests: 0,
   quotes_received: 0,
   accepted_quotes: 0,
+  rejected_quotes: 0,
 };
 
 const QuotesPage = () => {
@@ -208,7 +210,7 @@ const QuotesPage = () => {
             </span>{" "}
             · My Loan Requests{" "}
             <span className="font-semibold text-gray-900">
-              {dashboardData.total_loan_requests}
+              {dashboardData.my_loan_requests}
             </span>{" "}
             · Quotes Received{" "}
             <span className="font-semibold text-gray-900">

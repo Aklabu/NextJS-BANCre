@@ -9,17 +9,37 @@ export interface SponsorLoanHeaderStats {
 
 export interface LoanQuote {
   id: number;
+  loan_request: number;
+  lender: number;
   lender_name: string;
+  property_id?: number;
   property_name?: string;
-  loan_amount: string;
-  max_as_is_ltv: string | number;
-  interest_rate: string | number;
-  term: string | number;
-  origination_fee: string | number;
-  dscr: string | number;
-  expires_at?: string;
+  guarantor?: string;
   status?: string;
-  loan_request?: number;
+  expires_at?: string | null;
+  submitted_at?: string;
+  updated_at?: string;
+  loan_amount: string;
+  initial_funding?: string;
+  future_funding?: string;
+  sponsor_equity?: string;
+  max_as_is_ltv: string | number;
+  max_ltc?: string | number;
+  max_as_stabilized_ltv?: string | number;
+  min_as_is_dy?: string | number;
+  min_stabilized_dy?: string | number;
+  term: string | number;
+  interest_rate: string | number;
+  amortization?: string;
+  prepayment?: string;
+  origination_fee: string | number;
+  capex_reserve?: string;
+  ff_and_e_reserve?: string;
+  interest_carry_reserve?: string;
+  extension_conditions?: string;
+  collateral?: string;
+  recourse?: string;
+  dscr: string | number;
 }
 
 export interface LoanComparisonSummary {
