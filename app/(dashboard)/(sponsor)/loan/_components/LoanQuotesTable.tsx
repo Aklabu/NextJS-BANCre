@@ -54,7 +54,7 @@ const LoanQuotesTable: React.FC<LoanQuotesTableProps> = ({
     return num > 0 ? num.toFixed(2) : "0.00";
   };
 
-  const getExpiryInfo = (expiresAt?: string) => {
+  const getExpiryInfo = (expiresAt?: string | null) => {
     if (!expiresAt) return { days: null, label: "N/A" };
     
     const expiryDate = new Date(expiresAt);

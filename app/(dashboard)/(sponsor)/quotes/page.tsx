@@ -155,6 +155,8 @@ const QuotesPage = () => {
   // Convert sponsor quotes to LoanQuote format and calculate best rate/highest LTV
   const convertedQuotes: LoanQuote[] = allQuotes.map((quote) => ({
     id: quote.id,
+    loan_request: quote.loan_request,
+    lender: quote.loan_request, // Using loan_request as fallback for lender ID
     lender_name: quote.lender_name,
     property_name: quote.property_name,
     loan_amount: quote.loan_amount,
@@ -165,16 +167,15 @@ const QuotesPage = () => {
     dscr: quote.dscr,
     expires_at: quote.expires_at,
     status: quote.status,
-    loan_request: quote.loan_request,
   }));
 
   // Calculate best rate and highest LTV from quotes
   const bestRate = convertedQuotes.length > 0
-    ? Math.min(...convertedQuotes.map(q => parseFloat(q.interest_rate)))
+    ? Math.min(...convertedQuotes.map(q => parseFloat(String(q.interest_rate))))
     : 0;
   
   const highestLTV = convertedQuotes.length > 0
-    ? Math.max(...convertedQuotes.map(q => parseFloat(q.max_as_is_ltv)))
+    ? Math.max(...convertedQuotes.map(q => parseFloat(String(q.max_as_is_ltv))))
     : 0;
 
   // Pagination logic

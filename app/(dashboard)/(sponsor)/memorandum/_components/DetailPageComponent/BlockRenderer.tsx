@@ -55,7 +55,7 @@ const HeadingBlock: React.FC<{ block: HeadingBlock }> = ({ block }) => {
 
   const className = headingClasses[level] || headingClasses[2];
 
-  const Tag = `h${Math.min(level, 6)}` as keyof JSX.IntrinsicElements;
+  const Tag = `h${Math.min(level, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 
   return <Tag className={className}>{text}</Tag>;
 };

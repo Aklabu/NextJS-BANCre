@@ -93,9 +93,9 @@ export default function LoanRequestQuotesPage() {
 
   // 1. Fetch Loan Request Details
   const { data: request, isLoading: requestLoading } =
-    useQuery<SponsorLoanRequestItem | null>({
+    useQuery<SponsorLoanRequestItem | undefined>({
       queryKey: ["loan-request-detail", requestId],
-      queryFn: () => (requestId ? fetchLoanRequestDetail(requestId) : Promise.resolve(null)),
+      queryFn: () => (requestId ? fetchLoanRequestDetail(requestId) : Promise.reject(new Error("No request ID"))),
       enabled: Boolean(requestId && requestId > 0),
     });
 

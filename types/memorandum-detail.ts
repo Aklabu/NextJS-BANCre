@@ -49,6 +49,8 @@ export interface MemorandumTableData {
 export interface MemorandumSection {
   id: number;
   section_type: string; // e.g., "property_information", "executive_summary", "financial_analysis"
+  section_key?: string; // Alternative identifier for sections
+  label?: string; // Display label for the section
   title: string;
   content: string;
   blocks?: SectionBlock[];
@@ -56,6 +58,11 @@ export interface MemorandumSection {
   attachment_url?: string | null; // Full URL for download
   order: number;
   updated_at?: string;
+  // Additional fields used in dynamic sections
+  image?: string | null;
+  image_url?: string | null;
+  table_data?: MemorandumTableData | null;
+  is_regeneratable?: boolean;
 }
 
 //========== Memorandum Detail Page Types ===========

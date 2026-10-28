@@ -262,20 +262,22 @@ export async function fetchLoanRequests(
  */
 export async function fetchLoanRequestDetail(
   id: number,
-): Promise<SponsorLoanRequestItem | null> {
+): Promise<SponsorLoanRequestItem> {
   let response;
   try {
     response = await api.get(`/api/loans/requests/${id}/`);
   } catch (err) {
     console.error(`Failed to fetch loan request #${id}`, err);
-    return null;
+    throw err;
   }
 
   // Handle standard API response format
   const apiData = response?.data as ApiResponse<any>;
   const raw = apiData?.data ?? response?.data;
   
-  if (!raw) return null;
+  if (!raw) {
+    throw new Error("No data returned from API");
+  }
 
   return {
     id: Number(raw.id),

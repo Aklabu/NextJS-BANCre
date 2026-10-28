@@ -57,7 +57,7 @@ const getInitials = (name: string) => {
     .join("");
 };
 
-const getDaysToExpiry = (expiresAt?: string) => {
+const getDaysToExpiry = (expiresAt?: string | null) => {
   if (!expiresAt) return null;
   const expirationDate = new Date(expiresAt);
   if (Number.isNaN(expirationDate.getTime())) return null;

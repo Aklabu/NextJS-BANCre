@@ -126,7 +126,7 @@ export default function PropertyAIChat() {
     }
   };
 
-  const handleDeleteChat = (chatId: string) => {
+  const handleDeleteChat = (chatId: number) => {
     setChats(chats.filter((chat) => chat.id !== chatId));
   };
 

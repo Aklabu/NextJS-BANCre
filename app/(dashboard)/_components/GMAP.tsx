@@ -248,7 +248,7 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
                                     
                                     // Force a position change to trigger rendering
                                     setTimeout(() => {
-                                        if (panoramaRef.current) {
+                                        if (panoramaRef.current && data.location?.latLng) {
                                             panoramaRef.current.setPosition(data.location.latLng);
                                         }
                                     }, 100);

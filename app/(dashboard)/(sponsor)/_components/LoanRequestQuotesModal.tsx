@@ -89,9 +89,9 @@ export default function LoanRequestQuotesModal({
   const [pendingAction, setPendingAction] = useState<"accept" | "decline" | null>(null);
 
   // 1. Fetch Request detail if not provided
-  const { data: fetchedRequest } = useQuery<SponsorLoanRequestItem | null>({
+  const { data: fetchedRequest } = useQuery<SponsorLoanRequestItem | undefined>({
     queryKey: ["loan-request-detail", loanRequestId],
-    queryFn: () => (loanRequestId ? fetchLoanRequestDetail(loanRequestId) : Promise.resolve(null)),
+    queryFn: () => (loanRequestId ? fetchLoanRequestDetail(loanRequestId) : Promise.reject(new Error("No loan request ID"))),
     enabled: open && Boolean(loanRequestId) && !initialLoanRequest,
     staleTime: 60 * 1000,
   });

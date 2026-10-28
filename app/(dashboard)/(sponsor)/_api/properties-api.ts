@@ -28,6 +28,7 @@ export interface CreatePropertyPayload {
   occupancy?: string | number;
   parking_spaces?: number;
   gallery_photos?: File[]; // Max 10 images, 2MB each, JPG/PNG only
+  property_photos?: string[]; // URLs from Google Places photos
 }
 
 export interface PropertyResponse {
@@ -200,6 +201,13 @@ export async function createProperty(
     // Add all photos to gallery_photos
     payload.gallery_photos.forEach((photo) => {
       formData.append("gallery_photos", photo);
+    });
+  }
+
+  // Property photos (URLs from Google Places) - sent as JSON array
+  if (payload.property_photos && payload.property_photos.length > 0) {
+    payload.property_photos.forEach((url) => {
+      formData.append("property_photos", url);
     });
   }
 

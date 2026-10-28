@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   fetchSponsorDashboard,
   fetchAllSponsorQuotes,
-  type SponsorDashboardData,
+  type SponsorLoanDashboardData,
 } from "../_api/loan-requests-api";
 import {
   acceptQuote,
@@ -101,7 +101,7 @@ const Page = () => {
 
   // 1. Fetch Sponsor Dashboard Data (GET /api/dashboard/sponsor/)
   const { data: dashboardData, isLoading: statsLoading } =
-    useQuery<SponsorDashboardData>({
+    useQuery<SponsorLoanDashboardData>({
       queryKey: ["sponsor-dashboard"],
       queryFn: fetchSponsorDashboard,
       staleTime: 60 * 1000,
