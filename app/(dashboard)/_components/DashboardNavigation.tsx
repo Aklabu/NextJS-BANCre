@@ -43,9 +43,9 @@ const sponsor: LinkProps = [
     icon: <CiGrid42 className="text-lg" />,
   },
   {
-    text: "Docview & AI Analytics",
-    href: "/analytics",
-    icon: <CiSearch className="text-lg" />,
+    text: "Loan Quotes",
+    href: "/loan",
+    icon: <FaRegChartBar className="text-lg" />,
   },
   {
     text: "Offering Memorandum",
@@ -56,11 +56,6 @@ const sponsor: LinkProps = [
     text: "Making Memorandum",
     href: "/processing",
     icon: <FiUpload className="text-lg" />,
-  },
-  {
-    text: "Loan Quotes",
-    href: "/loan",
-    icon: <FaRegChartBar className="text-lg" />,
   },
   {
     text: "Property AI Chat",
