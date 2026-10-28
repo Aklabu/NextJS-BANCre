@@ -214,7 +214,23 @@ export default function PropertyAIChat() {
       console.log("Message sent successfully:", response);
     } catch (error: any) {
       console.error("Failed to send message:", error);
-      toast.error(error?.response?.data?.message || "Failed to send message");
+      
+      // Provide specific error messages based on status code
+      let errorMessage = "Failed to send message";
+      
+      if (error?.response?.status === 503) {
+        errorMessage = "Backend service is unavailable. Please ensure the API server is running.";
+      } else if (error?.response?.status === 401) {
+        errorMessage = "Authentication failed. Please sign in again.";
+      } else if (error?.response?.status === 404) {
+        errorMessage = "Property or endpoint not found.";
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
       
       // Remove the user message if sending failed
       setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
