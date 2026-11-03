@@ -1,5 +1,7 @@
+// Display type for UI components
 export type LoanRequest = {
   id: number;
+  propertyId: number;
   propertyName: string;
   address: string;
   amount: string;
@@ -9,11 +11,14 @@ export type LoanRequest = {
   occupancy: string;
   yearBuilt: string;
   status: string;
-  propertyImage: string | null;
+  propertyImage: string;
   location: {
     lat: number;
     lng: number;
   };
+  createdAt: string;
+  rawAmount: number;
+  rawTerm: number;
 };
 
 export type FilterState = {

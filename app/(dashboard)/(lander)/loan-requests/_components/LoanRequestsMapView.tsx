@@ -8,6 +8,7 @@ import { LoanRequest } from "./types";
 type LoanRequestsMapViewProps = {
   requests: LoanRequest[];
   onViewRequest: (id: number) => void;
+  loading?: boolean;
 };
 
 const mapContainerStyle = {
@@ -30,6 +31,7 @@ const mapOptions = {
 const LoanRequestsMapView = ({
   requests,
   onViewRequest,
+  loading = false,
 }: LoanRequestsMapViewProps) => {
   const [selectedRequest, setSelectedRequest] = useState<LoanRequest | null>(
     null
@@ -41,44 +43,54 @@ const LoanRequestsMapView = ({
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       <div className="p-4 border-b border-gray-200">
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-gray-600">
           Map view (shown when the Map toggle is selected)
         </p>
-
-        {/* Map Type Toggle */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setMapType("roadmap")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              mapType === "roadmap"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            2D
-          </button>
-          <button
-            onClick={() => setMapType("satellite")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              mapType === "satellite"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Satellite
-          </button>
-          <button
-            className="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Street view
-          </button>
-        </div>
       </div>
 
       {/* Map Container */}
       <div className="relative">
-        {googleMapsApiKey ? (
-          <LoadScript googleMapsApiKey={googleMapsApiKey}>
+        {loading ? (
+          <div
+            className="flex items-center justify-center bg-gray-100 animate-pulse"
+            style={{ height: "600px" }}
+          >
+            <div className="text-center">
+              <p className="text-lg text-gray-500">Loading map...</p>
+            </div>
+          </div>
+        ) : googleMapsApiKey ? (
+          <div className="relative">
+            {/* Map Type Toggle - Overlaid on Map */}
+            <div className="absolute top-4 left-4 z-10 flex gap-2">
+              <button
+                onClick={() => setMapType("roadmap")}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-md ${
+                  mapType === "roadmap"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                2D
+              </button>
+              <button
+                onClick={() => setMapType("satellite")}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-md ${
+                  mapType === "satellite"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Satellite
+              </button>
+              <button
+                className="px-4 py-2 text-sm font-medium bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-md"
+              >
+                Street view
+              </button>
+            </div>
+
+            <LoadScript googleMapsApiKey={googleMapsApiKey}>
             <GoogleMap
               mapContainerStyle={mapContainerStyle}
               center={defaultCenter}
@@ -139,6 +151,7 @@ const LoanRequestsMapView = ({
               )}
             </GoogleMap>
           </LoadScript>
+          </div>
         ) : (
           <div
             className="flex items-center justify-center bg-gray-100 text-gray-500"
