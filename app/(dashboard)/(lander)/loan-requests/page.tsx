@@ -1,11 +1,14 @@
-import LoanRequest from "./_components/LoanRequest"
+"use client";
 
-const page = () => {
+import { useState } from "react";
+import LoanRequestsGrid from "./_components/LoanRequestsGrid";
+
+const Page = () => {
   return (
-    <div>
-        <LoanRequest />
+    <div className="min-h-screen bg-gray-50">
+      <LoanRequestsGrid />
     </div>
-  )
-}
+  );
+};
 
-export default page
+export default Page;
