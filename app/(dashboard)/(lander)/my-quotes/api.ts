@@ -27,7 +27,7 @@ export type QuoteStatsData = {
 };
 
 /**
- * Single Quote Item
+ * Single Quote Item (now includes property details)
  */
 export type QuoteItem = {
   id: number;
@@ -60,6 +60,12 @@ export type QuoteItem = {
   collateral: string;
   recourse: string;
   dscr: number;
+  // Property details (newly added)
+  property_id: number;
+  property_name: string;
+  property_address: string;
+  property_type: string;
+  property_image_url: string;
 };
 
 /**
