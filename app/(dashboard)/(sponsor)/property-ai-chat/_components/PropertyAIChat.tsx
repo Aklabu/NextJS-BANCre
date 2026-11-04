@@ -122,7 +122,17 @@ export default function PropertyAIChat() {
       console.log("New chat session created:", session);
     } catch (error: any) {
       console.error("Failed to create new chat:", error);
-      toast.error(error?.response?.data?.message || "Failed to create new chat");
+      
+      // Provide specific error messages
+      let errorMessage = "Failed to create new chat";
+      
+      if (error?.response?.status === 404) {
+        errorMessage = error?.response?.data?.message || "Property not available or no active loan requests";
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -155,7 +165,19 @@ export default function PropertyAIChat() {
       console.log("Loaded messages:", formattedMessages);
     } catch (error: any) {
       console.error("Failed to load session messages:", error);
-      toast.error(error?.response?.data?.message || "Failed to load session messages");
+      
+      // Provide specific error messages
+      let errorMessage = "Failed to load session messages";
+      
+      if (error?.response?.status === 403) {
+        errorMessage = "You do not have permission to access this chat session";
+      } else if (error?.response?.status === 404) {
+        errorMessage = error?.response?.data?.message || "Session not found or property not accessible";
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 

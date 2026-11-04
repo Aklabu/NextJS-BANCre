@@ -38,7 +38,7 @@ export default function PreviousSessionsModal({
           setLoading(true);
         }
 
-        const response = await getPropertyChatSessions(propertyId, page, 10);
+        const response = await getPropertyChatSessions(propertyId, page, 9);
 
         if (append) {
           setSessions((prev) => [...prev, ...response.results]);
@@ -52,7 +52,16 @@ export default function PreviousSessionsModal({
       } catch (error: any) {
         console.error("Failed to fetch chat sessions:", error);
         if (!append) {
-          toast.error("Failed to load chat sessions");
+          // Provide specific error messages
+          let errorMessage = "Failed to load chat sessions";
+          
+          if (error?.response?.status === 404) {
+            errorMessage = error?.response?.data?.message || "Property not found or not accessible";
+          } else if (error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          
+          toast.error(errorMessage);
           setSessions([]);
         }
       } finally {
@@ -107,7 +116,19 @@ export default function PreviousSessionsModal({
       console.log(`Deleted session ${sessionId}`);
     } catch (error: any) {
       console.error("Failed to delete session:", error);
-      toast.error(error?.response?.data?.message || "Failed to delete session");
+      
+      // Provide specific error messages
+      let errorMessage = "Failed to delete session";
+      
+      if (error?.response?.status === 403) {
+        errorMessage = "You do not have permission to delete this session";
+      } else if (error?.response?.status === 404) {
+        errorMessage = error?.response?.data?.message || "Session not found or property not accessible";
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setDeletingSessionId(null);
     }

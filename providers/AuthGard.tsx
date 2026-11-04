@@ -23,6 +23,7 @@ const SPONSOR_ONLY_ROUTES = [
   "/notifications",
   "/recent-activity",
   "/message",
+  // Note: /property-ai-chat is NOT sponsor-only - it's shared with lenders
 ];
 
 const LENDER_ONLY_ROUTES = [

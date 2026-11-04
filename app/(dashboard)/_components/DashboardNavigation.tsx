@@ -90,6 +90,11 @@ const lander: LinkProps = [
     href: "/property-map",
     icon: <MapPin size={18} />,
   },
+  {
+    text: "Property AI Chat",
+    href: "/property-ai-chat",
+    icon: <FiMessageCircle className="text-lg" />,
+  },
   // {
   //   text: "Market Analytics",
   //   href: "/market-analytics",
