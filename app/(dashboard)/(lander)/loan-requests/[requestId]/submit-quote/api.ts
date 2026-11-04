@@ -4,16 +4,34 @@ import api from "@/lib/apiClient";
 // Types
 // ============================================
 
+export type MemorandumLink = {
+  id: number;
+  title: string;
+  url: string;
+};
+
+export type DocumentLink = {
+  id: number;
+  url: string;
+};
+
 export type LoanRequestDetail = {
   id: number;
+  property: number;
   property_name: string;
   property_address: string;
   property_type: string;
+  occupancy: string;
+  year_built: number;
+  property_image_url: string;
   requested_amount: string;
   loan_term: number;
   ltv: string;
-  occupancy: string;
-  year_built: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  memorandum_links: MemorandumLink[];
+  document_links: DocumentLink[];
 };
 
 export type QuoteSubmissionPayload = {

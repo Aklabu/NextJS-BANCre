@@ -19,11 +19,22 @@ import {
   getSubmitQuotePath,
   saveLoanQuotePrefillState,
 } from "@/lib/quote-submit-state";
-import type {
-  LoanRequestDetail,
-  LoanRequestDocumentLink,
-  LoanRequestMemorandumLink,
-} from "@/types/loan-request";
+import {
+  fetchLoanRequestDetail,
+  normalizeImageUrl,
+  formatCurrency,
+  formatLoanTerm,
+  formatPercent,
+  formatDateTime,
+  getFileNameFromUrl,
+  isPdfUrl,
+  isImageUrl,
+  getMemorandumIdFromLink,
+  downloadDocument,
+  type LoanRequestDetail,
+  type MemorandumLink,
+  type DocumentLink,
+} from "./api";
 
 type ApiEnvelope<T> = {
   data?: T;
@@ -54,85 +65,6 @@ const toNumber = (value: string | number | undefined | null) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const formatCurrency = (value: string | number | undefined) => {
-  const parsed = toNumber(value);
-  if (parsed === null) return "-";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(parsed);
-};
-
-const formatPercent = (value: string | number | undefined) => {
-  const parsed = toNumber(value);
-  if (parsed === null) return "-";
-  return `${parsed.toFixed(2)}%`;
-};
-
-const formatTerm = (value: string | number | undefined) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return "-";
-  return `${parsed} months`;
-};
-
-const formatDateTime = (value?: string) => {
-  if (!value) return "-";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "-";
-  return parsed.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const getFileNameFromUrl = (url: string) => {
-  const safeUrl = url.split("?")[0];
-  return decodeURIComponent(safeUrl.substring(safeUrl.lastIndexOf("/") + 1));
-};
-
-const isPdfUrl = (url: string) => /\.pdf$/i.test(url);
-const isImageUrl = (url: string) =>
-  /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)$/i.test(url);
-
-const getMemorandumIdFromLink = (memorandum: LoanRequestMemorandumLink) => {
-  if (Number.isFinite(memorandum.id) && memorandum.id > 0) {
-    return memorandum.id;
-  }
-
-  const match = String(memorandum.url || "").match(
-    /\/api\/memorandums\/(\d+)\/?/i,
-  );
-  const parsed = Number(match?.[1]);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-};
-
-const resolveImageUrl = (value?: string | null) => {
-  if (!value) return FALLBACK_PROPERTY_IMAGE;
-  const raw = String(value).trim();
-  if (!raw || raw === "null" || raw === "undefined") {
-    return FALLBACK_PROPERTY_IMAGE;
-  }
-
-  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
-
-  if (/^https?:\/\//i.test(raw)) {
-    if (!baseUrl) return raw;
-    return raw.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i, baseUrl);
-  }
-
-  const normalizedPath = raw.replace(/^\/+/, "");
-
-  if (raw.startsWith("/") || normalizedPath.startsWith("media/")) {
-    return baseUrl ? `${baseUrl}/${normalizedPath}` : `/${normalizedPath}`;
-  }
-
-  return FALLBACK_PROPERTY_IMAGE;
-};
-
 const Page = () => {
   const params = useParams();
   const router = useRouter();
@@ -158,7 +90,7 @@ const Page = () => {
   const previewObjectUrlRef = useRef<string | null>(null);
 
   const fetchMemorandumDetails = useCallback(
-    async (links: LoanRequestMemorandumLink[]) => {
+    async (links: MemorandumLink[]) => {
       const validMemorandums = links
         .map((item) => ({
           link: item,
@@ -232,19 +164,9 @@ const Page = () => {
 
     setLoading(true);
     try {
-      let response;
-      try {
-        response = await api.get<ApiEnvelope<LoanRequestDetail>>(
-          `/api/v1/loans/requests/${requestId}/`,
-        );
-      } catch {
-        response = await api.get<ApiEnvelope<LoanRequestDetail>>(
-          `/api/loans/requests/${requestId}/`,
-        );
-      }
-      const payload = response.data?.data ?? null;
+      const payload = await fetchLoanRequestDetail(Number(requestId));
       setDetail(payload);
-      setImageSrc(resolveImageUrl(payload?.property_image_url));
+      setImageSrc(normalizeImageUrl(payload?.property_image_url));
       setSelectedDocumentIndex(0);
 
       if (payload?.memorandum_links?.length) {
@@ -253,9 +175,9 @@ const Page = () => {
         setMemorandumDetails([]);
         setSelectedMemorandumId(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load loan request detail", error);
-      toast.error("Unable to load loan request detail right now.");
+      toast.error(error.message || "Unable to load loan request detail right now.");
       setDetail(null);
       setMemorandumDetails([]);
       setSelectedMemorandumId(null);
@@ -269,7 +191,7 @@ const Page = () => {
   }, [fetchDetail]);
 
   const documents = detail?.document_links || [];
-  const selectedDocument = useMemo<LoanRequestDocumentLink | null>(() => {
+  const selectedDocument = useMemo<DocumentLink | null>(() => {
     if (documents.length === 0) return null;
     return documents[selectedDocumentIndex] || documents[0] || null;
   }, [documents, selectedDocumentIndex]);
@@ -589,7 +511,7 @@ const Page = () => {
             </div>
             <div>
               <p className="text-[#6A7282]">Loan Term</p>
-              <p className="font-medium">{formatTerm(detail.loan_term)}</p>
+              <p className="font-medium">{formatLoanTerm(detail.loan_term)}</p>
             </div>
             <div>
               <p className="text-[#6A7282]">LTV</p>
