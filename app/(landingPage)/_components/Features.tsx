@@ -119,7 +119,7 @@ const Features = () => {
       </div>
 
       {/* Feature cards grid with enhanced spacing */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10 mt-16 justify-items-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10 mt-16 mb-32 justify-items-center">
         {features.map((feature, idx) => (
           <div key={idx} className="w-full flex justify-center">
             <FeaturesCard
@@ -130,21 +130,6 @@ const Features = () => {
             />
           </div>
         ))}
-      </div>
-
-      {/* CTA Button with enhanced styling */}
-      <div className="flex justify-center my-24">
-        <div className="relative group">
-          {/* Button outer glow */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-500 animate-gradient" />
-          
-          {/* Button */}
-          <Button
-            text="Get started"
-            className="button-primary relative px-8 py-4 text-base md:text-lg font-semibold shadow-xl hover:shadow-2xl"
-            arrow={true}
-          />
-        </div>
       </div>
     </div>
   );
