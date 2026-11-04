@@ -30,7 +30,6 @@ const LENDER_ONLY_ROUTES = [
   "/lender",
   "/loan-requests",
   "/my-quotes",
-  "/property-map",
   "/market-analytics",
 ];
 

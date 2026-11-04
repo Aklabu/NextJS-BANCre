@@ -14,7 +14,7 @@ import Notifications from "../(sponsor)/notifications/page";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import ProfilePopUp from "./ProfilePopUp";
 import ChatWidget from "./ChatWidget";
-import { MapPin, School } from "lucide-react";
+import { School } from "lucide-react";
 import { useAuth } from "@/providers/AuthProvider";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
 
@@ -84,11 +84,6 @@ const lander: LinkProps = [
     text: "My Quotes",
     href: "/my-quotes",
     icon: <FaRegChartBar className="text-lg" />,
-  },
-  {
-    text: "Property Map",
-    href: "/property-map",
-    icon: <MapPin size={18} />,
   },
   {
     text: "Property AI Chat",

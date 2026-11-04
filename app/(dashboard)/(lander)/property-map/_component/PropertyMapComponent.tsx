@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { GoogleMap, OverlayView, useJsApiLoader } from "@react-google-maps/api";
 import { PropertyMapData } from "@/types/loan-request";
-import { FaMapMarkedAlt, FaGlobeAmericas } from "react-icons/fa";
 import { LENDER_GOOGLE_MAPS_LOADER_OPTIONS } from "@/lib/google-maps-loader";
 //========== Property Map Component ===========
 
@@ -166,36 +165,37 @@ const PropertyMapComponent: React.FC<PropertyMapComponentProps> = ({
       </GoogleMap>
 
       {/* ====== Map Controls ====== */}
-      <div className="absolute top-2 md:top-4 left-2 md:left-4 flex flex-col gap-2">
+      <div className="absolute top-2 md:top-4 left-2 md:left-4 flex gap-2 z-10">
         {/* ====== Map Type Toggle ====== */}
-        <div className="bg-white rounded-full flex gap-1 md:gap-2 p-1 shadow-md overflow-hidden">
-          <button
-            onClick={() => setMapType("roadmap")}
-            className={`px-2 md:px-4 py-1.5 md:py-2 text-xs md:text-sm ${
-              mapType === "roadmap"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 hover:bg-gray-50"
-            } transition-colors flex items-center justify-center rounded-full`}
-          >
-            <FaMapMarkedAlt size={16} className="inline-block md:mr-2" />
-            <span className="hidden md:inline">Map</span>
-          </button>
-          <button
-            onClick={() => setMapType("satellite")}
-            className={`px-2 md:px-4 py-1.5 md:py-2 text-xs md:text-sm ${
-              mapType === "satellite"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 hover:bg-gray-50"
-            } transition-colors flex items-center justify-center rounded-full`}
-          >
-            <FaGlobeAmericas size={16} className="inline-block md:mr-2" />
-            <span className="hidden md:inline">Satellite</span>
-          </button>
-        </div>
+        <button
+          onClick={() => setMapType("roadmap")}
+          className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors shadow-md ${
+            mapType === "roadmap"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          2D
+        </button>
+        <button
+          onClick={() => setMapType("satellite")}
+          className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors shadow-md ${
+            mapType === "satellite"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          Satellite
+        </button>
+        <button
+          className="px-3 md:px-4 py-2 text-xs md:text-sm font-medium bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-md"
+        >
+          Street view
+        </button>
       </div>
 
       {/* ====== Urgency Level Legend ====== */}
-      <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4 bg-white rounded-lg shadow-md p-2 md:p-4">
+      <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4 bg-white rounded-lg shadow-md p-2 md:p-4 z-10">
         <h4 className="text-xs md:text-sm text-gray-900 mb-1 md:mb-2">
           Urgency Level
         </h4>
