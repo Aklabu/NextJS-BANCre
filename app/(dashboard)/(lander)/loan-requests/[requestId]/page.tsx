@@ -133,15 +133,9 @@ const Page = () => {
       try {
         const responses = await Promise.all(
           validMemorandums.map(async ({ memorandumId }) => {
-            const response = await api
-              .get<ApiEnvelope<MemorandumDetail>>(
-                `/api/v1/memorandums/${memorandumId}/`,
-              )
-              .catch(() =>
-                api.get<ApiEnvelope<MemorandumDetail>>(
-                  `/api/memorandums/${memorandumId}/`,
-                ),
-              );
+            const response = await api.get<ApiEnvelope<MemorandumDetail>>(
+              `/api/memorandums/${memorandumId}/`,
+            );
 
             return response.data?.data ?? null;
           }),
