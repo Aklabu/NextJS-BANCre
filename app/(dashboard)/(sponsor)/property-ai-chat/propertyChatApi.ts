@@ -343,7 +343,7 @@ export async function createChatSession(
       return response.data.data;
     } else if (response.data && 'id' in response.data) {
       // Direct response: ChatSession object
-      return response.data as ChatSession;
+      return response.data as unknown as ChatSession;
     } else {
       console.error("Unexpected API response structure:", response.data);
       throw new Error("Unexpected API response structure");

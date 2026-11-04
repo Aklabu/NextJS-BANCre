@@ -117,7 +117,7 @@ const Page = () => {
           (
             item,
           ): item is {
-            link: LoanRequestMemorandumLink;
+            link: MemorandumLink;
             memorandumId: number;
           } => Number.isFinite(item.memorandumId),
         );
