@@ -1,37 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import StatusCard from "@/components/StatusCard";
-import LoanRequestCard from "../loan-requests/_components/LoanRequestCard";
-import { fetchLenderCombinedData } from "../_utils/lenderLoanData";
-import { LoanRequestData } from "@/types/loan-request";
-import api from "@/lib/apiClient";
-import {
-  getSubmitQuotePath,
-  saveLoanQuotePrefillState,
-} from "@/lib/quote-submit-state";
-import { RefreshCw, Send, Sparkles } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
+import DashboardStats from "./_components/DashboardStats";
+import AcceptedQuotesList from "./_components/AcceptedQuotesList";
+import PropertiesMap from "./_components/PropertiesMap";
+import {
+  fetchLenderDashboardData,
+  fetchAcceptedQuotes,
+  type LenderDashboardStats,
+  type AcceptedQuote,
+  type PropertyMapItem,
+} from "./api";
 
-type AssistantMessage = {
-  role: "user" | "assistant" | "typing";
-  content: string;
-};
-
-type ApiEnvelope<T> = {
-  data?: T;
-};
-
-type LenderDashboardHeaderStats = {
-  active_requests: number;
-  quotes_provided: number;
-  pending_review: number;
-  accepted_quotes: number;
-};
-
-const DEFAULT_HEADER_STATS: LenderDashboardHeaderStats = {
+const DEFAULT_STATS: LenderDashboardStats = {
   active_requests: 0,
   quotes_provided: 0,
   pending_review: 0,
@@ -40,405 +24,136 @@ const DEFAULT_HEADER_STATS: LenderDashboardHeaderStats = {
 
 const Page = () => {
   const router = useRouter();
-  const [requests, setRequests] = useState<LoanRequestData[]>([]);
-  const [headerStats, setHeaderStats] =
-    useState<LenderDashboardHeaderStats>(DEFAULT_HEADER_STATS);
+  
+  // State management
+  const [stats, setStats] = useState<LenderDashboardStats>(DEFAULT_STATS);
+  const [quotes, setQuotes] = useState<AcceptedQuote[]>([]);
+  const [properties, setProperties] = useState<PropertyMapItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [assistantStarted, setAssistantStarted] = useState(false);
-  const [assistantConversationId, setAssistantConversationId] = useState<
-    number | null
-  >(null);
-  const [assistantMessages, setAssistantMessages] = useState<
-    AssistantMessage[]
-  >([]);
-  const [assistantInput, setAssistantInput] = useState("");
-  const [assistantSending, setAssistantSending] = useState(false);
-  const assistantScrollRef = useRef<HTMLDivElement>(null);
-  const assistantEndRef = useRef<HTMLDivElement>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Pagination state for quotes
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const scrollAssistantToLatest = useCallback(
-    (behavior: ScrollBehavior = "smooth") => {
-      assistantEndRef.current?.scrollIntoView({
-        behavior,
-        block: "end",
-      });
-
-      const container = assistantScrollRef.current;
-      if (!container) return;
-
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior,
-      });
-    },
-    [],
-  );
-
-  const loadDashboardData = useCallback(async () => {
-    setLoading(true);
-
+  // Load dashboard data
+  const loadDashboardData = async (showToast: boolean = false) => {
     try {
-      const data = await fetchLenderCombinedData();
-      setRequests(data.loanRequests);
-
-      try {
-        let headerResponse;
-        try {
-          headerResponse = await api.get("/api/v1/loans/dashboard/lender/");
-        } catch {
-          try {
-            headerResponse = await api.get("/api/loans/dashboard/lender/");
-          } catch {
-            headerResponse = await api.get("/api/dashboard/lender/");
-          }
-        }
-
-        const raw = headerResponse.data?.data ?? headerResponse.data ?? {};
-        const stats = raw.header_stats || raw;
-
-        setHeaderStats({
-          active_requests: Number(stats.active_requests) || 0,
-          quotes_provided: Number(stats.quotes_provided) || 0,
-          pending_review: Number(stats.pending_review) || 0,
-          accepted_quotes: Number(stats.accepted_quotes) || 0,
-        });
-      } catch (headerError) {
-        console.error(
-          "Failed to load lender dashboard header stats",
-          headerError,
-        );
-        setHeaderStats(DEFAULT_HEADER_STATS);
+      setLoading(true);
+      const data = await fetchLenderDashboardData();
+      
+      setStats(data.stats);
+      setQuotes(data.quotes.results);
+      setProperties(data.properties);
+      setTotalPages(data.quotes.total_pages);
+      setCurrentPage(data.quotes.current_page);
+      
+      if (showToast) {
+        toast.success("Dashboard refreshed successfully");
       }
     } catch (error) {
-      console.error("Failed to load lender dashboard requests", error);
-      toast.error("Unable to load available loan requests right now.");
-      setRequests([]);
-      setHeaderStats(DEFAULT_HEADER_STATS);
+      console.error("Failed to load lender dashboard:", error);
+      toast.error("Failed to load dashboard data. Please try again.");
+      
+      // Set defaults on error
+      setStats(DEFAULT_STATS);
+      setQuotes([]);
+      setProperties([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, []);
-
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
-
-  const topRequests = useMemo(() => requests.slice(0, 4), [requests]);
-
-  const handleSubmitQuote = (id: number) => {
-    const selectedRequest = requests.find((request) => request.id === id);
-
-    if (selectedRequest) {
-      saveLoanQuotePrefillState(id, {
-        requestId: selectedRequest.id,
-        propertyName: selectedRequest.propertyName,
-        propertyAddress: selectedRequest.address,
-        propertyType: selectedRequest.propertyType,
-        requestedAmount: selectedRequest.requestedAmount,
-        loanTerm: Number.parseInt(selectedRequest.loanTerm, 10) || 0,
-        ltv: selectedRequest.ltv,
-        occupancy: selectedRequest.occupancy,
-        yearBuilt: selectedRequest.yearBuilt,
-        propertyImageUrl: selectedRequest.propertyImage,
-      });
-    }
-
-    router.push(getSubmitQuotePath(id));
   };
 
-  const handleViewDetails = (id: number) => {
-    router.push(`/loan-requests/${id}`);
+  // Handle refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData(true);
   };
 
-  const startAssistantChat = () => {
-    setAssistantStarted(true);
-    if (assistantMessages.length === 0) {
-      setAssistantMessages([
-        {
-          role: "assistant",
-          content:
-            "Hi! I am your AI assistant. Ask me about loan terms, property summaries, or quote strategy.",
-        },
-      ]);
-    }
-
-    requestAnimationFrame(() => {
-      scrollAssistantToLatest("auto");
-    });
-  };
-
-  const resetAssistantChat = () => {
-    setAssistantConversationId(null);
-    setAssistantInput("");
-    setAssistantMessages([
-      {
-        role: "assistant",
-        content: "Started a new chat. What would you like to discuss?",
-      },
-    ]);
-
-    requestAnimationFrame(() => {
-      scrollAssistantToLatest("auto");
-    });
-  };
-
-  const handleAssistantSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-    if (!assistantInput.trim() || assistantSending) return;
-
-    const prompt = assistantInput.trim();
-    setAssistantInput("");
-    setAssistantSending(true);
-
-    setAssistantMessages((previous) => [
-      ...previous,
-      { role: "user", content: prompt },
-      { role: "typing", content: "..." },
-    ]);
+  // Load more quotes
+  const handleLoadMoreQuotes = async () => {
+    if (currentPage >= totalPages || loadingMore) return;
 
     try {
-      const payload: { message: string; conversation_id?: number } = {
-        message: prompt,
-      };
-
-      if (assistantConversationId) {
-        payload.conversation_id = assistantConversationId;
-      }
-
-      const response = await api.post("/api/v1/chatbot/chat/", payload);
-      const data = response.data?.data ?? response.data;
-      const reply = data?.reply || data?.response || data?.message || data?.answer;
-      const conversationId = data?.conversation_id ?? data?.conversation?.id ?? data?.id;
-
-      if (conversationId) {
-        setAssistantConversationId(Number(conversationId));
-      }
-
-      setAssistantMessages((previous) => [
-        ...previous.filter((message) => message.role !== "typing"),
-        {
-          role: "assistant",
-          content:
-            reply || "I could not generate a response. Please try again.",
-        },
-      ]);
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+      const data = await fetchAcceptedQuotes(nextPage);
+      
+      setQuotes((prev) => [...prev, ...data.results]);
+      setCurrentPage(data.current_page);
+      setTotalPages(data.total_pages);
     } catch (error) {
-      console.error("Failed to send assistant message", error);
-      setAssistantMessages((previous) => [
-        ...previous.filter((message) => message.role !== "typing"),
-        {
-          role: "assistant",
-          content:
-            "Something went wrong while contacting the assistant. Please try again.",
-        },
-      ]);
+      console.error("Failed to load more quotes:", error);
+      toast.error("Failed to load more quotes");
     } finally {
-      setAssistantSending(false);
+      setLoadingMore(false);
     }
   };
 
+  // Initial load
   useEffect(() => {
-    if (!assistantStarted) return;
-
-    requestAnimationFrame(() => {
-      scrollAssistantToLatest("smooth");
-    });
-  }, [assistantMessages, assistantStarted, scrollAssistantToLatest]);
+    loadDashboardData();
+  }, []);
 
   return (
-    <div>
-      <h1 className="text-xl lg:text-2xl my-2">Lender Dashboard</h1>
-      <p className="text-[#4A5565] my-2">
-        Review opportunities, submit quotes, and manage lender activity.
-      </p>
-
-      <div className="flex flex-wrap items-center justify-center xl:justify-start gap-5 lg:gap-7 xl:gap-10 my-10">
-        <StatusCard
-          type="Properties"
-          data={{
-            value: headerStats.active_requests,
-            status: headerStats.active_requests,
-          }}
-          titleOverride="Active Requests"
-          statusLabelOverride="currently active"
-        />
-        <StatusCard
-          type="quotes"
-          data={{
-            value: headerStats.quotes_provided,
-            status: headerStats.quotes_provided,
-          }}
-          titleOverride="Quotes Provided"
-          statusLabelOverride="submitted quotes"
-        />
-        <StatusCard
-          type="documents"
-          data={{
-            value: headerStats.pending_review,
-            status: headerStats.pending_review,
-          }}
-          titleOverride="Pending Review"
-          statusLabelOverride="awaiting decision"
-        />
-        <StatusCard
-          type="value"
-          data={{
-            value: headerStats.accepted_quotes,
-            status: headerStats.accepted_quotes,
-          }}
-          titleOverride="Accepted Quotes"
-          statusLabelOverride="approved quotes"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-        <div className="xl:col-span-3 rounded-xl bg-white p-3 lg:p-5 border border-[#0000001A]">
-          <div className="flex items-start justify-between gap-4">
+    <div className="min-h-screen bg-gray-50 pb-8">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-6 mb-6">
+        <div className="max-w-[1600px] mx-auto">
+          <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-              <h2 className="text-lg">Available Loan Requests</h2>
-              <p className="text-[#6A7282]">
-                Active opportunities seeking quotes
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Lender Dashboard
+              </h1>
+              <p className="text-gray-600">
+                Monitor your lending activity, accepted quotes, and available opportunities
               </p>
             </div>
+            
             <button
-              type="button"
-              onClick={() => router.push("/loan-requests")}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              View All
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
             </button>
           </div>
-
-          <div className="my-6 flex flex-col gap-5">
-            {loading ? (
-              Array.from({ length: 2 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="h-64 rounded-lg border border-gray-200 bg-gray-50 animate-pulse"
-                />
-              ))
-            ) : topRequests.length === 0 ? (
-              <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-600">
-                No loan requests available.
-              </div>
-            ) : (
-              topRequests.map((request) => (
-                <LoanRequestCard
-                  key={request.id}
-                  loanRequest={request}
-                  onSubmitQuote={handleSubmitQuote}
-                  onViewDetails={handleViewDetails}
-                  onViewDocuments={() => {}}
-                />
-              ))
-            )}
-          </div>
-
-          {!loading && topRequests.length > 0 ? (
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={() => router.push("/loan-requests")}
-                className="rounded-full border border-blue-200 px-6 py-2 text-sm text-blue-700 hover:bg-blue-50 transition-colors"
-              >
-                See More
-              </button>
-            </div>
-          ) : null}
         </div>
+      </div>
 
-        <div className="xl:col-span-2">
-          <div className="h-[72vh] min-h-[560px] max-h-[820px] xl:h-[760px] rounded-3xl border border-[#0000001A] bg-[#F2F5F8] p-5 md:p-6 flex flex-col gap-4 overflow-hidden">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center">
-                  <Sparkles className="h-7 w-7 text-black" />
-                </div>
-                <h3 className="text-xl text-black">AI Assistant</h3>
-              </div>
+      <div className="max-w-[1600px] mx-auto px-6 space-y-8">
+        {/* Statistics Section */}
+        <section>
+          <DashboardStats stats={stats} loading={loading} />
+        </section>
 
-              {assistantStarted ? (
-                <button
-                  type="button"
-                  onClick={resetAssistantChat}
-                  className="inline-flex items-center gap-1 rounded-full border border-[#D5D8DE] bg-white px-3 py-1.5 text-xs text-[#1F56AA] hover:bg-[#EEF4FF]"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  New
-                </button>
-              ) : null}
-            </div>
-
-            {!assistantStarted ? (
-              <>
-                <p className="text-base leading-7 text-black flex-1">
-                  I can help analyze documents, generate property summaries, and
-                  answer questions about your portfolio.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={startAssistantChat}
-                  className="w-full rounded-full bg-[#1F56AA] px-5 py-3 text-base text-white hover:bg-[#194a93] transition-colors"
-                >
-                  Start Chat
-                </button>
-              </>
-            ) : (
-              <>
-                <div
-                  ref={assistantScrollRef}
-                  className="flex-1 min-h-0 overflow-y-auto scroll-smooth rounded-2xl border border-[#D9DEE8] bg-white p-3 space-y-3"
-                >
-                  {assistantMessages.map((message, index) => (
-                    <div
-                      key={`${message.role}-${index}`}
-                      className={
-                        message.role === "user"
-                          ? "ml-auto max-w-[90%] rounded-xl bg-[#1F56AA] px-3 py-2 text-sm text-white"
-                          : message.role === "typing"
-                            ? "max-w-[90%] rounded-xl bg-[#EEF1F6] px-3 py-2 text-sm text-[#6A7282] italic animate-pulse"
-                            : "max-w-[90%] rounded-xl bg-[#EEF1F6] px-3 py-2 text-sm text-[#111827]"
-                      }
-                    >
-                      {message.role === "assistant" ? (
-                        <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-headings:my-1">
-                          <ReactMarkdown>{message.content}</ReactMarkdown>
-                        </div>
-                      ) : (
-                        message.content
-                      )}
-                    </div>
-                  ))}
-                  <div ref={assistantEndRef} />
-                </div>
-
-                <form
-                  onSubmit={handleAssistantSubmit}
-                  className="rounded-2xl border border-[#D9DEE8] bg-white p-2 flex items-center gap-2"
-                >
-                  <input
-                    type="text"
-                    value={assistantInput}
-                    onChange={(event) => setAssistantInput(event.target.value)}
-                    placeholder="Ask about this portfolio..."
-                    className="flex-1 bg-transparent px-2 py-2 text-sm outline-none"
-                    disabled={assistantSending}
-                  />
-                  <button
-                    type="submit"
-                    disabled={assistantSending || !assistantInput.trim()}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#1F56AA] text-white disabled:opacity-50"
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                </form>
-              </>
-            )}
+        {/* Accepted Quotes Section */}
+        <section>
+          <div className="mb-4">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Accepted Quotes
+            </h2>
+            <p className="text-gray-600">
+              Track your successfully accepted loan quotes and deal details
+            </p>
           </div>
-        </div>
+          
+          <AcceptedQuotesList
+            quotes={quotes}
+            loading={loading}
+            onLoadMore={handleLoadMoreQuotes}
+            hasMore={currentPage < totalPages}
+            loadingMore={loadingMore}
+          />
+        </section>
+
+        {/* Properties Map Section */}
+        <section>
+          <PropertiesMap properties={properties} loading={loading} />
+        </section>
       </div>
     </div>
   );
