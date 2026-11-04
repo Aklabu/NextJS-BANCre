@@ -381,19 +381,34 @@ const MyQuotes: React.FC = () => {
                     key={quote.id}
                     className="group border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-300 bg-gradient-to-r from-white to-gray-50/50"
                   >
-                    <div className="flex flex-col lg:flex-row gap-6">
-                      {/* Quote Info */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
-                              {quote.propertyName}
-                            </h3>
-                            <p className="text-sm text-gray-500">{quote.lenderName}</p>
-                          </div>
+                    <div className="flex flex-col gap-4">
+                      {/* Header Row */}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
+                            {quote.propertyName}
+                          </h3>
+                          <p className="text-sm text-gray-500">{quote.lenderName}</p>
                         </div>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                            quote.status === "accepted"
+                              ? "bg-green-100 text-green-800 border border-green-200"
+                              : quote.status === "rejected"
+                              ? "bg-red-100 text-red-800 border border-red-200"
+                              : quote.status === "under_review"
+                              ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                              : "bg-purple-100 text-purple-800 border border-purple-200"
+                          }`}
+                        >
+                          {quote.statusLabel}
+                        </span>
+                      </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      {/* Metrics and Actions Row */}
+                      <div className="flex items-center justify-between gap-4">
+                        {/* Loan Metrics */}
+                        <div className="grid grid-cols-4 gap-4 flex-1">
                           <div>
                             <p className="text-xs text-gray-500 mb-1">Loan Amount</p>
                             <p className="text-sm font-semibold text-gray-900">{quote.quotedAmount}</p>
@@ -412,65 +427,53 @@ const MyQuotes: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewQuote(quote)}
+                            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                          >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                            Submitted {quote.submittedDate}
-                          </span>
-                          {quote.expiresIn > 0 && (
-                            <span
-                              className={`flex items-center gap-1 ${
-                                quote.expiresIn <= 3
-                                  ? "text-red-600 font-medium"
-                                  : "text-gray-500"
-                              }`}
+                            View
+                          </button>
+                          {quote.status === "submitted" && (
+                            <button
+                              onClick={() => handleEditQuote(quote)}
+                              className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
-                              Expires in {quote.expiresIn} days
-                            </span>
+                              Edit
+                            </button>
                           )}
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex lg:flex-col gap-2 justify-end items-start">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                            quote.status === "accepted"
-                              ? "bg-green-100 text-green-800 border border-green-200"
-                              : quote.status === "rejected"
-                              ? "bg-red-100 text-red-800 border border-red-200"
-                              : quote.status === "under_review"
-                              ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
-                              : "bg-purple-100 text-purple-800 border border-purple-200"
-                          }`}
-                        >
-                          {quote.statusLabel}
-                        </span>
-                        <button
-                          onClick={() => handleViewQuote(quote)}
-                          className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                        >
+                      {/* Date Information Row */}
+                      <div className="flex items-center gap-4 text-xs text-gray-500 pt-2 border-t border-gray-100">
+                        <span className="flex items-center gap-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          View
-                        </button>
-                        {quote.status === "submitted" && (
-                          <button
-                            onClick={() => handleEditQuote(quote)}
-                            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors"
+                          Submitted {quote.submittedDate}
+                        </span>
+                        {quote.expiresIn > 0 && (
+                          <span
+                            className={`flex items-center gap-1 ${
+                              quote.expiresIn <= 3
+                                ? "text-red-600 font-medium"
+                                : "text-gray-500"
+                            }`}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Edit
-                          </button>
+                            Expires in {quote.expiresIn} days
+                          </span>
                         )}
                       </div>
                     </div>
