@@ -71,35 +71,81 @@ const Features = () => {
   ];
 
   return (
-    <div className="mt-20 py-1 mx-auto max-w-7xl">
+    <div className="relative mt-20 py-1 mx-auto max-w-7xl px-4">
       <div className="my-20">
-        <div className=" flex justify-around">
-          <div className=" flex text-white text-5xl font-semibold">
-            <h1>Why</h1>
-            <h1 className="font-extrabold px-1 tracking-[-0.1em]">BANCre</h1>
-            <h1>?</h1>
+        {/* Section Header with Modern Design */}
+        <div className="flex flex-col items-center text-center space-y-6">
+          {/* Premium Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/50 rounded-full text-blue-700 text-sm font-semibold mb-2 shadow-sm">
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+            <span>OUR ADVANTAGES</span>
+          </div>
+
+          {/* Decorative line */}
+          <div className="flex items-center gap-4">
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+            <div className="flex text-white text-4xl md:text-5xl lg:text-6xl font-semibold">
+              <h1 className="font-light">Why</h1>
+              <h1 className="font-extrabold px-2 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent tracking-tight">
+                BANCre
+              </h1>
+              <h1 className="font-light">?</h1>
+            </div>
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
+          </div>
+
+          {/* Description with better typography */}
+          <Description 
+            text="BANCre leverages technology to revolutionize the origination and closing process of commercial real estate loans." 
+            className="text-white/80 text-lg md:text-xl max-w-3xl leading-relaxed"
+          />
+
+          {/* Stats Bar - Optional Enhancement */}
+          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 pt-8 text-white/60 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span>AI-Powered Analysis</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+              <span>30+ Years Experience</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span>Instant Processing</span>
+            </div>
           </div>
         </div>
-        <Description text="BANCre leverages technology to revolutionize the origination and closing process of commercial real estate loans." className=" text-white/70 text-xl mt-5" />
       </div>
-      {/* Feature cards would go here */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mt-10 justify-items-center">
-        {/* feature cards 1  */}
+
+      {/* Feature cards grid with enhanced spacing */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10 mt-16 justify-items-center">
         {features.map((feature, idx) => (
-          <FeaturesCard
-            key={idx}
-            icon={feature.icon}
-            iconBgColor={feature.iconBgColor}
-            title={feature.title}
-            description={feature.description}
-          />
+          <div key={idx} className="w-full flex justify-center">
+            <FeaturesCard
+              icon={feature.icon}
+              iconBgColor={feature.iconBgColor}
+              title={feature.title}
+              description={feature.description}
+            />
+          </div>
         ))}
       </div>
-      <Button
-        text="Get started"
-        className="button-primary mx-auto my-20"
-        arrow={true}
-      />
+
+      {/* CTA Button with enhanced styling */}
+      <div className="flex justify-center my-24">
+        <div className="relative group">
+          {/* Button outer glow */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-500 animate-gradient" />
+          
+          {/* Button */}
+          <Button
+            text="Get started"
+            className="button-primary relative px-8 py-4 text-base md:text-lg font-semibold shadow-xl hover:shadow-2xl"
+            arrow={true}
+          />
+        </div>
+      </div>
     </div>
   );
 };

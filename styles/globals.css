@@ -48,19 +48,75 @@ body,
   -ms-overflow-style: none !important;
 }
 
+/* ========== Custom Animations for Modern Design ========== */
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-shine {
+  animation: shine 1.5s ease-in-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 5s ease infinite;
+}
+
 @layer components {
   /* buttons  */
   .button-primary {
-    @apply bg-primary text-white hover:bg-blue-700;
+    @apply bg-primary text-white hover:bg-blue-700 transition-all duration-300;
   }
   .button-outline {
-    @apply bg-transparent border border-primary text-primary hover:bg-primary hover:text-white;
+    @apply bg-transparent border border-primary text-primary hover:bg-primary hover:text-white transition-all duration-300;
   }
   .button-secondary {
-    @apply bg-secondary text-white hover:bg-gray-700;
+    @apply bg-secondary text-white hover:bg-gray-700 transition-all duration-300;
   }
   .button-none {
-    @apply bg-transparent text-black hover:bg-gray-200;
+    @apply bg-transparent text-black hover:bg-gray-200 transition-all duration-300;
   }
 
   /* Prevent horizontal overflow */
@@ -69,6 +125,15 @@ body,
     overflow-x: auto;
     word-wrap: break-word;
     overflow-wrap: break-word;
+  }
+
+  /* Modern card styles */
+  .card-hover-lift {
+    @apply transition-all duration-300 hover:shadow-2xl hover:-translate-y-2;
+  }
+
+  .glass-effect {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20;
   }
 }
 
