@@ -5,16 +5,22 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/apiClient";
 import {
-  LenderDashboardApiData,
-  LenderDashboardLoanRequest,
-  LenderPropertyMapItem,
-  LenderQuoteApiItem,
-  LenderQuoteStatsData,
   Quote,
   QuoteFilter,
   QuoteStat,
   QuoteStatus,
 } from "@/types/my-quotes";
+import {
+  fetchLenderQuoteStats,
+  fetchAllLenderQuotes,
+  formatCurrency,
+  formatDate,
+  formatPercent,
+  formatLoanTerm,
+  getDaysUntil,
+  normalizeQuoteStatus,
+  type QuoteItem,
+} from "../api";
 import StatsCardsQuotes from "./StatsCardsQuotes";
 import QuotesList from "./QuotesList";
 import QuoteDetailsModal from "./QuoteDetailsModal";
@@ -24,118 +30,6 @@ type ApiEnvelope<T> = {
 };
 
 const FALLBACK_PROPERTY_IMAGE = "/images/SponsorDashboard.png";
-
-const normalizeImageUrl = (value?: string | null) => {
-  if (!value) return null;
-
-  const raw = String(value).trim();
-  if (!raw || raw === "null" || raw === "undefined") {
-    return null;
-  }
-
-  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
-
-  if (/^https?:\/\//i.test(raw)) {
-    if (!baseUrl) return raw;
-    return raw.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i, baseUrl);
-  }
-
-  const normalizedPath = raw.replace(/^\/+/, "");
-
-  if (raw.startsWith("/") || normalizedPath.startsWith("media/")) {
-    return baseUrl ? `${baseUrl}/${normalizedPath}` : `/${normalizedPath}`;
-  }
-
-  return null;
-};
-
-const resolveImageUrl = (...values: Array<string | null | undefined>) => {
-  const normalizedValues: string[] = [];
-
-  for (const value of values) {
-    const normalized = normalizeImageUrl(value);
-    if (normalized) normalizedValues.push(normalized);
-  }
-
-  const absoluteUrl = normalizedValues.find((item) =>
-    /^https?:\/\//i.test(item),
-  );
-  if (absoluteUrl) return absoluteUrl;
-
-  if (normalizedValues.length > 0) {
-    return normalizedValues[0];
-  }
-
-  return FALLBACK_PROPERTY_IMAGE;
-};
-
-const toNumber = (value: string | number | undefined | null) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const formatCurrency = (value: string | number | undefined) => {
-  const parsed = toNumber(value);
-  if (parsed === null) return "$0";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(parsed);
-};
-
-const formatDate = (value?: string) => {
-  if (!value) return "-";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "-";
-  return parsed.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-};
-
-const getDaysUntil = (value?: string) => {
-  if (!value) return 0;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return 0;
-  return Math.ceil((parsed.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-};
-
-const toStatus = (value?: string): QuoteStatus => {
-  const normalized = String(value || "").toLowerCase();
-  if (normalized.includes("accept")) return "accepted";
-  if (
-    normalized.includes("reject") ||
-    normalized.includes("declin") ||
-    normalized.includes("withdraw")
-  ) {
-    return "rejected";
-  }
-  if (normalized.includes("review") || normalized.includes("pending")) {
-    return "under_review";
-  }
-  return "submitted";
-};
-
-const toStatusLabel = (value?: string) => {
-  const raw = String(value || "").trim();
-  if (!raw) return "Submitted";
-  return raw;
-};
-
-const splitAddress = (address?: string) => {
-  if (!address) return { city: "-", state: "-" };
-  const parts = address
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return { city: "-", state: "-" };
-  if (parts.length === 1) return { city: parts[0], state: "-" };
-  const state = parts[parts.length - 1] || "-";
-  const city = parts[parts.length - 2] || "-";
-  return { city, state };
-};
 
 //========== My Quotes Component ===========
 
@@ -154,77 +48,18 @@ const MyQuotes: React.FC = () => {
     setLoading(true);
 
     try {
-      const [
-        dashboardResponse,
-        quoteStatsResponse,
-        quotesResponse,
-        propertiesResponse,
-      ] = await Promise.all([
-        api
-          .get<ApiEnvelope<LenderDashboardApiData>>(
-            "/api/v1/loans/dashboard/lender/",
-          )
-          .catch(() =>
-            api.get<ApiEnvelope<LenderDashboardApiData>>(
-              "/api/loans/dashboard/lender/",
-            ),
-          )
-          .catch(() => null),
-        api
-          .get<ApiEnvelope<LenderQuoteStatsData>>(
-            "/api/v1/dashboard/lender/quote-stats/",
-          )
-          .catch(() =>
-            api.get<ApiEnvelope<LenderQuoteStatsData>>(
-              "/api/dashboard/lender/quote-stats/",
-            ),
-          )
-          .catch(() => null),
-        api
-          .get<ApiEnvelope<LenderQuoteApiItem[]>>("/api/v1/loans/quotes/")
-          .catch(() =>
-            api.get<ApiEnvelope<LenderQuoteApiItem[]>>("/api/loans/quotes/"),
-          )
-          .catch(() => null),
-        api
-          .get<ApiEnvelope<LenderPropertyMapItem[]>>("/api/v1/properties/map/")
-          .catch(() =>
-            api.get<ApiEnvelope<LenderPropertyMapItem[]>>("/api/properties/map/"),
-          )
-          .catch(() => null),
+      // Fetch data from new APIs in parallel
+      const [quoteStatsData, quotesData] = await Promise.all([
+        fetchLenderQuoteStats(),
+        fetchAllLenderQuotes(),
       ]);
 
-      const dashboard: LenderDashboardApiData | undefined =
-        dashboardResponse?.data?.data ??
-        ((dashboardResponse?.data as any)?.available_loan_requests
-          ? (dashboardResponse?.data as any)
-          : undefined);
-      const quoteStats: LenderQuoteStatsData | undefined =
-        quoteStatsResponse?.data?.data ??
-        ((quoteStatsResponse?.data as any)?.total_quotes !== undefined
-          ? (quoteStatsResponse?.data as any)
-          : undefined);
-      const rawQuotes =
-        quotesResponse?.data?.data ??
-        (Array.isArray(quotesResponse?.data) ? quotesResponse.data : []);
-      const quoteItems: LenderQuoteApiItem[] = Array.isArray(rawQuotes)
-        ? rawQuotes
-        : [];
-      const rawProperties =
-        propertiesResponse?.data?.data ??
-        (Array.isArray(propertiesResponse?.data)
-          ? propertiesResponse.data
-          : []);
-      const propertyItems: LenderPropertyMapItem[] = Array.isArray(rawProperties)
-        ? rawProperties
-        : [];
-      const dashboardLoanRequests = dashboard?.available_loan_requests || [];
-
+      // Build stats cards from API data
       const statsCards: QuoteStat[] = [
         {
           id: 1,
           label: "Total Quotes",
-          value: String(quoteStats?.total_quotes ?? 0),
+          value: String(quoteStatsData.total_quotes),
           icon: "file",
           bgColor: "bg-blue-50",
           iconColor: "bg-blue-600 text-white",
@@ -233,7 +68,7 @@ const MyQuotes: React.FC = () => {
         {
           id: 2,
           label: "Under Review",
-          value: String(quoteStats?.under_review_quotes ?? 0),
+          value: String(quoteStatsData.under_review_quotes),
           icon: "clock",
           bgColor: "bg-indigo-50",
           iconColor: "bg-indigo-600 text-white",
@@ -242,7 +77,7 @@ const MyQuotes: React.FC = () => {
         {
           id: 3,
           label: "Accepted Quotes",
-          value: String(quoteStats?.accepted_quotes ?? 0),
+          value: String(quoteStatsData.accepted_quotes),
           icon: "check",
           bgColor: "bg-green-50",
           iconColor: "bg-green-600 text-white",
@@ -250,101 +85,52 @@ const MyQuotes: React.FC = () => {
         },
         {
           id: 4,
-          label: "Total Value",
-          value: formatCurrency(quoteStats?.total_value ?? 0),
-          icon: "dollar",
-          bgColor: "bg-amber-50",
-          iconColor: "bg-amber-600 text-white",
-          borderColor: "border-amber-200",
+          label: "Declined Quotes",
+          value: String(quoteStatsData.declined_quotes),
+          icon: "x",
+          bgColor: "bg-red-50",
+          iconColor: "bg-red-600 text-white",
+          borderColor: "border-red-200",
         },
       ];
       setStats(statsCards);
 
-      const quoteByLoanRequestId = new Map<number, LenderQuoteApiItem>(
-        quoteItems
-          .map((quote) => [Number(quote.loan_request), quote] as const)
-          .filter(([id]) => Number.isFinite(id) && id > 0),
-      );
+      // Transform quotes data to display format
+      const mappedQuotes: Quote[] = quotesData.map((quote: QuoteItem) => {
+        const expiresIn = getDaysUntil(quote.expires_at);
+        const status = normalizeQuoteStatus(quote.status);
 
-      const quoteById = new Map<number, LenderQuoteApiItem>(
-        quoteItems
-          .map((quote) => [Number(quote.id), quote] as const)
-          .filter(([id]) => Number.isFinite(id) && id > 0),
-      );
-
-      const propertyById = new Map<number, LenderPropertyMapItem>(
-        propertyItems.map((property) => [property.id, property]),
-      );
-
-      const mappedQuotes: Quote[] = dashboardLoanRequests.map(
-        (dashboardRequest: LenderDashboardLoanRequest) => {
-          const loanRequestId = Number(dashboardRequest.id);
-          const dashboardQuoteId =
-            toNumber(dashboardRequest.loan_quote_id) ??
-            toNumber(dashboardRequest.quote_id);
-          const quote =
-            (dashboardQuoteId ? quoteById.get(dashboardQuoteId) : null) ||
-            quoteByLoanRequestId.get(loanRequestId) ||
-            null;
-          const propertyId = toNumber(dashboardRequest.property_id);
-          const propertyInfo = propertyId
-            ? propertyById.get(propertyId) || null
-            : null;
-
-          const fallbackAddress =
-            dashboardRequest.property_address ||
-            propertyInfo?.property_address ||
-            "-";
-          const { city, state } = splitAddress(fallbackAddress);
-          const expiresIn = getDaysUntil(quote?.expires_at);
-          const status = toStatus(quote?.status);
-
-          return {
-            id: quote?.id ?? dashboardQuoteId ?? loanRequestId,
-            quoteId: quote?.id ?? dashboardQuoteId ?? 0,
-            loanRequestId,
-            propertyId: propertyId || null,
-            propertyName:
-              dashboardRequest.property_name ||
-              propertyInfo?.property_name ||
-              "Property",
-            address: fallbackAddress,
-            city,
-            state,
-            sponsor: "N/A",
-            image: resolveImageUrl(
-              dashboardRequest.property_image_url,
-              propertyInfo?.property_image_url,
-            ),
-            status,
-            statusLabel: toStatusLabel(quote?.status),
-            priority: expiresIn <= 3 ? "urgent" : "normal",
-            propertyType:
-              dashboardRequest.property_type ||
-              propertyInfo?.property_type ||
-              "-",
-            interestRate: `${toNumber(quote?.interest_rate)?.toFixed(2) ?? "-"}%`,
-            term:
-              (quote?.term ?? dashboardRequest.loan_term)
-                ? `${quote?.term ?? dashboardRequest.loan_term} months`
-                : "-",
-            ltv: `${toNumber(quote?.max_as_is_ltv ?? dashboardRequest.ltv)?.toFixed(2) ?? "-"}%`,
-            submittedDate: formatDate(quote?.submitted_at),
-            expiresIn,
-            quotedAmount: formatCurrency(
-              quote?.loan_amount ?? dashboardRequest.requested_amount,
-            ),
-            competingQuotes: 0,
-            avgResponseTime: "-",
-            lenderName: quote?.lender_name || "-",
-            guarantor: quote?.guarantor || "-",
-            rawLoanAmount: quote?.loan_amount || "0",
-            rawInterestRate: quote?.interest_rate || "0",
-            rawExpiresAt: quote?.expires_at || "",
-            raw: quote ?? ({} as LenderQuoteApiItem),
-          };
-        },
-      );
+        return {
+          id: quote.id,
+          quoteId: quote.id,
+          loanRequestId: quote.loan_request,
+          propertyId: null, // Will be populated when property endpoint is integrated
+          propertyName: `Loan Request #${quote.loan_request}`, // Temporary until we integrate property data
+          address: "-", // Will be populated when property endpoint is integrated
+          city: "-",
+          state: "-",
+          sponsor: "N/A",
+          image: "/images/SponsorDashboard.png", // Default image until property data is integrated
+          status,
+          statusLabel: quote.status,
+          priority: expiresIn <= 3 ? "urgent" : "normal",
+          propertyType: "-", // Will be populated when property endpoint is integrated
+          interestRate: formatPercent(quote.interest_rate),
+          term: formatLoanTerm(quote.term),
+          ltv: formatPercent(quote.max_as_is_ltv),
+          submittedDate: formatDate(quote.submitted_at),
+          expiresIn,
+          quotedAmount: formatCurrency(quote.loan_amount),
+          competingQuotes: 0,
+          avgResponseTime: "-",
+          lenderName: quote.lender_name,
+          guarantor: quote.guarantor,
+          rawLoanAmount: String(quote.loan_amount),
+          rawInterestRate: String(quote.interest_rate),
+          rawExpiresAt: quote.expires_at,
+          raw: quote as any, // Type compatibility
+        };
+      });
 
       console.log("Mapped Quotes:", mappedQuotes);
       setAllQuotes(mappedQuotes);

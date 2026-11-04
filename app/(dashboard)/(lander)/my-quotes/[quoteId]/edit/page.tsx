@@ -5,41 +5,19 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/lib/apiClient";
-import type { LenderQuoteApiItem } from "@/types/my-quotes";
-
-type ApiEnvelope<T> = {
-  data?: T;
-};
+import {
+  fetchQuoteById,
+  updateQuote,
+  formatCurrency,
+  toDateTimeLocalValue,
+  toServerIsoDate,
+  type QuoteItem,
+} from "../../api";
 
 type QuotePatchForm = {
   interest_rate: string;
   loan_amount: string;
   expires_at: string;
-};
-
-const formatCurrency = (value: string | number | undefined) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return "-";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(parsed);
-};
-
-const toDateTimeLocalValue = (value?: string) => {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
-  const local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
-};
-
-const toServerIsoDate = (value: string) => {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toISOString();
 };
 
 const Page = () => {
@@ -49,9 +27,11 @@ const Page = () => {
     ? params.quoteId[0]
     : params.quoteId;
 
+  const numericQuoteId = Number(quoteId);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [quote, setQuote] = useState<LenderQuoteApiItem | null>(null);
+  const [quote, setQuote] = useState<QuoteItem | null>(null);
   const [form, setForm] = useState<QuotePatchForm>({
     interest_rate: "",
     loan_amount: "",
@@ -59,28 +39,29 @@ const Page = () => {
   });
 
   const fetchQuote = useCallback(async () => {
-    if (!quoteId) return;
+    if (!Number.isFinite(numericQuoteId) || numericQuoteId <= 0) {
+      toast.error("Invalid quote ID.");
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
-      const response = await api.get<ApiEnvelope<LenderQuoteApiItem>>(
-        `/api/loans/quotes/${quoteId}/`,
-      );
-      const payload = response.data?.data ?? null;
+      const payload = await fetchQuoteById(numericQuoteId);
       setQuote(payload);
       setForm({
-        interest_rate: payload?.interest_rate || "",
-        loan_amount: payload?.loan_amount || "",
-        expires_at: toDateTimeLocalValue(payload?.expires_at),
+        interest_rate: String(payload.interest_rate),
+        loan_amount: String(payload.loan_amount),
+        expires_at: toDateTimeLocalValue(payload.expires_at),
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load quote for edit", error);
-      toast.error("Unable to load quote details.");
+      toast.error(error.message || "Unable to load quote details.");
       setQuote(null);
     } finally {
       setLoading(false);
     }
-  }, [quoteId]);
+  }, [numericQuoteId]);
 
   useEffect(() => {
     fetchQuote();
@@ -96,8 +77,8 @@ const Page = () => {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!quoteId) {
-      toast.error("Invalid quote id.");
+    if (!Number.isFinite(numericQuoteId) || numericQuoteId <= 0) {
+      toast.error("Invalid quote ID.");
       return;
     }
 
@@ -109,7 +90,7 @@ const Page = () => {
 
     setSaving(true);
     try {
-      await api.patch(`/api/loans/quotes/${quoteId}/`, {
+      await updateQuote(numericQuoteId, {
         interest_rate: form.interest_rate,
         loan_amount: form.loan_amount,
         expires_at: expiresAtIso,
@@ -118,10 +99,8 @@ const Page = () => {
       toast.success("Quote updated successfully.");
       router.push("/my-quotes");
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        "Failed to update quote. Please check your values.";
-      toast.error(message);
+      console.error("Failed to update quote:", error);
+      toast.error(error.message || "Failed to update quote. Please try again.");
     } finally {
       setSaving(false);
     }

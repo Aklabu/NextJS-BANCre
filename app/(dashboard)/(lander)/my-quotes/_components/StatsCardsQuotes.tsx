@@ -8,6 +8,7 @@ import {
   FiCheckCircle,
   FiTrendingUp,
   FiDollarSign,
+  FiXCircle,
 } from "react-icons/fi";
 
 //========== Stats Cards Quotes Component ===========
@@ -25,6 +26,7 @@ const StatsCardsQuotes: React.FC<StatsCardsQuotesProps> = ({ stats }) => {
       check: FiCheckCircle,
       trending: FiTrendingUp,
       dollar: FiDollarSign,
+      x: FiXCircle,
     };
     const IconComponent = iconMap[iconType as keyof typeof iconMap];
     return IconComponent ? (
