@@ -1,9 +1,11 @@
 'use client'
 import { memo, useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, OverlayView, Autocomplete, StreetViewPanorama } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, OverlayView, StreetViewPanorama } from '@react-google-maps/api';
+import PlacesAutocomplete from "@/components/PlacesAutocomplete";
+import { fetchPlaceDetails, reverseGeocode } from "@/lib/places-api";
 import type { PlaceData } from "@/app/(dashboard)/(sponsor)/processing/_components/place-types";
 
-const LIBRARIES: ("places" | "geometry" | "drawing")[] = ['places', 'geometry', 'drawing'];
+const LIBRARIES: ("geometry" | "drawing")[] = ['geometry', 'drawing'];
 type MapViewMode = "roadmap" | "satellite" | "streetview";
 
 type Marker = {
@@ -32,7 +34,6 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
     });
 
     const [map, setMap] = useState<google.maps.Map | null>(null);
-    const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
     const streetViewRef = useRef<HTMLDivElement | null>(null);
     const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
 
@@ -55,98 +56,48 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
         gestureHandling: 'greedy'
     }), []);
 
-    const extractLocationData = useCallback((place: google.maps.places.PlaceResult): PlaceData | null => {
-        const location = place.geometry?.location;
-
-        if (!location) {
-            return null;
-        }
-
+    const extractLocationData = useCallback((details: { place_id: string; name: string; formatted_address: string; lat: number; lng: number; types: string[]; rating: number | null; photos: string[] }): PlaceData => {
         return {
-            place_id: place.place_id || "",
-            name: place.name || "",
-            address: place.formatted_address || place.vicinity || "",
-            lat: location.lat(),
-            lng: location.lng(),
-            types: place.types || [],
-            rating: place.rating ?? null,
-            photos: place.photos?.slice(0, 6).map((photo) => photo.getUrl({ maxWidth: 1200, maxHeight: 1200 })) || []
+            place_id: details.place_id,
+            name: details.name,
+            address: details.formatted_address,
+            lat: details.lat,
+            lng: details.lng,
+            types: details.types,
+            rating: details.rating,
+            photos: details.photos
         };
     }, []);
 
-    const handlePlaceData = useCallback((label: string, place: google.maps.places.PlaceResult) => {
-        const extractedLocation = extractLocationData(place);
-
-        if (extractedLocation) {
-            console.log(label, extractedLocation);
-            onPlaceSelect?.(extractedLocation);
-        }
+    const handlePlaceData = useCallback((label: string, details: { place_id: string; name: string; formatted_address: string; lat: number; lng: number; types: string[]; rating: number | null; photos: string[] }) => {
+        const extractedLocation = extractLocationData(details);
+        console.log(label, extractedLocation);
+        onPlaceSelect?.(extractedLocation);
     }, [extractLocationData, onPlaceSelect]);
 
-    const fetchPinnedPlaceDetails = useCallback((coords: google.maps.LatLngLiteral) => {
-        if (!map || !window.google?.maps) {
-            return;
+    const fetchPinnedPlaceDetails = useCallback(async (coords: google.maps.LatLngLiteral) => {
+        if (!apiKey) return;
+
+        const details = await reverseGeocode(coords.lat, coords.lng, apiKey);
+
+        if (details) {
+            handlePlaceData("Pinned location data", details);
+        } else {
+            // Fallback
+            const fallback: PlaceData = {
+                place_id: "",
+                name: "",
+                address: "",
+                lat: coords.lat,
+                lng: coords.lng,
+                types: [],
+                rating: null,
+                photos: []
+            };
+            console.log("Pinned location data (fallback)", fallback);
+            onPlaceSelect?.(fallback);
         }
-
-        const geocoder = new window.google.maps.Geocoder();
-
-        geocoder.geocode({ location: coords }, (results, status) => {
-            const firstResult = results?.[0];
-
-            if (status !== "OK" || !firstResult?.place_id) {
-                console.log("Pinned location data", {
-                    place_id: "",
-                    name: "",
-                    address: "",
-                    lat: coords.lat,
-                    lng: coords.lng,
-                    types: [],
-                    rating: null,
-                    photos: []
-                });
-                onPlaceSelect?.({
-                    place_id: "",
-                    name: "",
-                    address: "",
-                    lat: coords.lat,
-                    lng: coords.lng,
-                    types: [],
-                    rating: null,
-                    photos: []
-                });
-                return;
-            }
-
-            const placesService = new window.google.maps.places.PlacesService(map);
-
-            placesService.getDetails(
-                {
-                    placeId: firstResult.place_id,
-                    fields: ["place_id", "name", "formatted_address", "geometry", "types", "rating", "photos"]
-                },
-                (place, detailsStatus) => {
-                    if (detailsStatus === window.google.maps.places.PlacesServiceStatus.OK && place) {
-                        handlePlaceData("Pinned location data", place);
-                        return;
-                    }
-
-                    const fallbackPlace = {
-                        place_id: firstResult.place_id,
-                        name: firstResult.formatted_address || "",
-                        address: firstResult.formatted_address || "",
-                        lat: coords.lat,
-                        lng: coords.lng,
-                        types: firstResult.types || [],
-                        rating: null,
-                        photos: []
-                    };
-
-                    console.log("Pinned location data", fallbackPlace);
-                    onPlaceSelect?.(fallbackPlace);
-                }
-            );
-        });
-    }, [handlePlaceData, map, onPlaceSelect]);
+    }, [apiKey, handlePlaceData, onPlaceSelect]);
 
     const onMapClick = useCallback((e: google.maps.MapMouseEvent) => {
         if (e.latLng) {
@@ -163,24 +114,23 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
         }
     }, [fetchPinnedPlaceDetails, onLocationSelect]);
 
-    const onPlaceChanged = () => {
-        if (autocompleteRef.current) {
-            const place = autocompleteRef.current.getPlace();
-            const location = place.geometry?.location;
+    const onPlaceChanged = useCallback(async (placeId: string, description: string) => {
+        if (!apiKey) return;
 
-            if (location) {
-                const newPos = { lat: location.lat(), lng: location.lng() };
-                setCenter(newPos);
-                setTempMarker(newPos); // Pin the searched location too
-                map?.panTo(newPos);
-                map?.setZoom(17);
+        const details = await fetchPlaceDetails(placeId, apiKey);
 
-                if (onLocationSelect) onLocationSelect(newPos);
+        if (details) {
+            const newPos = { lat: details.lat, lng: details.lng };
+            setCenter(newPos);
+            setTempMarker(newPos);
+            map?.panTo(newPos);
+            map?.setZoom(17);
 
-                handlePlaceData("Searched location data", place);
-            }
+            if (onLocationSelect) onLocationSelect(newPos);
+
+            handlePlaceData("Searched location data", details);
         }
-    };
+    }, [apiKey, map, onLocationSelect, handlePlaceData]);
 
     // Initialize Street View when needed
     useEffect(() => {
@@ -310,19 +260,12 @@ const GMAP = ({ markersList, onLocationSelect, onPlaceSelect }: GMAPProps) => {
             <div className="relative w-full">
                 {/* Search box overlay - positioned at top left */}
                 <div className="absolute left-3 top-3 z-10 w-full max-w-xs">
-                    <Autocomplete
-                        onLoad={(auto) => {
-                            auto.setFields(["place_id", "name", "formatted_address", "geometry", "types", "rating", "photos"]);
-                            autocompleteRef.current = auto;
-                        }}
-                        onPlaceChanged={onPlaceChanged}
-                    >
-                        <input
-                            type="text"
-                            placeholder="Search for property address..."
-                            className="w-full h-9 px-3 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black shadow-lg"
-                        />
-                    </Autocomplete>
+                    <PlacesAutocomplete
+                        apiKey={apiKey || ""}
+                        onPlaceSelect={onPlaceChanged}
+                        placeholder="Search for property address..."
+                        className="w-full h-9 px-3 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black shadow-lg"
+                    />
                 </div>
 
                 {/* Map view mode toggle - positioned at top right */}
