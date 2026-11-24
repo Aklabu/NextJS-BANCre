@@ -72,11 +72,29 @@ export interface FinancialAnalysisKpi {
   format: "percent" | "currency" | "number" | "text";
 }
 
+// Field structure for groups-based format
+export interface FinancialAnalysisField {
+  label: string;
+  value: string | number | null;
+  display: string;
+  type: string;
+}
+
+export interface FinancialAnalysisGroup {
+  title: string;
+  order: number;
+  fields: Record<string, FinancialAnalysisField>;
+}
+
+// Support both old array-based and new groups-based formats
 export interface FinancialAnalysisData {
   type: "financial_analysis";
-  periods: string[];
-  rows: FinancialAnalysisRow[];
-  kpis: FinancialAnalysisKpi[];
+  // New groups-based format (actual backend response)
+  groups?: FinancialAnalysisGroup[];
+  // Old array-based format (original spec, kept for compatibility)
+  periods?: string[];
+  rows?: FinancialAnalysisRow[];
+  kpis?: FinancialAnalysisKpi[];
 }
 
 // ---- financing_summary ----
@@ -111,12 +129,30 @@ export interface FinancingCoverage {
   dscr: number;
 }
 
+// Field structure for groups-based format
+export interface FinancingSummaryField {
+  label: string;
+  value: string | number | null;
+  display: string;
+  type: string;
+}
+
+export interface FinancingSummaryGroup {
+  title: string;
+  order: number;
+  fields: Record<string, FinancingSummaryField>;
+}
+
+// Support both old array-based and new groups-based formats
 export interface FinancingSummaryData {
   type: "financing_summary";
-  loans: FinancingLoan[];
-  reserves: FinancingReserve[];
-  coverage: FinancingCoverage[];
-  missing_fields: string[];
+  // New groups-based format (actual backend response)
+  groups?: FinancingSummaryGroup[];
+  // Old array-based format (original spec, kept for compatibility)
+  loans?: FinancingLoan[];
+  reserves?: FinancingReserve[];
+  coverage?: FinancingCoverage[];
+  missing_fields?: string[];
 }
 
 // ---- market_summary ----
