@@ -5,7 +5,7 @@ import PDFSection from "./PDFSection";
 import {
   PropertyOverviewData,
   AreaOverviewData,
-  MarketSummaryData,
+  LegacyMarketSummaryData as MarketSummaryData,
 } from "@/types/memorandum-detail";
 
 /* ========================================

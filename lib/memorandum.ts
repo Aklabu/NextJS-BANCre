@@ -6,17 +6,8 @@ export const formatSectionTitle = (sectionType: string): string => {
     .join(" ");
 };
 
-type SectionLike = {
-  section_type?: string;
-  section_key?: string;
-  label?: string;
-  title?: string;
-  content?: string;
-  table_data?: {
-    columns?: string[];
-    rows?: (string | number | null | undefined)[][];
-  } | null;
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SectionLike = Record<string, any>;
 
 export type ParsedPropertyInformation = {
   propertyName?: string;
@@ -105,7 +96,45 @@ export const parsePropertyInformationFromSections = (
     return {};
   }
 
-  // 1. Try extracting directly from structured table_data.rows if available
+  // 1. Try extracting from blocks[].type === "key_value_table" (new API format)
+  const kvBlock = propertyInformationSection.blocks?.find(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (b: any) => b["type"] === "key_value_table",
+  );
+  const kvRows = kvBlock?.["rows"] as Array<{ key?: string; label?: string; value?: string; value_type?: string }> | undefined;
+  if (kvRows && kvRows.length > 0) {
+    const findKvVal = (keywords: string[]): string | undefined => {
+      const match = kvRows.find((r) => {
+        const k = ((r.key || r.label) ?? "").toLowerCase();
+        return keywords.some((kw) => k === kw || k.includes(kw));
+      });
+      return match?.value ? String(match.value).trim() : undefined;
+    };
+
+    const kPropertyName = findKvVal(["property_name", "property name"]);
+    const kAddress = findKvVal(["address", "property_address", "property address"]);
+    const kPropertyType = findKvVal(["type", "property_type", "property type"]);
+    const kUnits = findKvVal(["units", "number_of_units", "number of units", "keys"]);
+    const kYearBuilt = findKvVal(["year_built", "year built"]);
+    const kOccupancy = findKvVal(["occupancy", "occupancy_rate"]);
+    const kYearRenovated = findKvVal(["year_renovated", "year renovated"]);
+    const kParking = findKvVal(["parking", "parking_spaces"]);
+
+    if (kPropertyName || kAddress || kPropertyType) {
+      return {
+        propertyName: sanitizeInlineMarkdownText(kPropertyName),
+        address: sanitizeInlineMarkdownText(kAddress),
+        propertyType: sanitizeInlineMarkdownText(kPropertyType),
+        numberOfUnits: parseNumericValue(kUnits),
+        yearBuilt: parseNumericValue(kYearBuilt),
+        occupancy: parseNumericValue(kOccupancy),
+        yearRenovated: parseNumericValue(kYearRenovated),
+        parkingSpaces: parseNumericValue(kParking),
+      };
+    }
+  }
+
+  // 2. Try extracting from legacy table_data.rows
   const tableRows = propertyInformationSection.table_data?.rows;
   if (Array.isArray(tableRows) && tableRows.length > 0) {
     const findRowVal = (keywords: string[]): string | undefined => {
@@ -122,12 +151,7 @@ export const parsePropertyInformationFromSections = (
     const tPropertyName = findRowVal(["property name"]);
     const tAddress = findRowVal(["address", "property address"]);
     const tPropertyType = findRowVal(["property type", "type"]);
-    const tUnits = findRowVal([
-      "number of units",
-      "units / keys",
-      "units",
-      "keys",
-    ]);
+    const tUnits = findRowVal(["number of units", "units / keys", "units", "keys"]);
     const tYearBuilt = findRowVal(["year built"]);
     const tOccupancy = findRowVal(["occupancy rate", "occupancy"]);
 
@@ -143,7 +167,7 @@ export const parsePropertyInformationFromSections = (
     }
   }
 
-  // 2. Fallback to extracting from text content
+  // 3. Fallback: extract from text content (Markdown)
   const content = propertyInformationSection.content || "";
   if (!content) {
     return {};

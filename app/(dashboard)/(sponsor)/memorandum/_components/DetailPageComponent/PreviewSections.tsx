@@ -13,13 +13,13 @@ import Disclaimer from "./Disclaimer";
 import SectionMarkdown from "./SectionMarkdown";
 import {
   PropertyOverviewData,
-  FinancialAnalysisData,
+  FinancialAnalysisUIData as FinancialAnalysisData,
   SalesComparablesData,
   LeaseComparablesData,
   AreaAmenitiesData,
   SponsorshipData,
   DisclaimerData,
-  MarketSummaryData,
+  LegacyMarketSummaryData as MarketSummaryData,
 } from "@/types/memorandum-detail";
 
 //========== Preview Sections Component ===========

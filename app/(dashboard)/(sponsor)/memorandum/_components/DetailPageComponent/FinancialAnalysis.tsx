@@ -2,7 +2,7 @@
 
 import React from "react";
 import PreviewSection from "./PreviewSection";
-import { FinancialAnalysisData } from "@/types/memorandum-detail";
+import { FinancialAnalysisUIData as FinancialAnalysisData } from "@/types/memorandum-detail";
 
 //========== Financial Analysis Component ===========
 

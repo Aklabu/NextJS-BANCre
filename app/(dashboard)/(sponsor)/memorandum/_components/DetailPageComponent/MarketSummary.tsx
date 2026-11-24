@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import {
   MarketSummaryProps,
-  MarketSummaryData,
+  LegacyMarketSummaryData as MarketSummaryData,
   MarketIndicator,
 } from "@/types/memorandum-detail";
 import { PiSparkle } from "react-icons/pi";

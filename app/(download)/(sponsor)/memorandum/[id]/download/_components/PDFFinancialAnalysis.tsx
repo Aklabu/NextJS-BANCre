@@ -2,7 +2,7 @@
 
 import React from "react";
 import PDFSection from "./PDFSection";
-import { FinancialAnalysisData } from "@/types/memorandum-detail";
+import { FinancialAnalysisUIData as FinancialAnalysisData } from "@/types/memorandum-detail";
 
 /* ========================================
    FINANCIAL ANALYSIS — Print-Optimized

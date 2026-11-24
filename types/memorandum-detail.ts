@@ -1,25 +1,22 @@
-//========== Section Block Types (new API format) ===========
+// ============================================================
+// Section Block Types — prose sections use blocks[]
+// ============================================================
 
 export interface HeadingBlock {
   type: "heading";
   level: number;
-  text: string;
+  content: string; // API field name is "content"
 }
 
 export interface ParagraphBlock {
   type: "paragraph";
-  text: string;
+  content: string;
 }
 
-export interface ListBlock {
-  type: "list";
+/** bullet_list — array of string items */
+export interface BulletListBlock {
+  type: "bullet_list";
   items: string[];
-}
-
-export interface TableBlock {
-  type: "table";
-  headers: string[];
-  rows: string[][];
 }
 
 export interface KeyValueRow {
@@ -34,13 +31,142 @@ export interface KeyValueTableBlock {
   rows: KeyValueRow[];
 }
 
+/** Generic table block inside prose sections */
+export interface TableBlock {
+  type: "table";
+  columns: { key: string; label: string; data_type: string; sortable: boolean }[];
+  rows: Record<string, string>[];
+}
+
 export type SectionBlock =
   | HeadingBlock
   | ParagraphBlock
-  | ListBlock
-  | TableBlock
-  | KeyValueTableBlock;
+  | BulletListBlock
+  | KeyValueTableBlock
+  | TableBlock;
 
+// ============================================================
+// section_data Envelope — table sections use this instead of blocks
+// ============================================================
+
+export type SectionDataStatus = "complete" | "no_data";
+
+/** Shared outer envelope for every table section */
+export interface SectionDataEnvelope<T> {
+  schema_version: string;
+  type: string;
+  status: SectionDataStatus;
+  data: T;
+}
+
+// ---- financial_analysis ----
+export interface FinancialAnalysisRow {
+  label: string;
+  values: number[];
+  category: "income" | "expense" | "noi";
+}
+
+export interface FinancialAnalysisKpi {
+  label: string;
+  value: number;
+  format: "percent" | "currency" | "number" | "text";
+}
+
+export interface FinancialAnalysisData {
+  type: "financial_analysis";
+  periods: string[];
+  rows: FinancialAnalysisRow[];
+  kpis: FinancialAnalysisKpi[];
+}
+
+// ---- financing_summary ----
+export interface FinancingLoan {
+  lender: string;
+  status: string;
+  loan_amount: number;
+  interest_rate: number;
+  rate_type: string;
+  maturity_date: string | null;
+  amortization_years: number | null;
+  loan_term_years: number | null;
+  ltv: number | null;
+  ltc: number | null;
+  monthly_interest: number | null;
+  monthly_principal: number | null;
+  annual_debt_service: number | null;
+  prepayment_terms: string | null;
+  recourse: string | null;
+  guarantees: string | null;
+  notes: string | null;
+}
+
+export interface FinancingReserve {
+  label: string;
+  annual: number;
+  monthly: number;
+}
+
+export interface FinancingCoverage {
+  period: string;
+  dscr: number;
+}
+
+export interface FinancingSummaryData {
+  type: "financing_summary";
+  loans: FinancingLoan[];
+  reserves: FinancingReserve[];
+  coverage: FinancingCoverage[];
+  missing_fields: string[];
+}
+
+// ---- market_summary ----
+export interface MarketSummarySection {
+  heading: string;
+  paragraphs: string[];
+}
+
+export interface MarketSummaryMetric {
+  label: string;
+  value: string | number;
+  format: "percent" | "currency" | "number" | "text";
+}
+
+export interface MarketSummaryData {
+  type: "market_summary";
+  sections: MarketSummarySection[];
+  metrics: MarketSummaryMetric[];
+  tables: unknown[];
+  data_gaps: string[];
+}
+
+// ---- sales_comparables / lease_comparables ----
+export interface ComparablesSubjectContext {
+  address: string;
+  units: number;
+  notes: string;
+}
+
+export interface ComparablesData {
+  type: "sales_comparables" | "lease_comparables";
+  status: SectionDataStatus;
+  columns: string[];
+  rows: string[][];
+  subject_context: ComparablesSubjectContext | null;
+  reason: string | null;
+}
+
+// Union of all section_data.data shapes
+export type SectionDataPayload =
+  | FinancialAnalysisData
+  | FinancingSummaryData
+  | MarketSummaryData
+  | ComparablesData;
+
+// ============================================================
+// MemorandumSection — single section from API
+// ============================================================
+
+/** Legacy table_data shape (kept for backwards compat with other pages) */
 export interface MemorandumTableData {
   columns: string[];
   rows: (string | number | null | undefined)[][];
@@ -48,24 +174,55 @@ export interface MemorandumTableData {
 
 export interface MemorandumSection {
   id: number;
-  section_type: string; // e.g., "property_information", "executive_summary", "financial_analysis"
-  section_key?: string; // Alternative identifier for sections
-  label?: string; // Display label for the section
+  section_type: string;
+  section_key?: string;
+  label?: string;
   title: string;
   content: string;
-  blocks?: SectionBlock[];
-  attachment?: string | null; // Relative file path
-  attachment_url?: string | null; // Full URL for download
+  blocks?: SectionBlock[] | null;
+  /** New API: structured data for table sections */
+  section_data?: SectionDataEnvelope<SectionDataPayload> | null;
+  /** Legacy: kept for backwards compat */
+  table_data?: MemorandumTableData | null;
+  attachment?: string | null;
+  attachment_url?: string | null;
   order: number;
   updated_at?: string;
-  // Additional fields used in dynamic sections
   image?: string | null;
   image_url?: string | null;
-  table_data?: MemorandumTableData | null;
   is_regeneratable?: boolean;
+  markdown?: string | null;
 }
 
-//========== Memorandum Detail Page Types ===========
+// ============================================================
+// Memorandum top-level API response (data object)
+// ============================================================
+
+export interface MemorandumApiData {
+  id: number;
+  title: string;
+  property: number;
+  property_name: string;
+  property_address: string;
+  property_type: string;
+  number_of_units: number;
+  rentable_area: string;
+  year_built: number;
+  year_renovated: number | null;
+  occupancy: string;
+  parking_spaces: number;
+  property_image_url: string | null;
+  status: "generating" | "draft" | "published" | "failed";
+  progress: number;
+  current_batch: number;
+  created_at: string;
+  updated_at: string;
+  sections: MemorandumSection[];
+}
+
+// ============================================================
+// Memorandum Detail Page Types (UI state shapes)
+// ============================================================
 
 export interface MemorandumDetailData {
   title: string;
@@ -81,7 +238,7 @@ export interface MemorandumDetailData {
   propertyHighlights: string;
   areaOverview: AreaOverviewData;
   areaHighlights: string;
-  marketSummary: MarketSummaryData;
+  marketSummary: LegacyMarketSummaryData;
   financingSummary: string;
   presentedBy: string;
   confidential: boolean;
@@ -91,8 +248,6 @@ export interface MemorandumDetailData {
   propertyStats: PropertyStats;
   offeringDate: string;
 }
-
-//========== Property Overview Types ===========
 
 export interface PropertyOverviewData {
   propertyName: string;
@@ -107,8 +262,6 @@ export interface PropertyOverviewData {
   parkingSpaces: number;
 }
 
-//========== Property Stats Types ===========
-
 export interface PropertyStats {
   propertyType: string;
   units: number;
@@ -116,17 +269,14 @@ export interface PropertyStats {
   occupancy: number;
 }
 
-//========== Area Overview Types ===========
-
 export interface AreaOverviewData {
   description: string;
   neighborhoodDescription: string;
   localAmenities: string;
 }
 
-//========== Market Summary Types ===========
-
-export interface MarketSummaryData {
+/** Legacy market summary shape used by older UI components */
+export interface LegacyMarketSummaryData {
   description: string;
   keyIndicators: MarketIndicator[];
 }
@@ -136,7 +286,9 @@ export interface MarketIndicator {
   value: string;
 }
 
-//========== Table of Contents Types ===========
+// ============================================================
+// Table of Contents
+// ============================================================
 
 export interface TableOfContentsItem {
   id: number;
@@ -145,7 +297,9 @@ export interface TableOfContentsItem {
   anchorId?: string;
 }
 
-//========== Additional Section Types ===========
+// ============================================================
+// Additional Section / Tab Types
+// ============================================================
 
 export interface AdditionalSection {
   id: string;
@@ -153,17 +307,17 @@ export interface AdditionalSection {
   icon: string;
 }
 
-//========== Tab Types ===========
-
 export type MemorandumTab = "editor" | "preview";
 
-//========== Component Props Types ===========
+// ============================================================
+// Component Props
+// ============================================================
 
 export interface MemorandumHeaderProps {
   memorandumId?: number | string;
   title: string;
   subtitle: string;
-  status?: string; // "draft", "published", "generating", "failed"
+  status?: string;
   mode?: string;
   activeTab: MemorandumTab;
   onTabChange: (tab: MemorandumTab) => void;
@@ -215,7 +369,7 @@ export interface AreaHighlightsProps {
 }
 
 export interface MarketSummaryProps {
-  data: MarketSummaryData;
+  data: LegacyMarketSummaryData;
   isAiGenerated: boolean;
   onEdit?: (content: string) => void | Promise<void>;
 }
@@ -231,15 +385,15 @@ export interface AddSectionsProps {
   onAddSection: (sectionId: string) => void;
 }
 
-//========== Section Form Data Types ===========
-
 export interface SectionFormData {
   sectionTitle: string;
   sectionContent: string;
   sectionType: string;
 }
 
-//========== Financial Analysis Types ===========
+// ============================================================
+// Legacy Financial Analysis (UI-only shapes, not from API)
+// ============================================================
 
 export interface LoanQuote {
   lender: string;
@@ -298,7 +452,7 @@ export interface FinancialPerformance {
   psf: string;
 }
 
-export interface FinancialAnalysisData {
+export interface FinancialAnalysisUIData {
   loanQuotes: LoanQuote[];
   loanRequest: LoanRequest;
   propertyDetails: PropertyDetails;
@@ -310,7 +464,9 @@ export interface FinancialAnalysisData {
   loanRatingNote: string;
 }
 
-//========== Sales Comparables Types ===========
+// ============================================================
+// Comparables (legacy UI shapes)
+// ============================================================
 
 export interface SalesComparable {
   id: number;
@@ -328,8 +484,6 @@ export interface SalesComparablesData {
   comparables: SalesComparable[];
   mapImage: string;
 }
-
-//========== Lease Comparables Types ===========
 
 export interface LeaseComparable {
   id: number;
@@ -352,7 +506,9 @@ export interface LeaseComparablesData {
   stats: LeaseStats;
 }
 
-//========== Area Amenities Types ===========
+// ============================================================
+// Area Amenities / Sponsorship / Disclaimer (UI-only)
+// ============================================================
 
 export interface Amenity {
   id: number;
@@ -368,8 +524,6 @@ export interface AreaAmenitiesData {
   amenities: Amenity[];
 }
 
-//========== Sponsorship Types ===========
-
 export interface SponsorshipData {
   companyName: string;
   companyLogo: string;
@@ -378,8 +532,6 @@ export interface SponsorshipData {
   propertiesManaged: number;
   yearEstablished: number;
 }
-
-//========== Disclaimer Types ===========
 
 export interface DisclaimerNotice {
   title: string;
@@ -398,7 +550,9 @@ export interface DisclaimerData {
   cards: DisclaimerCard[];
 }
 
-//========== Preview Cover Types ===========
+// ============================================================
+// Preview / Cover component props
+// ============================================================
 
 export interface PreviewCoverStats {
   yearBuilt: number;
